@@ -17,6 +17,7 @@ app.use('*', cors());
 // Middleware de Autenticação para Rotas Protegidas
 const authMiddleware = jwt({
     secret: process.env.JWT_SECRET || 'fallback_secret_for_dev_only',
+    alg: 'HS256',
 });
 
 app.get('/', (c: Context) => c.text('Ticketera API - High Performance Ready'));
@@ -51,7 +52,7 @@ app.post('/api/auth/login', async (c: Context) => {
 });
 
 // --- Consultar Staff do Evento ---
-app.get('/api/staff/:eventId', authMiddleware, async (c) => {
+app.get('/api/staff/:eventId', authMiddleware, async (c: Context) => {
     const eventId = c.req.param('eventId');
     const staffList = await db.query.staff.findMany({
         where: eq(staff.eventId, eventId),
@@ -60,7 +61,7 @@ app.get('/api/staff/:eventId', authMiddleware, async (c) => {
 });
 
 // --- Histórico de Check-ins ---
-app.get('/api/checkin/history/:eventId', authMiddleware, async (c) => {
+app.get('/api/checkin/history/:eventId', authMiddleware, async (c: Context) => {
     const eventId = c.req.param('eventId');
     const history = await db.query.checkins.findMany({
         where: eq(checkins.eventId, eventId),
