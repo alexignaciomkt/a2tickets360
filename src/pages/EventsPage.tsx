@@ -1,0 +1,217 @@
+
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import MainLayout from '@/components/layout/MainLayout';
+import EventCard from '@/components/events/EventCard';
+import { events, Event } from '@/data/mockData';
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { ChevronDown, Calendar, MapPin, Filter } from 'lucide-react';
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+
+const EventsPage = () => {
+  /* 
+     UPDATED: Added useSearchParams to read category from URL.
+     Added new filters state: date, artist, city.
+  */
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialCategory = searchParams.get('category') || 'all';
+
+  const [allEvents, setAllEvents] = useState<Event[]>([]);
+  const [filteredEvents, setFilteredEvents] = useState<Event[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>(initialCategory);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Featured events for carousel
+  const featuredEvents = events.slice(0, 5);
+
+  // New Filters
+  const [selectedDate, setSelectedDate] = useState<string>('');
+  const [selectedCity, setSelectedCity] = useState<string>('');
+
+  // Categories
+  const categories = [
+    { id: 'all', name: 'Todas Categorias' },
+    { id: 'music', name: 'Música' },
+    { id: 'business', name: 'Negócios' },
+    { id: 'comedy', name: 'Comédia' },
+    { id: 'theater', name: 'Teatro' },
+    { id: 'workshop', name: 'Workshop' },
+    { id: 'conference', name: 'Conferência' },
+  ];
+
+  useEffect(() => {
+    // Sync state with URL if it changes externally or on load
+    const categoryFromUrl = searchParams.get('category');
+    if (categoryFromUrl && categoryFromUrl !== selectedCategory) {
+      setSelectedCategory(categoryFromUrl);
+    }
+  }, [searchParams]);
+
+  const handleCategoryChange = (categoryId: string) => {
+    setSelectedCategory(categoryId);
+    if (categoryId === 'all') {
+      searchParams.delete('category');
+      setSearchParams(searchParams);
+    } else {
+      setSearchParams({ ...Object.fromEntries(searchParams), category: categoryId });
+    }
+  };
+
+  useEffect(() => {
+    // Simulate API fetch
+    setAllEvents(events);
+    // Initial filter will happen in the filter useEffect
+  }, []);
+
+  // Filter events when any filter changes
+  useEffect(() => {
+    let filtered = [...allEvents];
+
+    // Filter by category
+    if (selectedCategory !== 'all') {
+      filtered = filtered.filter((event) => event.category === selectedCategory);
+    }
+
+    // Filter by search query (Title or Description or Artist)
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (event) =>
+          event.title.toLowerCase().includes(query) ||
+          event.description.toLowerCase().includes(query) ||
+          (event.organizer && event.organizer.name.toLowerCase().includes(query)) // Assuming artist/organizer check
+      );
+    }
+
+    // Filter by Date
+    if (selectedDate) {
+      filtered = filtered.filter(event => event.date === selectedDate);
+    }
+
+    // Filter by City
+    if (selectedCity) {
+      filtered = filtered.filter(event => event.location.city.toLowerCase().includes(selectedCity.toLowerCase()));
+    }
+
+    setFilteredEvents(filtered);
+  }, [selectedCategory, searchQuery, selectedDate, selectedCity, allEvents]);
+
+  return (
+    <MainLayout>
+      <div className="bg-page py-12">
+        <div className="container mx-auto px-4">
+          {/* Banner Carousel */}
+          <div className="mb-12">
+            <Carousel className="w-full">
+              <CarouselContent>
+                {featuredEvents.map((event) => (
+                  <CarouselItem key={event.id} className="md:basis-2/3 lg:basis-3/4">
+                    <div className="relative h-[300px] md:h-[400px] rounded-xl overflow-hidden">
+                      <img
+                        src={event.bannerUrl}
+                        alt={event.title}
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex flex-col justify-end p-6 text-white">
+                        <h2 className="text-2xl md:text-3xl font-bold mb-2">{event.title}</h2>
+                        <p className="text-sm md:text-base mb-4">{event.location.city}, {event.date}</p>
+                        <a href={`/events/${event.id}`} className="btn-primary inline-block w-max py-2 px-4">
+                          Ver detalhes
+                        </a>
+                      </div>
+                    </div>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+              <CarouselPrevious className="left-2" />
+              <CarouselNext className="right-2" />
+            </Carousel>
+          </div>
+
+          <h1 className="text-3xl font-bold mb-8">Todos os Eventos</h1>
+
+          {/* Search and Filter Bar */}
+          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+              <div className="md:col-span-4">
+                <Input
+                  type="text"
+                  placeholder="Buscar evento, artista..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-gray-50 border-gray-200"
+                />
+              </div>
+
+              <div className="md:col-span-3">
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Input
+                    placeholder="Cidade"
+                    value={selectedCity}
+                    onChange={(e) => setSelectedCity(e.target.value)}
+                    className="pl-9 bg-gray-50 border-gray-200"
+                  />
+                </div>
+              </div>
+
+              <div className="md:col-span-3">
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="pl-9 bg-gray-50 border-gray-200"
+                  />
+                </div>
+              </div>
+
+              <div className="md:col-span-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="w-full justify-between bg-gray-50 border-gray-200">
+                      <span className="truncate">{categories.find(c => c.id === selectedCategory)?.name || 'Categorias'}</span>
+                      <ChevronDown size={16} />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-48">
+                    {categories.map((category) => (
+                      <DropdownMenuItem
+                        key={category.id}
+                        onClick={() => handleCategoryChange(category.id)}
+                        className={selectedCategory === category.id ? "bg-indigo-50 text-indigo-600 font-medium" : ""}
+                      >
+                        {category.name}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+          </div>
+
+          {/* Events Grid */}
+          {filteredEvents.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredEvents.map((event) => (
+                <EventCard key={event.id} event={event} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-16">
+              <h3 className="text-xl font-medium mb-2">Nenhum evento encontrado</h3>
+              <p className="text-gray-600">
+                Tente ajustar os filtros ou busque por outros termos
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </MainLayout>
+  );
+};
+
+export default EventsPage;
