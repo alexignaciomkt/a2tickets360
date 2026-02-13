@@ -63,82 +63,40 @@ const mockStaff: StaffMember[] = [
 const mockCheckIns: CheckInRecord[] = [];
 
 class StaffService {
-  // --- Roles Management (Fase 1) ---
+  // --- Roles Management ---
 
   async getRoles(): Promise<StaffRole[]> {
-    return Promise.resolve([...mockRoles]);
+    return api.get('/api/staff/roles');
   }
 
   async createRole(roleData: Omit<StaffRole, 'id'>): Promise<StaffRole> {
-    const newRole: StaffRole = {
-      ...roleData,
-      id: `role_${Date.now()}`
-    };
-    mockRoles.push(newRole);
-    return Promise.resolve(newRole);
+    return api.post('/api/staff/roles', roleData);
   }
 
   async updateRole(roleId: string, roleData: Partial<StaffRole>): Promise<StaffRole | null> {
-    const index = mockRoles.findIndex(r => r.id === roleId);
-    if (index === -1) return null;
-
-    mockRoles[index] = { ...mockRoles[index], ...roleData };
-    return Promise.resolve(mockRoles[index]);
+    return api.put(`/api/staff/roles/${roleId}`, roleData);
   }
 
   async deleteRole(roleId: string): Promise<boolean> {
-    const index = mockRoles.findIndex(r => r.id === roleId);
-    if (index === -1) return false;
-
-    mockRoles.splice(index, 1);
-    return Promise.resolve(true);
-  }
-
-  async getRoleById(roleId: string): Promise<StaffRole | undefined> {
-    return mockRoles.find(r => r.id === roleId);
+    return api.delete(`/api/staff/roles/${roleId}`);
   }
 
   // --- Staff Management ---
 
   async getEventStaff(eventId: string): Promise<StaffMember[]> {
-    let staffList = mockStaff;
-    if (eventId !== 'all') {
-      staffList = mockStaff.filter(staff => staff.eventId === eventId);
-    }
-
-    // Populate role data
-    return staffList.map(staff => {
-      const role = mockRoles.find(r => r.id === staff.roleId);
-      return { ...staff, customRole: role };
-    });
+    return api.get(`/api/staff/event/${eventId}`);
   }
 
   async createStaffMember(eventId: string, staffData: Omit<StaffMember, 'id' | 'eventId' | 'createdAt' | 'isActive'>): Promise<StaffMember> {
-    const newStaff: StaffMember = {
-      ...staffData,
-      id: Date.now().toString(),
-      eventId,
-      isActive: true,
-      createdAt: new Date().toISOString()
-    };
-    mockStaff.push(newStaff);
-    return newStaff;
+    return api.post(`/api/staff/event/${eventId}`, staffData);
   }
 
   async updateStaffMember(staffId: string, staffData: Partial<StaffMember>): Promise<StaffMember | null> {
-    const staffIndex = mockStaff.findIndex(staff => staff.id === staffId);
-    if (staffIndex === -1) return null;
-
-    mockStaff[staffIndex] = { ...mockStaff[staffIndex], ...staffData };
-    return mockStaff[staffIndex];
+    return api.put(`/api/staff/${staffId}`, staffData);
   }
 
   async deleteStaffMember(staffId: string): Promise<boolean> {
-    const staffIndex = mockStaff.findIndex(staff => staff.id === staffId);
-    if (staffIndex === -1) return false;
-
-    mockStaff.splice(staffIndex, 1);
-    return true;
+    return api.delete(`/api/staff/${staffId}`);
   }
 
   // Staff Authentication

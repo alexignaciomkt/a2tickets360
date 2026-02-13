@@ -1,8 +1,22 @@
 import { pgTable, text, timestamp, serial, integer, boolean, decimal, jsonb, uuid } from 'drizzle-orm/pg-core';
 
+// Organizadores (Donos dos Eventos)
+export const organizers = pgTable('organizers', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    name: text('name').notNull(),
+    email: text('email').unique().notNull(),
+    passwordHash: text('password_hash').notNull(),
+    asaasId: text('asaas_id'), // ID da subconta no Asaas
+    asaasApiKey: text('asaas_api_key'), // Opcional: Se quisermos permitir que ele use o próprio token em algum momento
+    walletId: text('wallet_id'), // ID da carteira no Asaas
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+});
+
 // Eventos
 export const events = pgTable('events', {
     id: uuid('id').primaryKey().defaultRandom(),
+    organizerId: uuid('organizer_id').references(() => organizers.id).notNull(),
     title: text('title').notNull(),
     description: text('description'),
     category: text('category'),
@@ -13,7 +27,6 @@ export const events = pgTable('events', {
     capacity: integer('capacity').notNull(),
     status: text('status', { enum: ['draft', 'published', 'active', 'completed', 'cancelled'] }).default('draft'),
     imageUrl: text('image_url'),
-    organizerId: text('organizer_id').notNull(),
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow(),
 });
@@ -32,7 +45,7 @@ export const tickets = pgTable('tickets', {
     category: text('category', { enum: ['standard', 'vip', 'early-bird', 'student', 'group'] }).default('standard'),
 });
 
-// Vendas
+// Vendas e Transações
 export const sales = pgTable('sales', {
     id: uuid('id').primaryKey().defaultRandom(),
     eventId: uuid('event_id').references(() => events.id).notNull(),
@@ -43,19 +56,21 @@ export const sales = pgTable('sales', {
     quantity: integer('quantity').notNull(),
     totalPrice: decimal('total_price', { precision: 10, scale: 2 }).notNull(),
     paymentStatus: text('payment_status', { enum: ['pending', 'paid', 'refunded', 'cancelled'] }).default('pending'),
-    paymentMethod: text('payment_method'),
+    paymentMethod: text('payment_method'), // PIX, CREDIT_CARD, BOLETO
+    asaasPaymentId: text('asaas_payment_id'), // ID da cobrança no Asaas
     qrCodeData: text('qr_code_data').unique().notNull(), // O código que será validado
     createdAt: timestamp('created_at').defaultNow(),
 });
 
-// Staff / Membros da Equipe
+// Staff / Membros da Equipe (Vinculados a Organizadores ou Eventos)
 export const staff = pgTable('staff', {
     id: uuid('id').primaryKey().defaultRandom(),
-    eventId: uuid('event_id').references(() => events.id).notNull(),
+    organizerId: uuid('organizer_id').references(() => organizers.id).notNull(),
+    eventId: uuid('event_id').references(() => events.id), // Pode ser staff geral ou fixo no evento
     name: text('name').notNull(),
     email: text('email').unique().notNull(),
     passwordHash: text('password_hash').notNull(),
-    roleId: text('role_id').notNull(), // referenciar StaffRole se necessário
+    roleId: text('role_id').notNull(),
     eventFunction: text('event_function'),
     isActive: boolean('is_active').default(true),
     createdAt: timestamp('created_at').defaultNow(),

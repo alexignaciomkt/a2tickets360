@@ -9,6 +9,9 @@ import { jwt } from 'hono/jwt';
 
 dotenv.config();
 
+import { asaas } from './services/asaas';
+import { organizers as organizersTable } from './db/schema';
+
 const app = new Hono();
 const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
 
@@ -21,6 +24,100 @@ const authMiddleware = jwt({
 });
 
 app.get('/', (c: Context) => c.text('Ticketera API - High Performance Ready'));
+
+// --- Rota de Cadastro de Organizador (Com Asaas) ---
+app.post('/api/organizers/register', async (c: Context) => {
+    const { name, email, password, cpfCnpj, mobilePhone } = await c.req.json();
+
+    try {
+        // 1. Criar Subclonta no Asaas
+        const asaasAccount = await asaas.createSubAccount({ name, email, cpfCnpj, mobilePhone });
+
+        // 2. Salvar no Banco
+        const [newOrganizer] = await db.insert(organizersTable).values({
+            name,
+            email,
+            passwordHash: password, // TODO: Hash real
+            asaasId: asaasAccount.id,
+            walletId: asaasAccount.walletId,
+            asaasApiKey: asaasAccount.apiKey
+        }).returning();
+
+        return c.json({ status: 'success', organizer: newOrganizer });
+    } catch (error: any) {
+        return c.json({ error: error.message }, 400);
+    }
+});
+
+// --- Rota de Checkout (Criação de Pagamento com Split) ---
+app.post('/api/payments/checkout', async (c: Context) => {
+    const { ticketId, quantity, buyerName, buyerEmail, buyerCpf, paymentMethod } = await c.req.json();
+
+    try {
+        const ticket = await db.query.tickets.findFirst({ where: eq(tickets.id, ticketId) });
+        if (!ticket) throw new Error('Ingresso não encontrado');
+
+        const totalValue = Number(ticket.price) * quantity;
+
+        // 1. Criar Cliente no Asaas
+        const customer = await asaas.createCustomer({ name: buyerName, email: buyerEmail, cpfCnpj: buyerCpf });
+
+        // 2. Criar Pagamento com Split (10%)
+        const payment = await asaas.createPayment({
+            customer: customer.id,
+            billingType: paymentMethod,
+            value: totalValue,
+            dueDate: new Date(Date.now() + 86400000).toISOString().split('T')[0], // Amanhã
+            description: `Compra de ${quantity}x ${ticket.name}`,
+            externalReference: `sale_${Date.now()}`,
+            splitPercent: 10 // Sua comissão de 10%
+        });
+
+        // 3. Registrar Venda Pendente
+        const qrCode = `QR_${Math.random().toString(36).substring(7).toUpperCase()}`;
+        await db.insert(sales).values({
+            eventId: ticket.eventId,
+            ticketId: ticket.id,
+            buyerName,
+            buyerEmail,
+            quantity,
+            totalPrice: totalValue.toString(),
+            asaasPaymentId: payment.id,
+            paymentStatus: 'pending',
+            qrCodeData: qrCode
+        });
+
+        return c.json({ status: 'success', invoiceUrl: payment.invoiceUrl, paymentId: payment.id });
+    } catch (error: any) {
+        return c.json({ error: error.message }, 400);
+    }
+});
+
+// --- Webhook do Asaas ---
+app.post('/api/webhooks/asaas', async (c: Context) => {
+    const data = await c.req.json();
+    const { event, payment } = data;
+
+    if (event === 'PAYMENT_CONFIRMED' || event === 'PAYMENT_RECEIVED') {
+        const asaasId = payment.id;
+
+        // Atualizar status no banco
+        await db.update(sales)
+            .set({ paymentStatus: 'paid' })
+            .where(eq(sales.asaasPaymentId, asaasId));
+
+        // Inserir no Redis para validação imediata no portão
+        const saleRecord = await db.query.sales.findFirst({
+            where: eq(sales.asaasPaymentId, asaasId)
+        });
+
+        if (saleRecord) {
+            await redis.set(`ticket:${saleRecord.qrCodeData}`, 'PAID');
+        }
+    }
+
+    return c.json({ received: true });
+});
 
 // --- Rota de Login (Staff) ---
 app.post('/api/auth/login', async (c: Context) => {
