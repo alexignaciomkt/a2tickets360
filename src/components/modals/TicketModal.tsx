@@ -50,6 +50,7 @@ export const TicketModal = ({
     salesEnd: '',
     category: 'standard' as 'standard' | 'vip' | 'early-bird' | 'student' | 'group',
     isActive: true,
+    isFree: false,
   });
 
   useEffect(() => {
@@ -64,6 +65,7 @@ export const TicketModal = ({
         salesEnd: ticket.salesEnd || '',
         category: ticket.category,
         isActive: ticket.isActive,
+        isFree: ticket.price === 0,
       });
     } else {
       setFormData({
@@ -76,6 +78,7 @@ export const TicketModal = ({
         salesEnd: '',
         category: 'standard',
         isActive: true,
+        isFree: false,
       });
     }
   }, [ticket, open]);
@@ -133,8 +136,8 @@ export const TicketModal = ({
             {ticket ? 'Editar Ingresso' : 'Novo Ingresso'}
           </DialogTitle>
           <DialogDescription>
-            {ticket 
-              ? 'Edite as informações do ingresso.' 
+            {ticket
+              ? 'Edite as informações do ingresso.'
               : 'Configure um novo tipo de ingresso para seu evento.'
             }
           </DialogDescription>
@@ -165,14 +168,26 @@ export const TicketModal = ({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="price">Preço (R$)</Label>
-              <Input
-                id="price"
-                type="number"
-                step="0.01"
-                value={formData.price}
-                onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
-                required
-              />
+              <div className="flex items-center space-x-2">
+                <Input
+                  id="price"
+                  type="number"
+                  step="0.01"
+                  value={formData.isFree ? 0 : formData.price}
+                  onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
+                  disabled={formData.isFree}
+                  required={!formData.isFree}
+                  className={formData.isFree ? "bg-gray-100 italic" : ""}
+                />
+                <div className="flex items-center space-x-2 min-w-[100px]">
+                  <Switch
+                    id="isFree"
+                    checked={formData.isFree}
+                    onCheckedChange={(checked) => setFormData({ ...formData, isFree: checked, price: checked ? 0 : formData.price })}
+                  />
+                  <Label htmlFor="isFree" className="text-xs font-bold uppercase truncate">Grátis</Label>
+                </div>
+              </div>
             </div>
 
             <div className="space-y-2">

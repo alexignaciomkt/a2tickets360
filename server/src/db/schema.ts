@@ -8,8 +8,10 @@ export const organizers = pgTable('organizers', {
     email: text('email').unique().notNull(),
     passwordHash: text('password_hash').notNull(),
     asaasId: text('asaas_id'), // ID da subconta no Asaas
-    asaasApiKey: text('asaas_api_key'), // Opcional: Se quisermos permitir que ele use o próprio token em algum momento
-    walletId: text('wallet_id'), // ID da carteira no Asaas
+    asaasApiKey: text('asaas_api_key'),
+    walletId: text('wallet_id'),
+    emailVerified: boolean('email_verified').default(false),
+    verificationToken: text('verification_token'),
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow(),
 });
@@ -164,7 +166,9 @@ export const candidates = pgTable('candidates', {
     state: text('state'),
     experience: text('experience'),
     rating: decimal('rating', { precision: 3, scale: 2 }).default('5.00'),
-    certifications: jsonb('certifications').default([]), // { name, fileUrl, expiryDate }[]
+    certifications: jsonb('certifications').default([]),
+    emailVerified: boolean('email_verified').default(false),
+    verificationToken: text('verification_token'),
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow(),
 });

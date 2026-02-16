@@ -1,19 +1,37 @@
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, Users, DollarSign, LineChart, Clock, Plus, Globe } from 'lucide-react';
+import { Calendar, Users, DollarSign, LineChart, Clock, Plus, Globe, Loader2 } from 'lucide-react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { events } from '@/data/mockData';
+import { organizerService } from '@/services/organizerService';
+import { Event } from '@/interfaces/organizer';
 
 const OrganizerDashboard = () => {
-  // For a real implementation, we'd fetch this data from an API
-  const totalEvents = events.length;
-  const totalTicketsSold = events.reduce(
-    (acc, event) => acc + event.tickets.reduce((sum, ticket) => sum + (ticket.quantity - ticket.remaining), 0),
+  const [eventsList, setEventsList] = useState<Event[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const organizerId = '6d123456-789a-4bc3-d2e1-09876543210f'; // ID Fixado para teste
+
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        const data = await organizerService.getEvents(organizerId);
+        setEventsList(data);
+      } catch (error) {
+        console.error('Error fetching events:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchEvents();
+  }, []);
+
+  const totalEvents = eventsList.length;
+  const totalTicketsSold = eventsList.reduce(
+    (acc, event) => acc + (Array.isArray(event.tickets) ? event.tickets.reduce((sum, ticket) => sum + (ticket.quantity - ticket.remaining), 0) : 0),
     0
   );
-  const totalRevenue = events.reduce(
-    (acc, event) => acc + event.tickets.reduce((sum, ticket) => sum + ((ticket.quantity - ticket.remaining) * ticket.price), 0),
+  const totalRevenue = eventsList.reduce(
+    (acc, event) => acc + (Array.isArray(event.tickets) ? event.tickets.reduce((sum, ticket) => sum + ((ticket.quantity - ticket.remaining) * (Number(ticket.price) || 0)), 0) : 0),
     0
   );
 
@@ -57,8 +75,9 @@ const OrganizerDashboard = () => {
           <div className="bg-white rounded-lg shadow-md p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-500 text-sm">Faturamento Total</p>
-                <h3 className="text-3xl font-bold">R$ {totalRevenue.toFixed(2).replace('.', ',')}</h3>
+                <h3 className="text-3xl font-bold">
+                  {totalRevenue > 0 ? `R$ ${totalRevenue.toFixed(2).replace('.', ',')}` : 'Grátis'}
+                </h3>
               </div>
               <div className="bg-green-100 p-3 rounded-full">
                 <DollarSign className="h-7 w-7 text-green-600" />
@@ -71,7 +90,7 @@ const OrganizerDashboard = () => {
               <div>
                 <p className="text-gray-500 text-sm">Próximo Evento</p>
                 <h3 className="text-lg font-bold truncate">
-                  {events[0]?.title || 'Nenhum evento'}
+                  {eventsList[0]?.title || 'Nenhum evento'}
                 </h3>
               </div>
               <div className="bg-orange-100 p-3 rounded-full">
@@ -142,15 +161,27 @@ const OrganizerDashboard = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {events.map((event) => {
-                  const ticketsSold = event.tickets.reduce(
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={5} className="py-10 text-center">
+                      <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
+                    </td>
+                  </tr>
+                ) : eventsList.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-10 text-center text-gray-500">
+                      Nenhum evento criado ainda. Clique em "Novo Evento" para começar.
+                    </td>
+                  </tr>
+                ) : eventsList.map((event) => {
+                  const ticketsSold = Array.isArray(event.tickets) ? event.tickets.reduce(
                     (sum, ticket) => sum + (ticket.quantity - ticket.remaining),
                     0
-                  );
-                  const totalTickets = event.tickets.reduce(
+                  ) : 0;
+                  const totalTickets = Array.isArray(event.tickets) ? event.tickets.reduce(
                     (sum, ticket) => sum + ticket.quantity,
                     0
-                  );
+                  ) : 0;
                   const eventDate = new Date(event.date);
                   const today = new Date();
 

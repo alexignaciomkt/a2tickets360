@@ -97,6 +97,7 @@ const EditEvent = () => {
   };
 
   const formatCurrency = (value: number) => {
+    if (value === 0) return 'Grátis';
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL',
@@ -177,7 +178,7 @@ const EditEvent = () => {
                 <Users className="h-8 w-8 text-blue-600" />
               </div>
             </div>
-            
+
             <div className="bg-white rounded-lg shadow-md p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -189,7 +190,7 @@ const EditEvent = () => {
                 <Users className="h-8 w-8 text-green-600" />
               </div>
             </div>
-            
+
             <div className="bg-white rounded-lg shadow-md p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -206,7 +207,7 @@ const EditEvent = () => {
                 <DollarSign className="h-8 w-8 text-primary" />
               </div>
             </div>
-            
+
             <div className="bg-white rounded-lg shadow-md p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -239,7 +240,7 @@ const EditEvent = () => {
                     Novo Ingresso
                   </Button>
                 </div>
-                
+
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -274,8 +275,8 @@ const EditEvent = () => {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end space-x-2">
-                            <Button 
-                              variant="ghost" 
+                            <Button
+                              variant="ghost"
                               size="sm"
                               onClick={() => handleEditTicket(ticket)}
                             >
@@ -319,7 +320,7 @@ const EditEvent = () => {
                     Novo Ponto de Venda
                   </Button>
                 </div>
-                
+
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -356,8 +357,8 @@ const EditEvent = () => {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end space-x-2">
-                            <Button 
-                              variant="ghost" 
+                            <Button
+                              variant="ghost"
                               size="sm"
                               onClick={() => handleEditChannel(channel)}
                             >

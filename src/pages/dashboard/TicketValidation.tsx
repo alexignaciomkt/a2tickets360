@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { Search, QrCode, CheckCircle, XCircle, AlertTriangle, Filter, Download } from 'lucide-react';
+import { Search, QrCode, CheckCircle, XCircle, AlertTriangle, Filter, Download, Share2, Copy } from 'lucide-react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -91,12 +91,12 @@ const TicketValidation = () => {
 
   const filteredTickets = tickets.filter(ticket => {
     const matchesSearch = ticket.ticketNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         ticket.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         ticket.customerEmail.toLowerCase().includes(searchTerm.toLowerCase());
-    
+      ticket.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      ticket.customerEmail.toLowerCase().includes(searchTerm.toLowerCase());
+
     const matchesStatus = statusFilter === 'all' || ticket.status === statusFilter;
     const matchesEvent = eventFilter === 'all' || ticket.eventName === eventFilter;
-    
+
     return matchesSearch && matchesStatus && matchesEvent;
   });
 
@@ -107,10 +107,10 @@ const TicketValidation = () => {
       invalid: { variant: 'destructive' as const, label: 'Inválido', icon: XCircle },
       cancelled: { variant: 'destructive' as const, label: 'Cancelado', icon: XCircle },
     };
-    
+
     const config = configs[status];
     const Icon = config.icon;
-    
+
     return (
       <Badge variant={config.variant} className="flex items-center gap-1">
         <Icon className="h-3 w-3" />
@@ -120,12 +120,12 @@ const TicketValidation = () => {
   };
 
   const handleValidateTicket = (ticketId: string) => {
-    setTickets(tickets.map(ticket => 
-      ticket.id === ticketId 
+    setTickets(tickets.map(ticket =>
+      ticket.id === ticketId
         ? { ...ticket, status: 'used' as const, validationDate: new Date().toISOString().split('T')[0] }
         : ticket
     ));
-    
+
     toast({
       title: 'Ingresso validado',
       description: 'O ingresso foi marcado como utilizado.',
@@ -133,12 +133,12 @@ const TicketValidation = () => {
   };
 
   const handleInvalidateTicket = (ticketId: string) => {
-    setTickets(tickets.map(ticket => 
-      ticket.id === ticketId 
+    setTickets(tickets.map(ticket =>
+      ticket.id === ticketId
         ? { ...ticket, status: 'invalid' as const }
         : ticket
     ));
-    
+
     toast({
       title: 'Ingresso invalidado',
       description: 'O ingresso foi marcado como inválido.',
@@ -148,12 +148,12 @@ const TicketValidation = () => {
 
   const handleCancelTicket = (ticketId: string) => {
     if (confirm('Tem certeza que deseja cancelar este ingresso?')) {
-      setTickets(tickets.map(ticket => 
-        ticket.id === ticketId 
+      setTickets(tickets.map(ticket =>
+        ticket.id === ticketId
           ? { ...ticket, status: 'cancelled' as const }
           : ticket
       ));
-      
+
       toast({
         title: 'Ingresso cancelado',
         description: 'O ingresso foi cancelado com sucesso.',
@@ -162,10 +162,27 @@ const TicketValidation = () => {
   };
 
   const handleQRScan = () => {
-    toast({
-      title: 'Scanner QR Code',
-      description: 'Funcionalidade de scanner será implementada.',
-    });
+    // Redirecionar para a página dedicada do scanner
+    window.location.href = '/staff/reader';
+  };
+
+  const handleShareScanner = (platform: 'whatsapp' | 'copy') => {
+    const scannerUrl = `${window.location.origin}/staff/reader`;
+
+    if (platform === 'whatsapp') {
+      const text = encodeURIComponent(`Olá! Aqui está o link para o sistema de validação de ingressos: ${scannerUrl}`);
+      window.open(`https://wa.me/?text=${text}`, '_blank');
+      toast({
+        title: 'Abrindo WhatsApp',
+        description: 'Compartilhando link do scanner...',
+      });
+    } else {
+      navigator.clipboard.writeText(scannerUrl);
+      toast({
+        title: 'Link copiado!',
+        description: 'O link do scanner foi copiado para sua área de transferência.',
+      });
+    }
   };
 
   const handleExportReport = () => {
@@ -176,7 +193,7 @@ const TicketValidation = () => {
   };
 
   const uniqueEvents = [...new Set(tickets.map(ticket => ticket.eventName))];
-  
+
   const stats = {
     total: tickets.length,
     valid: tickets.filter(t => t.status === 'valid').length,
@@ -194,9 +211,30 @@ const TicketValidation = () => {
             <p className="text-gray-600 mt-1">Gerencie e valide ingressos dos seus eventos</p>
           </div>
           <div className="flex space-x-2">
-            <Button variant="outline" onClick={handleQRScan}>
+            <div className="flex bg-white rounded-md border shadow-sm h-10 px-1 items-center mr-2">
+              <span className="text-xs font-medium text-gray-500 px-2 uppercase border-r mr-2">Compartilhar Scanner</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                onClick={() => handleShareScanner('whatsapp')}
+                title="Compartilhar via WhatsApp"
+              >
+                <Share2 className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                onClick={() => handleShareScanner('copy')}
+                title="Copiar Link"
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+            <Button variant="default" onClick={handleQRScan} className="bg-primary hover:bg-primary/90">
               <QrCode className="h-4 w-4 mr-2" />
-              Scanner QR
+              Abrir Scanner
             </Button>
             <Button variant="outline" onClick={handleExportReport}>
               <Download className="h-4 w-4 mr-2" />
@@ -277,7 +315,7 @@ const TicketValidation = () => {
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
-              
+
               <div className="w-full sm:w-48">
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger>
@@ -292,7 +330,7 @@ const TicketValidation = () => {
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div className="w-full sm:w-48">
                 <Select value={eventFilter} onValueChange={setEventFilter}>
                   <SelectTrigger>

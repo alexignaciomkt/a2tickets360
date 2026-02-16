@@ -1,6 +1,7 @@
 
 import { useState } from 'react';
 import { Save, Eye, Download, Upload, Palette, Type, Image, Layout } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,6 +33,8 @@ interface TicketDesign {
   logoUrl?: string;
   backgroundImage?: string;
   layout: 'classic' | 'modern' | 'minimal';
+  useEventBanner: boolean;
+  isPDV: boolean;
 }
 
 const TicketDesigner = () => {
@@ -44,7 +47,9 @@ const TicketDesigner = () => {
     textColor: '#000000',
     accentColor: '#3b82f6',
     fontFamily: 'Arial',
-    layout: 'classic'
+    layout: 'classic',
+    useEventBanner: false,
+    isPDV: false
   });
 
   const templates = [
@@ -265,15 +270,38 @@ const TicketDesigner = () => {
                     </div>
 
                     <div>
-                      <Label>Imagem de Fundo</Label>
+                      <Label className="flex items-center gap-2 mb-2">
+                        <input
+                          type="checkbox"
+                          checked={design.useEventBanner}
+                          onChange={(e) => setDesign({ ...design, useEventBanner: e.target.checked })}
+                          className="w-4 h-4"
+                        />
+                        Usar Banner do Evento como Fundo
+                      </Label>
+                      <p className="text-xs text-gray-500 mb-4">O banner principal do evento será aplicado automaticamente.</p>
+
                       <Button
                         variant="outline"
-                        className="w-full"
+                        className="w-full mb-4"
                         onClick={() => handleImageUpload('background')}
                       >
                         <Image className="h-4 w-4 mr-2" />
-                        Fazer Upload da Imagem
+                        Fazer Upload de Imagem Personalizada
                       </Button>
+
+                      <div className="pt-4 border-t">
+                        <Label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={design.isPDV}
+                            onChange={(e) => setDesign({ ...design, isPDV: e.target.checked })}
+                            className="w-4 h-4"
+                          />
+                          Diferencial Visual para PDV (Físico)
+                        </Label>
+                        <p className="text-xs text-gray-500">Adiciona um selo distintivo para ingressos de ponto de venda.</p>
+                      </div>
                     </div>
                   </TabsContent>
                 </Tabs>
@@ -291,45 +319,51 @@ const TicketDesigner = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex items-center justify-center min-h-[500px]">
-                <div className="relative">
-                  {/* Ticket Preview */}
+                <div
+                  className="w-96 h-56 rounded-lg shadow-lg border-2 border-dashed border-gray-300 relative overflow-hidden flex flex-col"
+                  style={{
+                    backgroundColor: design.backgroundColor,
+                    backgroundImage: design.useEventBanner ? 'url(https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800&fit=crop)' : (design.backgroundImage ? `url(${design.backgroundImage})` : 'none'),
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                    color: design.textColor,
+                    fontFamily: design.fontFamily
+                  }}
+                >
+                  {/* Overlay for readability if image used */}
+                  {(design.useEventBanner || design.backgroundImage) && (
+                    <div className="absolute inset-0 bg-black/40 z-0"></div>
+                  )}
+                  {/* Ticket Header */}
                   <div
-                    className="w-96 h-56 rounded-lg shadow-lg border-2 border-dashed border-gray-300 relative overflow-hidden"
-                    style={{
-                      backgroundColor: design.backgroundColor,
-                      color: design.textColor,
-                      fontFamily: design.fontFamily
-                    }}
+                    className="h-16 flex items-center justify-between px-4 text-white font-bold text-lg z-10"
+                    style={{ backgroundColor: design.accentColor }}
                   >
-                    {/* Ticket Header */}
-                    <div
-                      className="h-16 flex items-center justify-center text-white font-bold text-lg"
-                      style={{ backgroundColor: design.accentColor }}
-                    >
-                      {design.name || 'Nome do Ingresso'}
-                    </div>
+                    <span>{design.name || 'Nome do Ingresso'}</span>
+                    {design.isPDV && (
+                      <Badge variant="secondary" className="bg-yellow-400 text-black border-none font-black text-[10px] uppercase tracking-tighter shadow-sm animate-pulse">
+                        PDV ELITE
+                      </Badge>
+                    )}
+                  </div>
 
-                    {/* Ticket Body */}
-                    <div className="p-4 space-y-2">
-                      <div className="flex justify-between">
-                        <span className="font-semibold">Evento:</span>
-                        <span>Nome do Evento</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="font-semibold">Data:</span>
-                        <span>15/03/2024</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="font-semibold">Local:</span>
-                        <span>Espaço de Eventos</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="font-semibold">Setor:</span>
-                        <span>{design.name}</span>
-                      </div>
+                  {/* Ticket Body */}
+                  <div className="p-4 space-y-2 z-10">
+                    <div className="flex justify-between">
+                      <span className="font-semibold">Evento:</span>
+                      <span className={(design.useEventBanner || design.backgroundImage) ? "text-white shadow-sm" : ""}>Festival de Música 2025</span>
                     </div>
+                    <div className="flex justify-between">
+                      <span className="font-semibold">Data:</span>
+                      <span className={(design.useEventBanner || design.backgroundImage) ? "text-white shadow-sm" : ""}>15/03/2024</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="font-semibold">Local:</span>
+                      <span className={(design.useEventBanner || design.backgroundImage) ? "text-white shadow-sm" : ""}>Espaço de Eventos A2</span>
+                    </div>
+                  </div>
 
-                    {/* QR Code Area - REMOVED per user request
+                  {/* QR Code Area - REMOVED per user request
                     <div className="absolute bottom-2 right-2 w-12 h-12 bg-gray-800 rounded flex items-center justify-center">
                       <div className="w-8 h-8 bg-white rounded grid grid-cols-3 gap-px">
                         {[...Array(9)].map((_, i) => (
@@ -339,22 +373,22 @@ const TicketDesigner = () => {
                     </div>
                     */}
 
-                    {/* Ticket Number */}
-                    <div className="absolute bottom-2 left-2 text-xs opacity-70">
-                      #00001
-                    </div>
+                  {/* Ticket Number */}
+                  <div className="absolute bottom-2 left-2 text-xs opacity-70">
+                    #00001
                   </div>
+                </div>
 
-                  {/* Perforation Effect - REMOVED per user request
+                {/* Perforation Effect - REMOVED per user request
                   <div className="absolute right-0 top-1/2 transform -translate-y-1/2 w-8 h-8 bg-gray-100 rounded-full border-2 border-gray-300"></div>
                   */}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
-    </DashboardLayout>
+    </div>
+    </DashboardLayout >
   );
 };
 

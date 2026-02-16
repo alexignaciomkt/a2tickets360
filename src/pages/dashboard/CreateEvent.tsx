@@ -90,22 +90,13 @@ const CreateEvent = () => {
         category: data.category,
         date: data.date,
         time: data.time,
-        duration: data.duration,
-        location: {
-          name: data.locationName,
-          address: data.locationAddress,
-          city: data.locationCity,
-          state: data.locationState,
-          postalCode: data.locationPostalCode,
-          coordinates: { lat: -23.2237, lng: -45.9009 }, // Mock coordinates
-        },
+        locationName: data.locationName,
+        locationAddress: data.locationAddress,
         capacity: data.capacity,
-        status: 'draft' as const,
+        // Status inicial como pendente de aprovação para garantir qualidade
+        status: 'pending_approval' as const,
         imageUrl: data.imageUrl || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800',
-        organizerId: '1', // Em uma aplicação real, viria do contexto de autenticação
-        organizerName: 'Produções Culturais',
-        tickets: [],
-        salesChannels: [],
+        organizerId: '6d123456-789a-4bc3-d2e1-09876543210f', // ID Fixado para teste
       };
 
       const newEvent = await organizerService.createEvent(eventData);

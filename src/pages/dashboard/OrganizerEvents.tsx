@@ -57,7 +57,7 @@ const OrganizerEvents = () => {
       completed: { label: 'Finalizado', variant: 'outline' as const },
       cancelled: { label: 'Cancelado', variant: 'destructive' as const },
     };
-    
+
     const config = statusConfig[status];
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
@@ -122,7 +122,7 @@ const OrganizerEvents = () => {
               <Calendar className="h-8 w-8 text-primary" />
             </div>
           </div>
-          
+
           <div className="bg-white rounded-lg shadow-md p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -134,13 +134,15 @@ const OrganizerEvents = () => {
               <Users className="h-8 w-8 text-blue-600" />
             </div>
           </div>
-          
+
           <div className="bg-white rounded-lg shadow-md p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-500 text-sm">Receita Total</p>
                 <h3 className="text-2xl font-bold">
-                  R$ {events.reduce((sum, event) => sum + calculateRevenue(event), 0).toLocaleString('pt-BR')}
+                  {events.reduce((sum, event) => sum + calculateRevenue(event), 0) > 0
+                    ? `R$ ${events.reduce((sum, event) => sum + calculateRevenue(event), 0).toLocaleString('pt-BR')}`
+                    : 'Grátis'}
                 </h3>
               </div>
               <DollarSign className="h-8 w-8 text-green-600" />
@@ -223,7 +225,7 @@ const OrganizerEvents = () => {
                     </TableCell>
                     <TableCell>
                       <div className="font-medium">
-                        R$ {revenue.toLocaleString('pt-BR')}
+                        {revenue > 0 ? `R$ ${revenue.toLocaleString('pt-BR')}` : 'Grátis'}
                       </div>
                     </TableCell>
                     <TableCell className="text-right">

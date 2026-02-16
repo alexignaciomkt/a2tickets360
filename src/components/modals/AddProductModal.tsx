@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Upload, X } from 'lucide-react';
+import { Upload, X, Plus, Trash2 } from 'lucide-react';
 
 interface AddProductModalProps {
   isOpen: boolean;
@@ -23,14 +23,18 @@ const AddProductModal = ({ isOpen, onClose, onSubmit }: AddProductModalProps) =>
     originalPrice: '',
     category: '',
     image: '',
-    featured: false
+    featured: false,
+    hasVariants: false,
+    variants: [] as { id: string; name: string; stock: number; price?: number }[]
   });
+
+  const [newVariant, setNewVariant] = useState({ name: '', stock: '' });
 
   const [imagePreview, setImagePreview] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const productData = {
       ...formData,
       price: parseFloat(formData.price),
@@ -39,7 +43,7 @@ const AddProductModal = ({ isOpen, onClose, onSubmit }: AddProductModalProps) =>
     };
 
     onSubmit(productData);
-    
+
     // Reset form
     setFormData({
       name: '',
@@ -48,8 +52,11 @@ const AddProductModal = ({ isOpen, onClose, onSubmit }: AddProductModalProps) =>
       originalPrice: '',
       category: '',
       image: '',
-      featured: false
+      featured: false,
+      hasVariants: false,
+      variants: []
     });
+    setNewVariant({ name: '', stock: '' });
     setImagePreview('');
   };
 
@@ -70,7 +77,7 @@ const AddProductModal = ({ isOpen, onClose, onSubmit }: AddProductModalProps) =>
         <DialogHeader>
           <DialogTitle>Adicionar Novo Produto</DialogTitle>
         </DialogHeader>
-        
+
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Image Upload */}
           <div className="space-y-2">
@@ -78,9 +85,9 @@ const AddProductModal = ({ isOpen, onClose, onSubmit }: AddProductModalProps) =>
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
               {imagePreview ? (
                 <div className="relative">
-                  <img 
-                    src={imagePreview} 
-                    alt="Preview" 
+                  <img
+                    src={imagePreview}
+                    alt="Preview"
                     className="w-full h-48 object-cover rounded-lg"
                   />
                   <Button
@@ -189,6 +196,95 @@ const AddProductModal = ({ isOpen, onClose, onSubmit }: AddProductModalProps) =>
               <p className="text-xs text-gray-500">Deixe em branco se não houver desconto</p>
             </div>
           </div>
+
+          {/* Variable Product Toggle */}
+          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <div className="space-y-0.5">
+              <Label htmlFor="hasVariants" className="text-base font-semibold">Produto Variável</Label>
+              <p className="text-sm text-muted-foreground italic">Ative para adicionar tamanhos, cores ou outras variações (ex: P, M, G).</p>
+            </div>
+            <Switch
+              id="hasVariants"
+              checked={formData.hasVariants}
+              onCheckedChange={(checked) => setFormData({ ...formData, hasVariants: checked })}
+            />
+          </div>
+
+          {/* Variants Section */}
+          {formData.hasVariants && (
+            <div className="space-y-4 p-4 border rounded-lg bg-white shadow-sm">
+              <Label className="text-lg font-bold">Gerenciar Variantes</Label>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="variantName" className="text-xs uppercase font-bold text-gray-500">Nome (ex: Tamanho P)</Label>
+                  <Input
+                    id="variantName"
+                    value={newVariant.name}
+                    onChange={(e) => setNewVariant({ ...newVariant, name: e.target.value })}
+                    placeholder="P, M, G..."
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="variantStock" className="text-xs uppercase font-bold text-gray-500">Estoque</Label>
+                  <Input
+                    id="variantStock"
+                    type="number"
+                    value={newVariant.stock}
+                    onChange={(e) => setNewVariant({ ...newVariant, stock: e.target.value })}
+                    placeholder="0"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <Button
+                    type="button"
+                    className="w-full h-10"
+                    onClick={() => {
+                      if (newVariant.name && newVariant.stock) {
+                        setFormData({
+                          ...formData,
+                          variants: [
+                            ...formData.variants,
+                            { id: Math.random().toString(36).substr(2, 9), name: newVariant.name, stock: parseInt(newVariant.stock) }
+                          ]
+                        });
+                        setNewVariant({ name: '', stock: '' });
+                      }
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-1" /> Add Variante
+                  </Button>
+                </div>
+              </div>
+
+              {formData.variants.length > 0 && (
+                <div className="mt-4 border-t pt-4">
+                  <ul className="space-y-2">
+                    {formData.variants.map((v, idx) => (
+                      <li key={v.id} className="flex items-center justify-between p-2 bg-gray-50 rounded border">
+                        <span className="font-medium">{v.name}</span>
+                        <div className="flex items-center gap-4">
+                          <span className="text-sm text-gray-600">Qtd: <strong>{v.stock}</strong></span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 text-red-500 hover:text-red-600"
+                            onClick={() => setFormData({
+                              ...formData,
+                              variants: formData.variants.filter((_, i) => i !== idx)
+                            })}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Featured Product */}
           <div className="flex items-center space-x-2">

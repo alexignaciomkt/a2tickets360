@@ -11,9 +11,39 @@ dotenv.config();
 
 import { asaas } from './services/asaas';
 import { organizers as organizersTable } from './db/schema';
+import nodemailer from 'nodemailer';
+import { v4 as uuidv4 } from 'uuid';
+
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: 'a2tickets360@gmail.com',
+        pass: 'stux gjzd umcp ezrb'
+    }
+});
 
 const app = new Hono();
 const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+
+// SEED: Garantir que o Organizador de Teste existe
+async function seedOrganizer() {
+    const testId = '6d123456-789a-4bc3-d2e1-09876543210f';
+    const exists = await db.query.organizers.findFirst({
+        where: eq(organizersTable.id, testId)
+    });
+
+    if (!exists) {
+        await db.insert(organizersTable).values({
+            id: testId,
+            name: 'A2 Produções Elite',
+            email: 'contato@a2tickets360.com.br',
+            passwordHash: '123456', // Mock p/ teste
+            emailVerified: true
+        });
+        console.log('✅ Organizador de teste criado');
+    }
+}
+seedOrganizer();
 
 app.use('*', cors());
 
@@ -148,17 +178,135 @@ app.post('/api/auth/login', async (c: Context) => {
     });
 });
 
+// --- Gestão de Eventos (CRUD Real) ---
+
+// 1. Criar Evento
+app.post('/api/events', async (c: Context) => {
+    const data = await c.req.json();
+    try {
+        const [newEvent] = await db.insert(events).values({
+            ...data,
+            locationName: data.location?.name,
+            locationAddress: data.location?.address,
+            capacity: Number(data.capacity) || 0,
+            status: data.status || 'draft'
+        }).returning();
+        return c.json(newEvent);
+    } catch (error: any) {
+        return c.json({ error: error.message }, 400);
+    }
+});
+
+// 2. Listar Eventos por Organizador
+app.get('/api/events/organizer/:organizerId', async (c: Context) => {
+    const organizerId = c.req.param('organizerId');
+    const result = await db.query.events.findMany({
+        where: eq(events.organizerId, organizerId),
+        with: {
+            tickets: true
+        }
+    } as any);
+    return c.json(result);
+});
+
+// 3. Detalhes de um Evento
+app.get('/api/events/:id', async (c: Context) => {
+    const id = c.req.param('id');
+    const result = await db.query.events.findFirst({
+        where: eq(events.id, id),
+        with: {
+            tickets: true
+        }
+    } as any);
+
+    if (!result) return c.json({ error: 'Evento não encontrado' }, 404);
+    return c.json(result);
+});
+
+// 4. Criar Categoria de Ingresso
+app.post('/api/events/:id/tickets', async (c: Context) => {
+    const eventId = c.req.param('id');
+    const data = await c.req.json();
+    try {
+        const [newTicket] = await db.insert(tickets).values({
+            ...data,
+            eventId,
+            price: data.price.toString(),
+            remaining: data.quantity
+        }).returning();
+        return c.json(newTicket);
+    } catch (error: any) {
+        return c.json({ error: error.message }, 400);
+    }
+});
+
 // --- Candidatos / Marketplace ---
 
-// 1. Cadastro Público de Candidato
+// 1. Cadastro Público de Candidato com Confirmação por e-mail
 app.post('/api/candidates', async (c: Context) => {
     const data = await c.req.json();
+    const token = uuidv4();
+
     try {
         const [newCandidate] = await db.insert(candidates).values({
             ...data,
             passwordHash: data.password, // TODO: Hash real
+            emailVerified: false,
+            verificationToken: token
         }).returning();
-        return c.json({ status: 'success', candidate: newCandidate });
+
+        // Enviar e-mail de confirmação
+        const verificationUrl = `http://46.224.101.23:5173/auth/verify?token=${token}&type=candidate`;
+
+        await transporter.sendMail({
+            from: '"A2 Tickets 360" <a2tickets360@gmail.com>',
+            to: data.email,
+            subject: 'Confirme seu e-mail - A2 Tickets 360',
+            html: `
+                <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; background: #050505; color: white; padding: 40px; border-radius: 20px;">
+                    <h1 style="color: #6366f1;">Bem-vindo ao Marketplace Staff!</h1>
+                    <p>Para ativar seu perfil e começar a receber propostas, confirme seu e-mail clicando no botão abaixo:</p>
+                    <a href="${verificationUrl}" style="display: inline-block; background: #6366f1; color: white; padding: 12px 24px; border-radius: 10px; text-decoration: none; font-weight: bold; margin-top: 20px;">CONFIRMAR E-MAIL</a>
+                    <p style="margin-top: 30px; font-size: 12px; color: #666;">Se você não realizou este cadastro, ignore este e-mail.</p>
+                </div>
+            `
+        });
+
+        return c.json({ status: 'success', message: 'E-mail de verificação enviado!' });
+    } catch (error: any) {
+        return c.json({ error: error.message }, 400);
+    }
+});
+
+// 2. Endpoint de Verificação de E-mail
+app.get('/api/auth/verify', async (c: Context) => {
+    const token = c.req.query('token');
+    const type = c.req.query('type');
+
+    try {
+        if (type === 'candidate') {
+            const user = await db.query.candidates.findFirst({
+                where: eq(candidates.verificationToken, token as string)
+            });
+
+            if (!user) return c.json({ error: 'Token inválido' }, 400);
+
+            await db.update(candidates)
+                .set({ emailVerified: true, verificationToken: null })
+                .where(eq(candidates.id, user.id));
+        } else {
+            const user = await db.query.organizers.findFirst({
+                where: eq(organizersTable.verificationToken, token as string)
+            });
+
+            if (!user) return c.json({ error: 'Token inválido' }, 400);
+
+            await db.update(organizersTable)
+                .set({ emailVerified: true, verificationToken: null })
+                .where(eq(organizersTable.id, user.id));
+        }
+
+        return c.json({ status: 'success', message: 'E-mail confirmado com sucesso!' });
     } catch (error: any) {
         return c.json({ error: error.message }, 400);
     }

@@ -11,6 +11,7 @@ import RegisterOrganizerPage from '@/pages/RegisterOrganizerPage';
 import CustomerDashboard from '@/pages/dashboard/CustomerDashboard';
 import CustomerTickets from '@/pages/dashboard/CustomerTickets';
 import CheckoutPage from '@/pages/CheckoutPage';
+import VerifyEmailPage from '@/pages/auth/VerifyEmailPage';
 import Settings from '@/pages/dashboard/Settings';
 import OrganizerDashboard from '@/pages/dashboard/OrganizerDashboard';
 import OrganizerEvents from '@/pages/dashboard/OrganizerEvents';
@@ -70,6 +71,7 @@ function App() {
               <Route path="/para-produtores" element={<ParaProdutores />} />
               <Route path="/work-with-us" element={<WorkWithUs />} />
               <Route path="/validador" element={<StaffReaderPage />} />
+              <Route path="/auth/verify" element={<VerifyEmailPage />} />
 
               {/* User Dashboard */}
               <Route path="/dashboard" element={<CustomerDashboard />} />

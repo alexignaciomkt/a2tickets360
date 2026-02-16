@@ -15,14 +15,15 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { BankInfoModal } from '@/components/modals/BankInfoModal';
+import { Badge } from '@/components/ui/badge';
 import { organizerService } from '@/services/organizerService';
 import { Event, FinancialSummary } from '@/interfaces/organizer';
 
 const OrganizerFinancial = () => {
   const [events, setEvents] = useState<Event[]>([]);
   const [financialSummary, setFinancialSummary] = useState<FinancialSummary | null>(null);
-  const [bankModalOpen, setBankModalOpen] = useState(false);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [financialSummary, setFinancialSummary] = useState<FinancialSummary | null>(null);
   const [expenseModalOpen, setExpenseModalOpen] = useState(false);
   const [payoutModalOpen, setPayoutModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -123,10 +124,6 @@ const OrganizerFinancial = () => {
             <p className="text-gray-600 mt-1">Gerencie suas receitas, repasses e informações bancárias</p>
           </div>
           <div className="flex space-x-2">
-            <Button variant="outline" onClick={() => setBankModalOpen(true)}>
-              <Landmark className="h-4 w-4 mr-2" />
-              Dados Bancários
-            </Button>
             <Button>
               <Download className="h-4 w-4 mr-2" />
               Relatório Financeiro
@@ -412,10 +409,6 @@ const OrganizerFinancial = () => {
           </TabsContent>
         </Tabs>
 
-        <BankInfoModal
-          open={bankModalOpen}
-          onOpenChange={setBankModalOpen}
-        />
 
         <AddExpenseModal
           open={expenseModalOpen}
@@ -428,6 +421,34 @@ const OrganizerFinancial = () => {
           onOpenChange={setPayoutModalOpen}
           availableBalance={5200.00}
         />
+
+        {/* Asaas Integration Info */}
+        <Card className="bg-slate-50 border-blue-100">
+          <CardHeader>
+            <CardTitle className="flex items-center text-blue-800">
+              <Landmark className="h-5 w-5 mr-2" />
+              Integração Financeira Asaas
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-gray-600 mb-4">
+              Todas as transações financeiras são processadas automaticamente via <strong>Asaas</strong>.
+              O sistema gera repasses automáticos baseados nas vendas confirmadas.
+            </p>
+            <div className="bg-white p-4 rounded border text-sm">
+              <p className="font-semibold mb-2">Configuração de Webhook (Automático):</p>
+              <code className="bg-gray-100 px-2 py-1 rounded block mb-2 break-all">
+                {window.location.origin}/api/webhooks/asaas
+              </code>
+              <p className="text-xs text-gray-500">
+                Certifique-se de que sua conta Asaas está configurada para enviar eventos de pagamento para esta URL.
+              </p>
+            </div>
+            <div className="mt-4 flex gap-2">
+              <span className="text-xs font-bold bg-blue-100 text-blue-800 px-2 py-1 rounded">Powered by Asaas</span>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </DashboardLayout>
   );

@@ -11,7 +11,7 @@ class OrganizerService {
     return api.get(`/api/events/${eventId}`);
   }
 
-  async createEvent(eventData: Omit<Event, 'id' | 'createdAt' | 'updatedAt'>): Promise<Event> {
+  async createEvent(eventData: any): Promise<Event> {
     return api.post('/api/events', eventData);
   }
 
@@ -24,7 +24,7 @@ class OrganizerService {
   }
 
   // Tickets Management
-  async createTicket(eventId: string, ticketData: Omit<Ticket, 'id' | 'eventId'>): Promise<Ticket> {
+  async createTicket(eventId: string, ticketData: any): Promise<Ticket> {
     return api.post(`/api/events/${eventId}/tickets`, ticketData);
   }
 
