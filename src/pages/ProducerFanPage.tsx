@@ -19,12 +19,14 @@ import {
   Info,
   Globe,
   Briefcase,
-  Ticket as TicketIcon
+  Ticket as TicketIcon,
+  QrCode
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useToast } from '@/hooks/use-toast';
 import { events as mockEvents, Photo } from '@/data/mockData';
 import { Producer, Post } from '@/interfaces/a2types';
 
@@ -34,6 +36,7 @@ const ProducerFanPage = () => {
   const [isFollowing, setIsFollowing] = useState(false);
   const [followersCount, setFollowersCount] = useState(2547);
   const [hasLiked, setHasLiked] = useState(false);
+  const { toast } = useToast();
 
   // Mock producer data
   const producer: Producer = {
@@ -106,6 +109,23 @@ const ProducerFanPage = () => {
     setHasLiked(!hasLiked);
   };
 
+  const handleShareReader = () => {
+    const readerLink = `${window.location.origin}/validador`;
+    const message = `Olá! Aqui está o link do Validador Pro para o staff: ${readerLink}`;
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+
+    // Check if it's mobile to use WhatsApp, otherwise copy to clipboard
+    if (/Android|iPhone/i.test(navigator.userAgent)) {
+      window.open(whatsappUrl, '_blank');
+    } else {
+      navigator.clipboard.writeText(readerLink);
+      toast({
+        title: "Link Copiado!",
+        description: "O link do validador foi copiado para a área de transferência.",
+      });
+    }
+  };
+
   return (
     <div className="bg-[#F0F2F5] min-h-screen">
       {/* Cover & Header Section */}
@@ -171,6 +191,12 @@ const ProducerFanPage = () => {
                   <Briefcase className="w-4 h-4 mr-2" /> Trabalhe Conosco
                 </Button>
               </Link>
+              <Button
+                onClick={handleShareReader}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold border-none shadow-sm"
+              >
+                <QrCode className="w-4 h-4 mr-2" /> Compartilhar Leitor
+              </Button>
             </div>
           </div>
 

@@ -106,7 +106,7 @@ const CheckinPage = () => {
       <div className="bg-primary text-white shadow-md py-4">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between">
-            <h1 className="text-xl font-bold">A2Tickets - Controle de Acesso</h1>
+            <h1 className="text-xl font-bold">A2 Tickets 360 - Controle de Acesso</h1>
             <button className="bg-white/20 hover:bg-white/30 text-white py-1 px-4 rounded-lg text-sm">
               Sair
             </button>

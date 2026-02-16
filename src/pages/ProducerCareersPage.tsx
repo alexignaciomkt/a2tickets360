@@ -31,6 +31,10 @@ const ProducerCareersPage = () => {
         name: '',
         email: '',
         phone: '',
+        gender: '' as any,
+        birthDate: '',
+        city: '',
+        state: '',
         linkedinUrl: '',
         portfolioUrl: '',
         experience: '',
@@ -151,15 +155,67 @@ const ProducerCareersPage = () => {
                                 </div>
                             </div>
 
-                            <div className="space-y-2">
-                                <Label htmlFor="phone">Telefone / WhatsApp</Label>
-                                <Input
-                                    id="phone"
-                                    placeholder="(00) 00000-0000"
-                                    required
-                                    value={formData.phone}
-                                    onChange={e => setFormData({ ...formData, phone: e.target.value })}
-                                />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                    <Label htmlFor="phone">Telefone / WhatsApp</Label>
+                                    <Input
+                                        id="phone"
+                                        placeholder="(00) 00000-0000"
+                                        required
+                                        value={formData.phone}
+                                        onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="birthDate">Data de Nascimento</Label>
+                                    <Input
+                                        id="birthDate"
+                                        type="date"
+                                        required
+                                        value={formData.birthDate}
+                                        onChange={e => setFormData({ ...formData, birthDate: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div className="space-y-2">
+                                    <Label htmlFor="gender">Sexo</Label>
+                                    <Select
+                                        onValueChange={(value) => setFormData({ ...formData, gender: value as any })}
+                                        value={formData.gender}
+                                    >
+                                        <SelectTrigger id="gender">
+                                            <SelectValue placeholder="Selecione" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="M">Masculino</SelectItem>
+                                            <SelectItem value="F">Feminino</SelectItem>
+                                            <SelectItem value="Other">Outro</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2 md:col-span-1">
+                                    <Label htmlFor="city">Cidade</Label>
+                                    <Input
+                                        id="city"
+                                        placeholder="Sua cidade"
+                                        required
+                                        value={formData.city}
+                                        onChange={e => setFormData({ ...formData, city: e.target.value })}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="state">Estado (UF)</Label>
+                                    <Input
+                                        id="state"
+                                        placeholder="SP"
+                                        maxLength={2}
+                                        required
+                                        value={formData.state}
+                                        onChange={e => setFormData({ ...formData, state: e.target.value })}
+                                    />
+                                </div>
                             </div>
 
                             <div className="space-y-4">

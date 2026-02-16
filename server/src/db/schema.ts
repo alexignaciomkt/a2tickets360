@@ -1,4 +1,5 @@
 import { pgTable, text, timestamp, serial, integer, boolean, decimal, jsonb, uuid } from 'drizzle-orm/pg-core';
+import { relations } from 'drizzle-orm';
 
 // Organizadores (Donos dos Eventos)
 export const organizers = pgTable('organizers', {
@@ -85,3 +86,175 @@ export const checkins = pgTable('checkins', {
     eventId: uuid('event_id').references(() => events.id).notNull(),
     checkInTime: timestamp('check_in_time').defaultNow(),
 });
+
+// Categorias Globais de Fornecedores (Colaborativas)
+export const supplierCategories = pgTable('supplier_categories', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    name: text('name').unique().notNull(), // Nome único (ex: 'Papel Toalha', 'Sonorização')
+    icon: text('icon'), // Nome do ícone da Lucide (opcional)
+    createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Fornecedores
+export const suppliers = pgTable('suppliers', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizerId: uuid('organizer_id').references(() => organizers.id).notNull(),
+    categoryId: uuid('category_id').references(() => supplierCategories.id), // Referência à categoria global
+    name: text('name').notNull(),
+    email: text('email'),
+    phone: text('phone'),
+    category: text('category'), // Mantido para compatibilidade ou texto livre secundário
+    document: text('document'), // CNPJ/CPF
+    address: text('address'), // Endereço completo
+    contactName: text('contact_name'), // Nome do responsável/contato
+    contactPhone: text('contact_phone'), // Telefone do responsável
+    status: text('status', { enum: ['active', 'inactive'] }).default('active'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// Contratos de Fornecedores
+export const supplierContracts = pgTable('supplier_contracts', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    supplierId: uuid('supplier_id').references(() => suppliers.id).notNull(),
+    organizerId: uuid('organizer_id').references(() => organizers.id).notNull(),
+    eventId: uuid('event_id').references(() => events.id),
+    title: text('title').notNull(),
+    fileUrl: text('file_url'),
+    value: decimal('value', { precision: 10, scale: 2 }),
+    status: text('status', { enum: ['pending', 'signed', 'expired', 'cancelled'] }).default('pending'),
+    signedAt: timestamp('signed_at'),
+    createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Cotações (Orçamentos)
+export const quotes = pgTable('quotes', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizerId: uuid('organizer_id').references(() => organizers.id).notNull(),
+    eventId: uuid('event_id').references(() => events.id),
+    title: text('title').notNull(),
+    description: text('description'),
+    status: text('status', { enum: ['open', 'approved', 'rejected', 'closed'] }).default('open'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// Respostas de Cotações
+export const quoteResponses = pgTable('quote_responses', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    quoteId: uuid('quote_id').references(() => quotes.id).notNull(),
+    supplierId: uuid('supplier_id').references(() => suppliers.id).notNull(),
+    value: decimal('value', { precision: 10, scale: 2 }),
+    fileUrl: text('file_url'), // PDF do orçamento
+    notes: text('notes'),
+    isAccepted: boolean('is_accepted').default(false),
+    createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Candidatos / Profissionais Independentes (Marketplace)
+export const candidates = pgTable('candidates', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    name: text('name').notNull(),
+    email: text('email').unique().notNull(),
+    passwordHash: text('password_hash').notNull(),
+    phone: text('phone'),
+    photoUrl: text('photo_url'),
+    biography: text('biography'),
+    city: text('city'),
+    state: text('state'),
+    experience: text('experience'),
+    rating: decimal('rating', { precision: 3, scale: 2 }).default('5.00'),
+    certifications: jsonb('certifications').default([]), // { name, fileUrl, expiryDate }[]
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// Propostas de Trabalho (Invitations)
+export const staffProposals = pgTable('staff_proposals', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    candidateId: uuid('candidate_id').references(() => candidates.id).notNull(),
+    eventId: uuid('event_id').references(() => events.id).notNull(),
+    organizerId: uuid('organizer_id').references(() => organizers.id).notNull(),
+    roleId: text('role_id').notNull(),
+    roleName: text('role_name').notNull(),
+    pay: text('pay').notNull(),
+    status: text('status', { enum: ['pending', 'accepted', 'declined'] }).default('pending'),
+    sentAt: timestamp('sent_at').defaultNow(),
+    respondedAt: timestamp('responded_at'),
+});
+
+// --- Relações (Drizzle Relations API) ---
+
+export const organizersRelations = relations(organizers, ({ many }) => ({
+    events: many(events),
+    suppliers: many(suppliers),
+    staff: many(staff),
+}));
+
+export const eventsRelations = relations(events, ({ one, many }) => ({
+    organizer: one(organizers, {
+        fields: [events.organizerId],
+        references: [organizers.id],
+    }),
+    tickets: many(tickets),
+    sales: many(sales),
+    proposals: many(staffProposals),
+}));
+
+export const salesRelations = relations(sales, ({ one, many }) => ({
+    event: one(events, {
+        fields: [sales.eventId],
+        references: [events.id],
+    }),
+    ticket: one(tickets, {
+        fields: [sales.ticketId],
+        references: [tickets.id],
+    }),
+    checkins: many(checkins),
+}));
+
+export const staffRelations = relations(staff, ({ one, many }) => ({
+    organizer: one(organizers, {
+        fields: [staff.organizerId],
+        references: [organizers.id],
+    }),
+    event: one(events, {
+        fields: [staff.eventId],
+        references: [events.id],
+    }),
+    checkins: many(checkins),
+}));
+
+export const checkinsRelations = relations(checkins, ({ one }) => ({
+    sale: one(sales, {
+        fields: [checkins.saleId],
+        references: [sales.id],
+    }),
+    staff: one(staff, {
+        fields: [checkins.staffId],
+        references: [staff.id],
+    }),
+    event: one(events, {
+        fields: [checkins.eventId],
+        references: [events.id],
+    }),
+}));
+
+export const candidatesRelations = relations(candidates, ({ many }) => ({
+    proposals: many(staffProposals),
+}));
+
+export const staffProposalsRelations = relations(staffProposals, ({ one }) => ({
+    candidate: one(candidates, {
+        fields: [staffProposals.candidateId],
+        references: [candidates.id],
+    }),
+    event: one(events, {
+        fields: [staffProposals.eventId],
+        references: [events.id],
+    }),
+    organizer: one(organizers, {
+        fields: [staffProposals.organizerId],
+        references: [organizers.id],
+    }),
+}));

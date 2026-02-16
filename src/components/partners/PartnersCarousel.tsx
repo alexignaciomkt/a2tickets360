@@ -29,7 +29,7 @@ const PartnersCarousel = () => {
     <section className="py-16 bg-white">
       <div className="container mx-auto px-4">
         <div className="text-center mb-10">
-          <h2 className="text-3xl font-bold mb-4">Parceiros A2Tickets</h2>
+          <h2 className="text-3xl font-bold mb-4">Parceiros A2 Tickets 360</h2>
           <p className="text-gray-600 max-w-2xl mx-auto">
             Organizações e empresas que confiam em nossa plataforma para criar experiências incríveis.
           </p>

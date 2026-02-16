@@ -74,7 +74,7 @@ const RegisterOrganizerPage = () => {
               <p className="text-lg text-gray-600 max-w-2xl mx-auto">
                 {isUpgrade
                   ? 'Upgrade sua conta e comece a criar eventos profissionais hoje mesmo'
-                  : 'Junte-se à A2Tickets e transforme suas ideias em eventos memoráveis'
+                  : 'Junte-se à A2 Tickets 360 e transforme suas ideias em eventos memoráveis'
                 }
               </p>
             </div>
@@ -85,7 +85,7 @@ const RegisterOrganizerPage = () => {
               <div>
                 <h2 className="text-2xl font-bold mb-6 flex items-center">
                   <Sparkles className="h-6 w-6 text-primary mr-2" />
-                  Por que escolher a A2Tickets?
+                  Por que escolher a A2 Tickets 360?
                 </h2>
 
                 <div className="space-y-4">
@@ -134,7 +134,7 @@ const RegisterOrganizerPage = () => {
 
                     <div className="space-y-4">
                       <div className="text-center mb-8">
-                        <h1 className="text-3xl font-bold text-gray-900">Parceiro A2Tickets</h1>
+                        <h2 className="mt-6 text-3xl font-black text-gray-900 uppercase tracking-tighter">A2 Tickets 360</h2>
                         <p className="mt-2 text-gray-600">Junte-se a nós e comece a vender seus eventos</p>
                       </div>
 

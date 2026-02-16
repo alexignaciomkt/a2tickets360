@@ -118,7 +118,7 @@ const StaffCheckinPage = () => {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Check-in A2Tickets</h1>
+              <h1 className="text-2xl font-black text-white uppercase tracking-tighter">A2 Tickets 360</h1>
               <p className="text-gray-600">{staffAuth.eventTitle}</p>
             </div>
             <div className="flex items-center space-x-4">
@@ -243,7 +243,7 @@ const StaffCheckinPage = () => {
                   Últimos Check-ins
                 </CardTitle>
                 <CardDescription>
-                  Bem-vindo ao sistema de check-in do A2Tickets.lizados
+                  Bem-vindo ao sistema de check-in do A2 Tickets 360.lizados
                 </CardDescription>
               </CardHeader>
               <CardContent>

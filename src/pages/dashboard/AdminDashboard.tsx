@@ -20,7 +20,7 @@ const AdminDashboard = () => {
         <div className="bg-white rounded-lg shadow-md p-6">
           <h1 className="text-2xl font-bold mb-2">Painel Administrativo</h1>
           <p className="text-gray-600">
-            Bem-vindo ao painel administrativo do A2Tickets.
+            Bem-vindo ao painel administrativo do A2 Tickets 360.
           </p>
         </div>
 

@@ -35,7 +35,7 @@ const CustomerDashboard = () => {
         <div className="bg-white rounded-lg shadow-md p-6">
           <h1 className="text-2xl font-bold mb-2">Olá, {user?.name || 'Visitante'}</h1>
           <p className="text-gray-600">
-            Bem-vindo(a) ao seu painel de ingressos no A2Tickets.
+            Bem-vindo(a) ao seu painel de ingressos no A2 Tickets 360.
           </p>
         </div>
 
@@ -45,7 +45,7 @@ const CustomerDashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-500 text-sm">Ingressos Ativos</p>
-                <h3 className="text-3xl font-bold">{upcomingEvents}</h3>
+                <h1 className="text-xl font-bold">Painel do Cliente - A2 Tickets 360</h1>
               </div>
               <div className="bg-primary/10 p-3 rounded-full">
                 <Ticket className="h-7 w-7 text-primary" />

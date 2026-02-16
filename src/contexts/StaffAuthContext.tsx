@@ -27,16 +27,15 @@ export const StaffAuthProvider = ({ children }: { children: ReactNode }) => {
   const login = async (email: string, password: string) => {
     try {
       const auth = await staffService.staffLogin(email, password);
-      
+
       if (auth) {
         setStaffAuth(auth);
-        localStorage.setItem('sanjapass_staff_auth', JSON.stringify(auth));
-        
+        localStorage.setItem('A2 Tickets 360_staff_auth', JSON.stringify(auth));
+
         toast({
           title: 'Login realizado com sucesso',
-          description: `Bem-vindo(a), ${auth.staffName}!`,
+          description: `Bem-vindo ao app de staff do ${auth.eventTitle}`,
         });
-        
         return true;
       } else {
         toast({
@@ -58,7 +57,7 @@ export const StaffAuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = () => {
     setStaffAuth(null);
-    localStorage.removeItem('sanjapass_staff_auth');
+    localStorage.removeItem('A2 Tickets 360_staff_auth');
     toast({
       title: 'Logout realizado',
       description: 'Você foi desconectado com sucesso.',

@@ -1,7 +1,7 @@
 import { Hono, Context } from 'hono';
 import { cors } from 'hono/cors';
 import { db } from './db';
-import { sales, checkins, staff, events, tickets } from './db/schema';
+import { sales, checkins, staff, events, tickets, candidates, staffProposals } from './db/schema';
 import { eq, and } from 'drizzle-orm';
 import Redis from 'ioredis';
 import dotenv from 'dotenv';
@@ -148,89 +148,84 @@ app.post('/api/auth/login', async (c: Context) => {
     });
 });
 
-// --- Consultar Staff do Evento ---
-app.get('/api/staff/:eventId', authMiddleware, async (c: Context) => {
-    const eventId = c.req.param('eventId');
-    const staffList = await db.query.staff.findMany({
-        where: eq(staff.eventId, eventId),
-    });
-    return c.json(staffList);
+// --- Candidatos / Marketplace ---
+
+// 1. Cadastro Público de Candidato
+app.post('/api/candidates', async (c: Context) => {
+    const data = await c.req.json();
+    try {
+        const [newCandidate] = await db.insert(candidates).values({
+            ...data,
+            passwordHash: data.password, // TODO: Hash real
+        }).returning();
+        return c.json({ status: 'success', candidate: newCandidate });
+    } catch (error: any) {
+        return c.json({ error: error.message }, 400);
+    }
 });
 
-// --- Histórico de Check-ins ---
-app.get('/api/checkin/history/:eventId', authMiddleware, async (c: Context) => {
-    const eventId = c.req.param('eventId');
-    const history = await db.query.checkins.findMany({
-        where: eq(checkins.eventId, eventId),
+// 2. Recrutador busca talentos
+app.get('/api/candidates/organizer/:organizerId', async (c: Context) => {
+    const organizerId = c.req.param('organizerId');
+    // Em um sistema real, poderíamos filtrar por proximidade ou categorias
+    const talentPool = await db.query.candidates.findMany();
+    return c.json(talentPool);
+});
+
+// 3. Recrutador envia proposta
+app.post('/api/organizers/proposals', async (c: Context) => {
+    const data = await c.req.json();
+    try {
+        const [proposal] = await db.insert(staffProposals).values({
+            candidateId: data.candidateId,
+            eventId: data.eventId,
+            organizerId: data.organizerId,
+            roleId: data.roleId,
+            roleName: data.roleName,
+            pay: data.pay,
+            status: 'pending'
+        }).returning();
+        return c.json({ status: 'success', proposal });
+    } catch (error: any) {
+        return c.json({ error: error.message }, 400);
+    }
+});
+
+// 4. Worker visualiza seu portal (Propostas e Agenda)
+app.get('/api/worker/portal/:candidateId', async (c: Context) => {
+    const candidateId = c.req.param('candidateId');
+
+    const workerProposals = await db.query.staffProposals.findMany({
+        where: eq(staffProposals.candidateId, candidateId),
         with: {
-            staff: true,
-            sale: true,
-        },
-        orderBy: (checkins, { desc }) => [desc(checkins.checkInTime)],
-    });
-    return c.json(history);
+            event: true
+        }
+    } as any);
+
+    return c.json({ proposals: workerProposals });
 });
 
-// --- Validação de QR Code (O Coração do Sistema) ---
-app.post('/api/checkin/validate', authMiddleware, async (c: Context) => {
-    const { qrCodeData } = await c.req.json();
-    const payload = c.get('jwtPayload'); // Obtido do middleware
-    const eventId = payload.eventId;
+// 5. Worker responde à proposta
+app.post('/api/candidates/:id/proposals/:propId/respond', async (c: Context) => {
+    const candidateId = c.req.param('id');
+    const proposalId = c.req.param('propId');
+    const { status } = await c.req.json();
 
     try {
-        // 1. Verificar Cache no Redis (Performance Máxima)
-        const cachedStatus = await redis.get(`ticket:${qrCodeData}`);
+        await db.update(staffProposals)
+            .set({
+                status,
+                respondedAt: new Date()
+            })
+            .where(and(
+                eq(staffProposals.id, proposalId),
+                eq(staffProposals.candidateId, candidateId)
+            ));
 
-        if (cachedStatus === 'USED') {
-            return c.json({ status: 'used', message: 'Ingresso já utilizado!' }, 200);
-        }
-
-        // 2. Consulta ao Banco (Somente se necessário ou para escrita)
-        const saleRecord = await db.query.sales.findFirst({
-            where: and(
-                eq(sales.qrCodeData, qrCodeData),
-                eq(sales.eventId, eventId)
-            ),
-        });
-
-        if (!saleRecord) {
-            return c.json({ status: 'invalid', message: 'Ingresso não encontrado.' }, 200);
-        }
-
-        if (saleRecord.paymentStatus !== 'paid') {
-            return c.json({ status: 'invalid', message: 'Pagamento não confirmado.' }, 200);
-        }
-
-        // 3. Verificar se já existe check-in no banco (Double Check)
-        const existingCheckin = await db.query.checkins.findFirst({
-            where: eq(checkins.saleId, saleRecord.id),
-        });
-
-        if (existingCheckin) {
-            // Atualizar Redis se estiver inconsistente
-            await redis.set(`ticket:${qrCodeData}`, 'USED');
-            return c.json({ status: 'used', message: 'Ingresso já utilizado!' }, 200);
-        }
-
-        // 4. Registrar Entrada (Transação em Eventos Massivos)
-        await db.insert(checkins).values({
-            saleId: saleRecord.id,
-            staffId: payload.staffId,
-            eventId: eventId,
-        });
-
-        // 5. Invalidar no Redis Imediatamente
-        await redis.set(`ticket:${qrCodeData}`, 'USED');
-
-        return c.json({
-            status: 'valid',
-            attendee: saleRecord.buyerName,
-            ticketType: 'Ingresso Confirmado' // Pode expandir aqui
-        });
-
-    } catch (error) {
-        console.error('Erro na validação:', error);
-        return c.json({ error: 'Erro interno no servidor' }, 500);
+        // Se aceito, opcionalmente criar entrada na tabela 'staff' fixada no evento
+        return c.json({ status: 'success' });
+    } catch (error: any) {
+        return c.json({ error: error.message }, 400);
     }
 });
 

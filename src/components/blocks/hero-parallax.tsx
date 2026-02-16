@@ -65,7 +65,7 @@ export const HeroParallax = ({
 export const Header = () => {
   return <div className="max-w-7xl relative mx-auto py-10 md:py-16 px-4 w-full left-0 top-0 my-[228px]">
     <h1 className="text-2xl font-bold text-red-950 text-left md:text-5xl">
-      A2Tickets <br /> A plataforma completa para seus eventos
+      A2 Tickets 360 <br /> A plataforma completa para seus eventos
     </h1>
     <p className="max-w-2xl text-sm md:text-base mt-4 dark:text-neutral-200">
       Compre ingressos, participe de eventos e compartilhe suas melhores experiências.

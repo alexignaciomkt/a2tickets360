@@ -11,7 +11,6 @@ import RegisterOrganizerPage from '@/pages/RegisterOrganizerPage';
 import CustomerDashboard from '@/pages/dashboard/CustomerDashboard';
 import CustomerTickets from '@/pages/dashboard/CustomerTickets';
 import CheckoutPage from '@/pages/CheckoutPage';
-import UserPhotos from '@/pages/dashboard/UserPhotos';
 import Settings from '@/pages/dashboard/Settings';
 import OrganizerDashboard from '@/pages/dashboard/OrganizerDashboard';
 import OrganizerEvents from '@/pages/dashboard/OrganizerEvents';
@@ -21,6 +20,8 @@ import OrganizerFinancial from '@/pages/dashboard/OrganizerFinancial';
 import OrganizerReports from '@/pages/dashboard/OrganizerReports';
 import OrganizerSettings from '@/pages/dashboard/OrganizerSettings';
 import OrganizerStaff from '@/pages/dashboard/OrganizerStaff';
+import OrganizerSuppliers from '@/pages/dashboard/OrganizerSuppliers';
+import SupplierDetails from '@/pages/dashboard/SupplierDetails';
 import StaffRolesPage from '@/pages/dashboard/StaffRolesPage';
 import StaffFinancialPage from '@/pages/dashboard/StaffFinancialPage';
 import TalentPoolPage from '@/pages/dashboard/TalentPoolPage';
@@ -35,6 +36,11 @@ import EventsPage from '@/pages/EventsPage';
 import EventDetailPage from '@/pages/EventDetailPage';
 import ParaProdutores from '@/pages/ParaProdutores';
 import WorkWithUs from '@/pages/WorkWithUs';
+import StaffReaderPage from '@/pages/staff/StaffReaderPage';
+import StaffPortalDashboard from '@/pages/staff/StaffPortalDashboard';
+import WorkerProfilePage from '@/pages/staff/WorkerProfilePage';
+import ProposalsPage from '@/pages/staff/ProposalsPage';
+import AgendaPage from '@/pages/staff/AgendaPage';
 
 import BuyerProfilePage from '@/pages/BuyerProfilePage';
 import MasterAdminPanel from '@/pages/dashboard/MasterAdminPanel';
@@ -45,6 +51,8 @@ import ReportsPage from '@/pages/dashboard/ReportsPage';
 import AlertsPage from '@/pages/dashboard/AlertsPage';
 import PayoutManagement from '@/pages/dashboard/PayoutManagement';
 import FinancialTransactions from '@/pages/dashboard/FinancialTransactions';
+import CommissionsPage from '@/pages/dashboard/CommissionsPage';
+import MasterSettings from '@/pages/dashboard/MasterSettings';
 
 const queryClient = new QueryClient();
 
@@ -61,12 +69,12 @@ function App() {
               <Route path="/register-organizer" element={<RegisterOrganizerPage />} />
               <Route path="/para-produtores" element={<ParaProdutores />} />
               <Route path="/work-with-us" element={<WorkWithUs />} />
+              <Route path="/validador" element={<StaffReaderPage />} />
 
               {/* User Dashboard */}
               <Route path="/dashboard" element={<CustomerDashboard />} />
               <Route path="/dashboard/tickets" element={<CustomerTickets />} />
               <Route path="/dashboard/tickets/:ticketId" element={<CustomerTickets />} />
-              <Route path="/dashboard/photos" element={<UserPhotos />} />
               <Route path="/dashboard/settings" element={<Settings />} />
 
               {/* Checkout */}
@@ -80,6 +88,8 @@ function App() {
               <Route path="/organizer/attendees" element={<OrganizerAttendees />} />
               <Route path="/organizer/events/:eventId/attendees" element={<OrganizerAttendees />} />
               <Route path="/organizer/staff" element={<OrganizerStaff />} />
+              <Route path="/organizer/suppliers" element={<OrganizerSuppliers />} />
+              <Route path="/organizer/suppliers/:id" element={<SupplierDetails />} />
               <Route path="/organizer/staff/roles" element={<StaffRolesPage />} />
               <Route path="/organizer/staff/financial" element={<StaffFinancialPage />} />
               <Route path="/organizer/staff/talent-pool" element={<TalentPoolPage />} />
@@ -116,6 +126,17 @@ function App() {
               <Route path="/master/alerts" element={<AlertsPage />} />
               <Route path="/master/payouts" element={<PayoutManagement />} />
               <Route path="/master/transactions" element={<FinancialTransactions />} />
+              <Route path="/master/commissions" element={<CommissionsPage />} />
+              <Route path="/master/settings" element={<MasterSettings />} />
+              <Route path="/organizer/events/edit/:eventId" element={<CreateEvent />} />
+              <Route path="/organizer/events/:eventId" element={<Navigate to="/organizer/events/edit/:eventId" replace />} />
+
+              {/* Staff Experience Portal (Phase 6) */}
+              <Route path="/staff/portal" element={<StaffPortalDashboard />} />
+              <Route path="/staff/portal/proposals" element={<ProposalsPage />} />
+              <Route path="/staff/portal/agenda" element={<AgendaPage />} />
+              <Route path="/staff/portal/financial" element={<StaffPortalDashboard />} />
+              <Route path="/staff/portal/profile" element={<WorkerProfilePage />} />
             </Routes>
           </Router>
         </NotificationProvider>

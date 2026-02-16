@@ -17,6 +17,18 @@ class CandidateService {
     async addNote(candidateId: string, note: string): Promise<void> {
         return api.post(`/api/candidates/${candidateId}/notes`, { note });
     }
+
+    async updateProfile(candidateId: string, data: Partial<Candidate>): Promise<Candidate> {
+        return api.put(`/api/candidates/${candidateId}`, data);
+    }
+
+    async respondToProposal(candidateId: string, proposalId: string, status: 'accepted' | 'declined'): Promise<void> {
+        return api.post(`/api/candidates/${candidateId}/proposals/${proposalId}/respond`, { status });
+    }
+
+    async getByEmail(email: string): Promise<Candidate | null> {
+        return api.get(`/api/candidates/email/${email}`);
+    }
 }
 
 export const candidateService = new CandidateService();

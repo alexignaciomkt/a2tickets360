@@ -1,5 +1,5 @@
 
-import { ReactNode, useState } from 'react';
+import { ReactNode, useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   Home,
@@ -16,7 +16,8 @@ import {
   ShieldCheck,
   MapPin,
   Store,
-  TrendingUp
+  TrendingUp,
+  Truck
 } from 'lucide-react';
 import Logo from '@/components/ui/logo';
 
@@ -34,53 +35,132 @@ const DashboardLayout = ({ children, userType }: DashboardLayoutProps) => {
     switch (userType) {
       case 'customer':
         return [
-          { name: 'Início', path: '/dashboard', icon: Home },
-          { name: 'Meus Ingressos', path: '/dashboard/tickets', icon: Calendar },
-          { name: 'Fotos', path: '/dashboard/photos', icon: Users },
-          { name: 'Configurações', path: '/dashboard/settings', icon: Settings },
+          {
+            category: 'Geral',
+            items: [
+              { name: 'Início', path: '/dashboard', icon: Home },
+              { name: 'Meus Ingressos', path: '/dashboard/tickets', icon: Calendar },
+              { name: 'Configurações', path: '/dashboard/settings', icon: Settings },
+            ]
+          }
         ];
       case 'organizer':
         return [
-          { name: 'Dashboard', path: '/organizer', icon: Home },
-          { name: 'Meus Eventos', path: '/organizer/events', icon: Calendar },
-          { name: 'Participantes', path: '/organizer/attendees', icon: Users },
-          { name: 'Gestão de Staff', path: '/organizer/staff', icon: UserCheck },
-          { name: 'Cargos e Permissões', path: '/organizer/staff/roles', icon: ShieldCheck },
-          { name: 'Relatórios Financeiros', path: '/organizer/staff/financial', icon: TrendingUp },
-          { name: 'Banco de Talentos', path: '/organizer/staff/talent-pool', icon: Users },
-          { name: 'Loja/FanPage', path: '/organizer/store', icon: Store },
-          { name: 'Designer de Ingressos', path: '/organizer/ticket-designer', icon: Palette },
-          { name: 'Validação de Ingressos', path: '/organizer/ticket-validation', icon: ShieldCheck },
-          { name: 'Pontos de Venda', path: '/organizer/sales-points', icon: MapPin },
-          { name: 'Relatórios', path: '/organizer/reports', icon: ChevronRight },
-          { name: 'Financeiro', path: '/organizer/financial', icon: DollarSign },
-          { name: 'Check-in', path: '/organizer/checkin', icon: ChevronRight },
-          { name: 'Configurações', path: '/organizer/settings', icon: Settings },
+          {
+            category: 'Geral',
+            icon: Home,
+            items: [
+              { name: 'Dashboard', path: '/organizer', icon: Home },
+              { name: 'Meus Eventos', path: '/organizer/events', icon: Calendar },
+              { name: 'Participantes', path: '/organizer/attendees', icon: Users },
+            ]
+          },
+          {
+            category: 'Operações & Staff',
+            icon: Users,
+            items: [
+              { name: 'Gestão de Staff', path: '/organizer/staff', icon: UserCheck },
+              { name: 'Cargos e Permissões', path: '/organizer/staff/roles', icon: ShieldCheck },
+              { name: 'Banco de Talentos', path: '/organizer/staff/talent-pool', icon: Users },
+              { name: 'Check-in', path: '/organizer/checkin', icon: ChevronRight },
+            ]
+          },
+          {
+            category: 'Logística & Fornecedores',
+            icon: Truck,
+            items: [
+              { name: 'Gestão de Fornecedores', path: '/organizer/suppliers', icon: Truck },
+              { name: 'Pontos de Venda', path: '/organizer/sales-points', icon: MapPin },
+            ]
+          },
+          {
+            category: 'Vendas & Branding',
+            icon: Palette,
+            items: [
+              { name: 'Loja/FanPage', path: '/organizer/store', icon: Store },
+              { name: 'Designer de Ingressos', path: '/organizer/ticket-designer', icon: Palette },
+              { name: 'Validação de Ingressos', path: '/organizer/ticket-validation', icon: ShieldCheck },
+            ]
+          },
+          {
+            category: 'BI & Financeiro',
+            icon: DollarSign,
+            items: [
+              { name: 'Financeiro', path: '/organizer/financial', icon: DollarSign },
+              { name: 'Relatórios', path: '/organizer/reports', icon: ChevronRight },
+              { name: 'Relatórios Financeiros', path: '/organizer/staff/financial', icon: TrendingUp },
+            ]
+          },
+          {
+            category: 'Sistema',
+            icon: Settings,
+            items: [
+              { name: 'Configurações', path: '/organizer/settings', icon: Settings },
+            ]
+          }
         ];
       case 'admin':
         return [
-          // Páginas Principais
-          { name: 'Dashboard', path: '/master', icon: Home },
-          { name: 'Gerenciar Organizadores', path: '/master/organizers', icon: Users },
-          { name: 'Aprovar Eventos', path: '/master/approve', icon: Calendar },
-          { name: 'Alertas', path: '/master/alerts', icon: ChevronRight },
-          { name: 'Relatórios', path: '/master/reports', icon: ChevronRight },
-
-          // Páginas Financeiras
-          { name: 'Dashboard Financeiro', path: '/master/financial', icon: DollarSign },
-          { name: 'Transações', path: '/master/transactions', icon: DollarSign },
-          { name: 'Repasses', path: '/master/payouts', icon: DollarSign },
-          { name: 'Comissões', path: '/master/commissions', icon: DollarSign },
-
-          // Configurações
-          { name: 'Configurações', path: '/master/settings', icon: Settings },
+          {
+            category: 'Principal',
+            icon: Home,
+            items: [
+              { name: 'Dashboard', path: '/master', icon: Home },
+              { name: 'Gerenciar Organizadores', path: '/master/organizers', icon: Users },
+              { name: 'Aprovar Eventos', path: '/master/approve', icon: Calendar },
+            ]
+          },
+          {
+            category: 'Financeiro',
+            icon: DollarSign,
+            items: [
+              { name: 'Dashboard Financeiro', path: '/master/financial', icon: DollarSign },
+              { name: 'Transações', path: '/master/transactions', icon: DollarSign },
+              { name: 'Repasses', path: '/master/payouts', icon: DollarSign },
+              { name: 'Comissões', path: '/master/commissions', icon: DollarSign },
+            ]
+          },
+          {
+            category: 'Monitoramento',
+            icon: ChevronRight,
+            items: [
+              { name: 'Alertas', path: '/master/alerts', icon: ChevronRight },
+              { name: 'Relatórios', path: '/master/reports', icon: ChevronRight },
+            ]
+          },
+          {
+            category: 'Configurações',
+            icon: Settings,
+            items: [
+              { name: 'Configurações', path: '/master/settings', icon: Settings },
+            ]
+          }
         ];
       default:
         return [];
     }
   };
 
-  const navItems = getNavItems();
+  const categories = getNavItems();
+
+  // Initialize state from localStorage if available
+  const [openCategories, setOpenCategories] = useState<string[]>(() => {
+    const saved = localStorage.getItem('A2 Tickets 360_sidebar_categories');
+    return saved ? JSON.parse(saved) : (userType === 'admin' ? ['Principal'] : ['Geral']);
+  });
+
+  // Persist state changes to localStorage
+  useEffect(() => {
+    localStorage.setItem('A2 Tickets 360_sidebar_categories', JSON.stringify(openCategories));
+  }, [openCategories]);
+
+  const toggleCategory = (categoryName: string) => {
+    setOpenCategories(prev =>
+      prev.includes(categoryName)
+        ? prev.filter(c => c !== categoryName)
+        : [...prev, categoryName]
+    );
+  };
 
   // Helper function to determine active route
   const isActive = (path: string) => location.pathname === path;
@@ -116,43 +196,58 @@ const DashboardLayout = ({ children, userType }: DashboardLayoutProps) => {
         className={`bg-white shadow-md fixed md:relative z-40 w-64 transition-transform duration-300 transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
           }`}
       >
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col h-full uppercase">
           <div className="p-6 border-b">
             <Logo variant="default" showText={true} />
-            <p className="text-sm text-gray-500 mt-1">{getDashboardTitle()}</p>
+            <p className="text-[10px] text-gray-400 font-black mt-1 uppercase tracking-widest">{getDashboardTitle()}</p>
           </div>
 
-          <nav className="py-6 flex-grow overflow-y-auto">
-            <ul className="space-y-1">
-              {navItems.map((item) => {
-                const active = isActive(item.path);
-                return (
-                  <li key={item.name}>
-                    <Link
-                      to={item.path}
-                      className={`flex items-center px-6 py-3 text-sm ${active
-                        ? 'bg-primary/10 text-primary border-r-4 border-primary font-medium'
-                        : 'text-gray-600 hover:bg-gray-100'
-                        }`}
-                      onClick={() => setSidebarOpen(false)}
-                    >
-                      <item.icon className="h-5 w-5 mr-3" />
-                      {item.name}
-                      {active && <ChevronRight className="ml-auto h-4 w-4" />}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
+          <nav className="py-4 flex-grow overflow-y-auto custom-scrollbar">
+            <div className="space-y-2">
+              {categories.map((cat) => (
+                <div key={cat.category} className="px-3">
+                  <button
+                    onClick={() => toggleCategory(cat.category)}
+                    className="w-full flex items-center justify-between px-3 py-2 text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-primary transition-colors group text-left"
+                  >
+                    <div className="flex items-center gap-2 flex-1 min-w-0 font-black">
+                      {cat.icon && <cat.icon className="w-3.5 h-3.5 group-hover:text-primary shrink-0" />}
+                      <span className="truncate">{cat.category}</span>
+                    </div>
+                    <ChevronRight className={`w-3.5 h-3.5 transition-transform duration-200 shrink-0 ml-2 ${openCategories.includes(cat.category) ? 'rotate-90 text-primary' : ''}`} />
+                  </button>
+
+                  <div className={`mt-1 space-y-1 overflow-hidden transition-all duration-300 ${openCategories.includes(cat.category) ? 'max-h-[500px] opacity-100 mb-4' : 'max-h-0 opacity-0'}`}>
+                    {cat.items.map((item) => {
+                      const active = isActive(item.path);
+                      return (
+                        <Link
+                          key={item.name}
+                          to={item.path}
+                          className={`flex items-center px-6 py-2 rounded-xl text-[11px] font-black transition-all ${active
+                            ? 'bg-primary text-white shadow-lg shadow-primary/20 scale-105'
+                            : 'text-gray-500 hover:bg-gray-50'
+                            }`}
+                          onClick={() => setSidebarOpen(false)}
+                        >
+                          <item.icon className="h-4 w-4 mr-3 shrink-0" />
+                          <span className="truncate">{item.name}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
           </nav>
 
-          <div className="p-6 border-t">
+          <div className="p-4 border-t">
             <Link
               to="/"
-              className="flex items-center text-sm text-gray-600 hover:text-primary"
+              className="flex items-center px-4 py-2 text-xs font-black text-red-600 hover:bg-red-50 rounded-xl transition-all uppercase tracking-tighter"
             >
-              <LogOut className="h-5 w-5 mr-3" />
-              Sair
+              <LogOut className="h-4 w-4 mr-3" />
+              Sair do Sistema
             </Link>
           </div>
         </div>

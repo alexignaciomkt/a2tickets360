@@ -6,21 +6,21 @@ import { useAuth } from '@/contexts/AuthContext';
 const LoginForm = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
-  
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!email || !password) return;
-    
+
     setLoading(true);
-    
+
     try {
       const success = await login(email, password);
-      
+
       if (success) {
         // Redirect based on role
         if (email === 'maria@example.com' || email === 'joao@example.com') {
@@ -37,7 +37,7 @@ const LoginForm = () => {
       setLoading(false);
     }
   };
-  
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
@@ -54,7 +54,7 @@ const LoginForm = () => {
           required
         />
       </div>
-      
+
       <div>
         <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
           Senha
@@ -69,7 +69,7 @@ const LoginForm = () => {
           required
         />
       </div>
-      
+
       <div className="pt-2">
         <button
           type="submit"
@@ -79,11 +79,9 @@ const LoginForm = () => {
           {loading ? 'Entrando...' : 'Entrar'}
         </button>
       </div>
-      
+
       <div className="text-center text-sm text-gray-600">
-        <p className="mt-4">
-          Usuários de teste:
-        </p>
+        <p className="text-gray-500">Faça login para gerenciar sua conta na A2 Tickets 360.</p>
         <table className="w-full mt-2 text-xs">
           <thead>
             <tr className="border-b">

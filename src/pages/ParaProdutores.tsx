@@ -77,7 +77,7 @@ const ParaProdutores: React.FC = () => {
                 {/* Vantagens Competitivas */}
                 <section className="py-24 max-w-7xl mx-auto px-4">
                     <div className="text-center mb-20">
-                        <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-6 uppercase tracking-tighter">Por que escolher a A2Tickets?</h2>
+                        <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-6 uppercase tracking-tighter">Por que escolher a A2 Tickets 360?</h2>
                         <p className="text-xl text-gray-500 font-medium">Focamos na sua lucratividade e no controle total do seu negócio.</p>
                     </div>
 
@@ -91,7 +91,7 @@ const ParaProdutores: React.FC = () => {
                                 bg: "bg-green-50"
                             },
                             {
-                                title: "ERP Completo",
+                                title: "A2 Tickets 360",
                                 desc: "Controle sua equipe (Staff), gerencie fornecedores e tenha uma CRM poderosa dos seus participantes.",
                                 icon: BarChart3,
                                 color: "text-indigo-600",
@@ -191,8 +191,10 @@ const ParaProdutores: React.FC = () => {
                     <div className="max-w-7xl mx-auto px-4 flex flex-col lg:flex-row items-center gap-16">
                         <div className="lg:w-1/2">
                             <span className="text-indigo-600 font-black text-xs uppercase tracking-widest mb-4 block">Novidade Exclusiva</span>
-                            <h2 className="text-4xl md:text-6xl font-black text-gray-900 mb-8 leading-tight tracking-tighter">
-                                ENCONTRE O <span className="text-indigo-600">STAFF IDEAL</span> EM SEGUNDOS.
+                            <h2 className="font-black text-gray-900 leading-[0.85] tracking-tighter mb-10 flex flex-col gap-1 uppercase">
+                                <span className="text-2xl md:text-4xl">Encontre o</span>
+                                <span className="text-5xl md:text-8xl text-indigo-600 drop-shadow-sm">Staff Ideal</span>
+                                <span className="text-3xl md:text-5xl">em segundos.</span>
                             </h2>
                             <p className="text-xl text-gray-600 font-medium mb-10 leading-relaxed">
                                 Esqueça grupos de WhatsApp e planilhas. Com o <strong>Banco de Talentos A2</strong>, você recebe candidaturas diretamente no seu painel, filtra por experiência e contrata com um clique.
@@ -266,7 +268,7 @@ const ParaProdutores: React.FC = () => {
                 <section className="py-32 px-4">
                     <div className="max-w-5xl mx-auto bg-indigo-600 rounded-[4rem] p-16 md:p-24 text-center text-white relative overflow-hidden shadow-2xl animate-float">
                         <h2 className="text-4xl md:text-7xl font-black mb-10 relative z-10 leading-tight uppercase tracking-tighter">Pronto para o<br />próximo nível?</h2>
-                        <p className="text-xl md:text-2xl text-indigo-100 mb-16 relative z-10 font-medium">Junte-se a centenas de produtores que já economizam tempo e dinheiro com a A2Tickets.</p>
+                        <p className="text-xl md:text-2xl text-indigo-100 mb-16 relative z-10 font-medium">Junte-se a centenas de produtores que já economizam tempo e dinheiro com a A2 Tickets 360.</p>
                         <Link
                             to="/register"
                             className="inline-flex bg-white text-indigo-600 px-16 py-8 rounded-[2rem] font-black text-3xl hover:scale-110 transition shadow-2xl relative z-10 active:scale-95"

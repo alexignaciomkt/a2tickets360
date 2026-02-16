@@ -481,7 +481,7 @@ export const events: Event[] = [
     tickets: [
       {
         id: '301',
-        name: 'Plateia',
+        name: 'A2 Tickets 360',
         price: 80,
         quantity: 300,
         remaining: 145,

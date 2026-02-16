@@ -62,9 +62,11 @@ const WorkWithUs = () => {
                                 className="bg-transparent border-none text-white placeholder:text-gray-400 pl-12 h-12 text-lg focus-visible:ring-0 focus-visible:ring-offset-0"
                             />
                         </div>
-                        <Button size="lg" className="rounded-full px-8 bg-indigo-600 hover:bg-indigo-700 font-bold">
-                            Buscar Vagas
-                        </Button>
+                        <Link to="/events">
+                            <Button size="lg" className="rounded-full px-8 bg-indigo-600 hover:bg-indigo-700 font-bold">
+                                Buscar Vagas
+                            </Button>
+                        </Link>
                     </div>
                 </div>
             </div>
@@ -144,9 +146,11 @@ const WorkWithUs = () => {
                                     Conexão direta com quem contrata
                                 </li>
                             </ul>
-                            <Button size="lg" variant="outline" className="border-2 border-gray-900 text-gray-900 font-bold rounded-full px-8 hover:bg-gray-900 hover:text-white transition-all">
-                                Criar meu Perfil
-                            </Button>
+                            <Link to="/register">
+                                <Button size="lg" variant="outline" className="border-2 border-gray-900 text-gray-900 font-bold rounded-full px-8 hover:bg-gray-900 hover:text-white transition-all">
+                                    Criar meu Perfil
+                                </Button>
+                            </Link>
                         </div>
                         <div className="md:w-1/2 relative">
                             <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500 to-purple-500 rounded-[2.5rem] rotate-3 opacity-20"></div>

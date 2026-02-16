@@ -11,12 +11,12 @@ const RegisterPage = () => {
             <div className="bg-primary p-6">
               <h1 className="text-2xl font-bold text-white text-center">Registre-se</h1>
             </div>
-            
+
             <div className="p-6">
               <p className="text-center text-gray-600 mb-4">
                 Página em construção. Por favor, utilize os acessos de demonstração abaixo:
               </p>
-              
+
               <div className="text-center text-sm text-gray-600">
                 <p className="mt-4">
                   Usuários disponíveis:
@@ -41,12 +41,6 @@ const RegisterPage = () => {
                         <Link to="/organizer" className="text-primary hover:underline">Acessar</Link>
                       </td>
                     </tr>
-                    <tr className="border-b">
-                      <td className="px-2 py-1">Admin</td>
-                      <td className="px-2 py-1">
-                        <Link to="/admin" className="text-primary hover:underline">Acessar</Link>
-                      </td>
-                    </tr>
                     <tr>
                       <td className="px-2 py-1">Master Admin</td>
                       <td className="px-2 py-1">
@@ -56,7 +50,7 @@ const RegisterPage = () => {
                   </tbody>
                 </table>
               </div>
-              
+
               <div className="mt-6 text-center">
                 <p className="text-gray-600">
                   Já tem uma conta?{' '}

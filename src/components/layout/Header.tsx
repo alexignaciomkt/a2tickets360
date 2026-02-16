@@ -22,7 +22,9 @@ const Header = () => {
     <header className="bg-white border-b sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
         {/* Unified Logo */}
-        <Logo />
+        <Link to="/" className="hover:opacity-80 transition-opacity">
+          <Logo />
+        </Link>
 
         {/* Search Bar - Original Style */}
         <div className="hidden md:flex flex-1 max-w-md mx-8">
@@ -62,21 +64,21 @@ const Header = () => {
                   <p className="text-sm font-black text-gray-900 truncate mt-1">{user.email}</p>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator className="bg-gray-50" />
-                <DropdownMenuItem className="p-3 rounded-xl cursor-pointer hover:bg-indigo-50 group">
-                  <div className="flex items-center gap-3">
+                <DropdownMenuItem className="p-3 rounded-xl cursor-pointer hover:bg-indigo-50 group" asChild>
+                  <Link to="/dashboard/tickets" className="flex items-center gap-3">
                     <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-indigo-600 group-hover:text-white transition">
-                      <LayoutDashboard className="w-4 h-4" />
+                      <Ticket className="w-4 h-4" />
                     </div>
                     <span className="font-black text-xs uppercase text-gray-700">Meus Ingressos</span>
-                  </div>
+                  </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem className="p-3 rounded-xl cursor-pointer hover:bg-indigo-50 group">
-                  <div className="flex items-center gap-3">
+                <DropdownMenuItem className="p-3 rounded-xl cursor-pointer hover:bg-indigo-50 group" asChild>
+                  <Link to="/dashboard/settings" className="flex items-center gap-3">
                     <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-indigo-600 group-hover:text-white transition">
                       <Settings className="w-4 h-4" />
                     </div>
                     <span className="font-black text-xs uppercase text-gray-700">Configurações</span>
-                  </div>
+                  </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator className="bg-gray-50" />
                 <DropdownMenuItem onClick={logout} className="p-3 rounded-xl cursor-pointer hover:bg-red-50 text-red-600 group">

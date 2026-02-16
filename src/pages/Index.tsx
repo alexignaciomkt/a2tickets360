@@ -49,9 +49,9 @@ const Index = () => {
                       <Link to={`/events/${event.id}`} className="bg-white text-gray-900 px-8 py-3 rounded-[2rem] font-black text-lg hover:bg-indigo-600 hover:text-white transition-all duration-300 shadow-2xl hover:scale-105 active:scale-95 flex items-center justify-center gap-2">
                         Comprar Ingressos <ChevronRight className="w-5 h-5" />
                       </Link>
-                      <button className="bg-white/10 hover:bg-white/20 backdrop-blur-xl text-white border border-white/30 px-8 py-3 rounded-[2rem] font-black text-lg transition-all duration-300">
+                      <Link to="/events" className="bg-white/10 hover:bg-white/20 backdrop-blur-xl text-white border border-white/30 px-8 py-3 rounded-[2rem] font-black text-lg transition-all duration-300 flex items-center justify-center">
                         Ver Programação
-                      </button>
+                      </Link>
                     </div>
                   </div>
                 </div>
@@ -186,23 +186,26 @@ const Index = () => {
             />
             <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/50 to-transparent"></div>
 
-            <div className="absolute inset-0 flex flex-col justify-center p-12 md:p-20 max-w-2xl text-white">
-              <div className="inline-flex items-center gap-2 bg-yellow-500 text-black px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest mb-6 w-fit animate-pulse">
-                <Star className="w-3 h-3 fill-current" /> Oportunidade
+            <div className="absolute inset-0 flex flex-col md:flex-row items-center justify-between p-12 md:p-20 text-white w-full">
+              <div className="max-w-2xl text-left">
+                <div className="inline-flex items-center gap-2 bg-yellow-500 text-black px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest mb-6 w-fit animate-pulse">
+                  <Star className="w-3 h-3 fill-current" /> Oportunidade
+                </div>
+                <h2 className="text-3xl md:text-5xl font-black mb-4 leading-tight tracking-tighter uppercase">
+                  FAÇA PARTE
+                </h2>
+                <div className="flex items-center gap-4 mb-8 text-left">
+                  <span className="text-white text-xl md:text-3xl font-black uppercase tracking-tighter">DO</span>
+                  <span className="text-yellow-500 text-5xl md:text-8xl italic font-black tracking-[0.1em] drop-shadow-[0_2px_15px_rgba(234,179,8,0.6)]">SHOW</span>
+                </div>
+                <p className="text-lg md:text-xl text-gray-300 font-medium mb-0 leading-relaxed">
+                  Produtores de todo o Brasil buscam talentos como você. Cadastre-se no banco de talentos e trabalhe nos melhores eventos.
+                </p>
               </div>
-              <h2 className="text-5xl md:text-8xl font-black mb-8 leading-[0.9] tracking-tighter uppercase">
-                FAÇA PARTE <br />
-                <span className="flex items-center gap-4">
-                  <span>DO</span>
-                  <span className="text-yellow-500 text-2xl md:text-4xl italic tracking-[0.1em] drop-shadow-[0_2px_10px_rgba(234,179,8,0.5)]">SHOW</span>
-                </span>
-              </h2>
-              <p className="text-lg md:text-xl text-gray-300 font-medium mb-8 leading-relaxed">
-                Produtores de todo o Brasil buscam talentos como você. Cadastre-se no banco de talentos e trabalhe nos melhores eventos.
-              </p>
+
               <Link
                 to="/work-with-us"
-                className="inline-flex items-center gap-2 bg-white text-black px-8 py-4 rounded-full font-black text-lg hover:bg-yellow-400 hover:text-black transition-all shadow-lg hover:scale-105 active:scale-95 w-fit"
+                className="inline-flex items-center gap-2 bg-white text-black px-8 py-4 rounded-full font-black text-lg hover:bg-yellow-400 hover:text-black transition-all shadow-lg hover:scale-105 active:scale-95 w-fit mt-8 md:mt-0"
               >
                 Quero trabalhar em eventos <ArrowRight className="w-5 h-5" />
               </Link>

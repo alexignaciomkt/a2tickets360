@@ -192,10 +192,10 @@ const BuyerProfilePage = () => {
                                 <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
                                     <div>
                                         <div className="inline-flex items-center gap-2 px-3 py-1 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-full text-[10px] font-bold uppercase tracking-tighter mb-4">
-                                            <ImageIcon className="w-3 h-3" /> Insta A2Tickets
+                                            <ImageIcon className="w-3 h-3" /> Insta A2 Tickets 360
                                         </div>
                                         <h3 className="text-2xl font-black text-gray-900 mb-2">Suas memórias em foco</h3>
-                                        <p className="text-sm text-gray-600 max-w-md leading-relaxed font-medium">Suas fotos nos eventos A2Tickets aparecem aqui de forma otimizada. Nossa tecnologia permite que você guarde cada momento sem pesar seu armazenamento.</p>
+                                        <p className="text-sm text-gray-600 max-w-md leading-relaxed font-medium">Suas fotos nos eventos A2 Tickets 360 aparecem aqui de forma otimizada. Nossa tecnologia permite que você guarde cada momento sem pesar seu armazenamento.</p>
                                     </div>
                                     <div className="flex -space-x-4">
                                         {[1, 2, 3].map(i => (

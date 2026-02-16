@@ -12,7 +12,7 @@ const OrganizerSettings = () => {
   const { toast } = useToast();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [emailNotificationsEnabled, setEmailNotificationsEnabled] = useState(true);
-  
+
   const handleSaveSettings = () => {
     toast({
       title: "Configurações salvas",
@@ -27,7 +27,7 @@ const OrganizerSettings = () => {
           <h1 className="text-2xl font-bold">Configurações do Organizador</h1>
           <p className="text-gray-600">Gerencie suas preferências e configurações profissionais</p>
         </div>
-        
+
         <Tabs defaultValue="profile" className="space-y-4">
           <TabsList>
             <TabsTrigger value="profile" className="flex items-center gap-2">
@@ -55,7 +55,7 @@ const OrganizerSettings = () => {
               Pagamento
             </TabsTrigger>
           </TabsList>
-          
+
           <TabsContent value="profile" className="space-y-4">
             <Card>
               <CardHeader>
@@ -68,41 +68,41 @@ const OrganizerSettings = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="text-sm font-medium block mb-1">Nome da Empresa/Organizador</label>
-                    <input 
-                      type="text" 
-                      className="w-full p-2 border border-gray-300 rounded-md" 
+                    <input
+                      type="text"
+                      className="w-full p-2 border border-gray-300 rounded-md"
                       defaultValue="EventPro Produções"
                     />
                   </div>
                   <div>
                     <label className="text-sm font-medium block mb-1">CNPJ</label>
-                    <input 
-                      type="text" 
-                      className="w-full p-2 border border-gray-300 rounded-md" 
+                    <input
+                      type="text"
+                      className="w-full p-2 border border-gray-300 rounded-md"
                       defaultValue="12.345.678/0001-90"
                     />
                   </div>
                   <div>
                     <label className="text-sm font-medium block mb-1">Email Corporativo</label>
-                    <input 
-                      type="email" 
-                      className="w-full p-2 border border-gray-300 rounded-md" 
-                      defaultValue="contato@eventpro.com" 
+                    <input
+                      type="email"
+                      className="w-full p-2 border border-gray-300 rounded-md"
+                      defaultValue="contato@eventpro.com"
                     />
                   </div>
                   <div>
                     <label className="text-sm font-medium block mb-1">Telefone</label>
-                    <input 
-                      type="tel" 
-                      className="w-full p-2 border border-gray-300 rounded-md" 
-                      defaultValue="(11) 99999-9999" 
+                    <input
+                      type="tel"
+                      className="w-full p-2 border border-gray-300 rounded-md"
+                      defaultValue="(11) 99999-9999"
                     />
                   </div>
                 </div>
                 <div>
                   <label className="text-sm font-medium block mb-1">Biografia/Descrição da Empresa</label>
-                  <textarea 
-                    className="w-full p-2 border border-gray-300 rounded-md h-32" 
+                  <textarea
+                    className="w-full p-2 border border-gray-300 rounded-md h-32"
                     defaultValue="Empresa especializada em produção de eventos musicais e culturais com mais de 10 anos de experiência no mercado."
                   />
                 </div>
@@ -112,7 +112,7 @@ const OrganizerSettings = () => {
               </CardContent>
             </Card>
           </TabsContent>
-          
+
           <TabsContent value="store" className="space-y-4">
             <Card>
               <CardHeader>
@@ -130,7 +130,7 @@ const OrganizerSettings = () => {
                     </div>
                     <Switch />
                   </div>
-                  
+
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-medium">Página Pública Ativa</p>
@@ -138,12 +138,12 @@ const OrganizerSettings = () => {
                     </div>
                     <Switch defaultChecked />
                   </div>
-                  
+
                   <div>
                     <label className="text-sm font-medium block mb-1">URL da Página</label>
-                    <input 
-                      type="text" 
-                      className="w-full p-2 border border-gray-300 rounded-md" 
+                    <input
+                      type="text"
+                      className="w-full p-2 border border-gray-300 rounded-md"
                       defaultValue="sanjapass.com/eventpro"
                       readOnly
                     />
@@ -156,7 +156,7 @@ const OrganizerSettings = () => {
               </CardContent>
             </Card>
           </TabsContent>
-          
+
           <TabsContent value="branding" className="space-y-4">
             <Card>
               <CardHeader>
@@ -180,9 +180,9 @@ const OrganizerSettings = () => {
                     <label className="text-sm font-medium block mb-1">Cor Principal</label>
                     <div className="flex items-center gap-4">
                       <input type="color" defaultValue="#3B82F6" className="w-12 h-8 rounded" />
-                      <input 
-                        type="text" 
-                        className="flex-1 p-2 border border-gray-300 rounded-md" 
+                      <input
+                        type="text"
+                        className="flex-1 p-2 border border-gray-300 rounded-md"
                         defaultValue="#3B82F6"
                       />
                     </div>
@@ -194,7 +194,7 @@ const OrganizerSettings = () => {
               </CardContent>
             </Card>
           </TabsContent>
-          
+
           <TabsContent value="notifications" className="space-y-4">
             <Card>
               <CardHeader>
@@ -210,23 +210,23 @@ const OrganizerSettings = () => {
                       <p className="font-medium">Notificações de vendas</p>
                       <p className="text-sm text-gray-500">Seja notificado a cada venda de ingresso</p>
                     </div>
-                    <Switch 
+                    <Switch
                       checked={notificationsEnabled}
                       onCheckedChange={setNotificationsEnabled}
                     />
                   </div>
-                  
+
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-medium">Relatórios diários</p>
                       <p className="text-sm text-gray-500">Receba resumo diário de vendas</p>
                     </div>
-                    <Switch 
+                    <Switch
                       checked={emailNotificationsEnabled}
                       onCheckedChange={setEmailNotificationsEnabled}
                     />
                   </div>
-                  
+
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-medium">Alertas de evento</p>
@@ -241,7 +241,7 @@ const OrganizerSettings = () => {
               </CardContent>
             </Card>
           </TabsContent>
-          
+
           <TabsContent value="security" className="space-y-4">
             <Card>
               <CardHeader>
@@ -254,26 +254,26 @@ const OrganizerSettings = () => {
                 <div className="space-y-4">
                   <div>
                     <label className="text-sm font-medium block mb-1">Senha atual</label>
-                    <input 
-                      type="password" 
-                      className="w-full p-2 border border-gray-300 rounded-md" 
-                      placeholder="••••••••" 
+                    <input
+                      type="password"
+                      className="w-full p-2 border border-gray-300 rounded-md"
+                      placeholder="••••••••"
                     />
                   </div>
                   <div>
                     <label className="text-sm font-medium block mb-1">Nova senha</label>
-                    <input 
-                      type="password" 
-                      className="w-full p-2 border border-gray-300 rounded-md" 
-                      placeholder="••••••••" 
+                    <input
+                      type="password"
+                      className="w-full p-2 border border-gray-300 rounded-md"
+                      placeholder="••••••••"
                     />
                   </div>
                   <div>
                     <label className="text-sm font-medium block mb-1">Confirmar nova senha</label>
-                    <input 
-                      type="password" 
-                      className="w-full p-2 border border-gray-300 rounded-md" 
-                      placeholder="••••••••" 
+                    <input
+                      type="password"
+                      className="w-full p-2 border border-gray-300 rounded-md"
+                      placeholder="••••••••"
                     />
                   </div>
                 </div>
@@ -283,7 +283,7 @@ const OrganizerSettings = () => {
               </CardContent>
             </Card>
           </TabsContent>
-          
+
           <TabsContent value="payment" className="space-y-4">
             <Card>
               <CardHeader>
@@ -297,13 +297,13 @@ const OrganizerSettings = () => {
                   <div className="bg-gray-50 border rounded-lg p-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="font-medium">Banco do Brasil</p>
+                        <p className="text-gray-500 font-medium italic">Gerencie sua conta na A2 Tickets 360.</p>
                         <p className="text-sm text-gray-500">Agência 1234-5 • Conta 12345-6</p>
                       </div>
                       <Button variant="outline" size="sm">Editar</Button>
                     </div>
                   </div>
-                  
+
                   <div className="pt-4">
                     <Button variant="outline" className="w-full">+ Adicionar nova conta bancária</Button>
                   </div>

@@ -27,7 +27,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Check if user is already logged in from localStorage
   useEffect(() => {
-    const savedUser = localStorage.getItem('sanjapass_user');
+    const savedUser = localStorage.getItem('A2 Tickets 360_user');
     if (savedUser) {
       setUser(JSON.parse(savedUser));
     } else {
@@ -50,14 +50,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         mockUser = users.find(u => u.email === 'ana@eventpro.com')!;
         break;
       case 'admin':
-        mockUser = users.find(u => u.email === 'admin@a2tickets.com')!;
+        mockUser = users.find(u => u.email === 'admin@A2 Tickets 360.com')!;
         break;
       case 'master':
         // Create a master admin user if it doesn't exist
         mockUser = {
           id: 'master-admin-id',
-          name: 'A2Tickets Master Admin',
-          email: 'master@a2tickets.com',
+          name: 'A2 Tickets 360 Master Admin',
+          email: 'master@A2 Tickets 360.com',
           role: 'admin', // We'll use admin role but extend privileges in UI
           photoUrl: 'https://i.pravatar.cc/300?u=master'
         };
@@ -65,7 +65,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
 
     setUser(mockUser);
-    localStorage.setItem('sanjapass_user', JSON.stringify(mockUser));
+    localStorage.setItem('A2 Tickets 360_user', JSON.stringify(mockUser));
     toast({
       title: 'Login automático',
       description: `Logado como ${mockUser.name} (${role})`,
@@ -89,8 +89,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           photoUrl: foundUser.photoUrl,
         };
 
-        setUser(userData);
-        localStorage.setItem('sanjapass_user', JSON.stringify(userData));
+        // Assuming a token would be received from an actual API, for now, we'll just store the user data
+        // localStorage.setItem('A2 Tickets 360_token', 'mock_token_123'); // If a separate token is needed
+        localStorage.setItem('A2 Tickets 360_user', JSON.stringify(userData));
 
         toast({
           title: 'Login realizado com sucesso',
@@ -118,7 +119,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('sanjapass_user');
+    // localStorage.removeItem('A2 Tickets 360_token'); // If a separate token was stored
+    localStorage.removeItem('A2 Tickets 360_user');
     toast({
       title: 'Logout realizado',
       description: 'Você foi desconectado com sucesso.',

@@ -34,7 +34,7 @@ const StaffLoginPage = () => {
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
             <Shield className="h-12 w-12 text-primary mr-2" />
-            <h1 className="text-3xl font-bold text-gray-900">A2Tickets</h1>
+            <h2 className="mt-6 text-center text-3xl font-black text-gray-900 uppercase tracking-tighter">A2 Tickets 360</h2>
           </div>
           <p className="text-gray-600">Acesso para Staff do Evento</p>
         </div>

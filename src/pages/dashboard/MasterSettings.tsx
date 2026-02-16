@@ -29,7 +29,7 @@ import { HeroCarousel } from '@/components/blocks/hero-carousel';
 
 const MasterSettings = () => {
   const [settings, setSettings] = useState({
-    siteName: 'A2Tickets',
+    siteName: 'A2 Tickets 360',
     siteDescription: 'Plataforma completa para eventos',
     maintenanceMode: false,
     allowRegistration: true,
@@ -37,8 +37,8 @@ const MasterSettings = () => {
     autoApproveEvents: false,
     defaultCommission: 5,
     maxFileSize: 10,
-    supportEmail: 'suporte@a2tickets.com',
-    adminEmail: 'admin@a2tickets.com',
+    supportEmail: 'suporte@A2 Tickets 360.com',
+    adminEmail: 'admin@A2 Tickets 360.com',
     enableNotifications: true,
     enableSMS: false,
     theme: 'light',
@@ -51,7 +51,7 @@ const MasterSettings = () => {
     {
       id: '1',
       title: 'Configurações Master',
-      description: 'Gerencie todas as configurações da plataforma A2Tickets',
+      description: 'Gerencie todas as configurações da plataforma A2 Tickets 360',
       imageUrl: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=800&auto=format&fit=crop',
       backgroundUrl: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=1920&auto=format&fit=crop',
       date: new Date().toLocaleDateString('pt-BR', {
@@ -92,7 +92,7 @@ const MasterSettings = () => {
             <div>
               <h1 className="text-3xl lg:text-4xl font-bold">Configurações Master</h1>
               <p className="text-muted-foreground mt-2">
-                Gerencie todas as configurações da plataforma A2Tickets
+                Gerencie todas as configurações da plataforma A2 Tickets 360
               </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">

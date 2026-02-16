@@ -38,8 +38,8 @@ const Logo = ({
   return (
     <Link to="/" className={`flex items-center gap-2 font-bold tracking-tighter text-primary ${getTextSize()} ${className}`}>
       <Ticket className={`${getIconSize()}`} />
-      {showText && !isCompact && <span>A2Tickets</span>}
-      {isCompact && <span>A2Tickets</span>} {/* Compact mode can show text if needed, or adjust logic */}
+      {showText && !isCompact && <span>A2 Tickets 360</span>}
+      {isCompact && <span>A2</span>}
     </Link>
   );
 };

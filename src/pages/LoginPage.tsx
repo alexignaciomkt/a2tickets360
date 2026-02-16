@@ -17,10 +17,10 @@ const LoginPage = () => {
             <div className="bg-primary p-6">
               <h1 className="text-2xl font-bold text-white text-center">Login</h1>
             </div>
-            
+
             <div className="p-6">
               <LoginForm />
-              
+
               <div className="mt-8 pt-4 border-t border-gray-200">
                 <h3 className="text-center font-medium mb-4">Acesso rápido (desenvolvimento)</h3>
                 <div className="grid grid-cols-2 gap-2">
@@ -30,15 +30,12 @@ const LoginPage = () => {
                   <Button variant="outline" size="sm" onClick={() => setUserByRole('organizer')}>
                     <Link to="/organizer">Organizador</Link>
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => setUserByRole('admin')}>
-                    <Link to="/admin">Admin</Link>
-                  </Button>
                   <Button variant="default" size="sm" onClick={() => setUserByRole('master')}>
                     <Link to="/master">Master Admin</Link>
                   </Button>
                 </div>
               </div>
-              
+
               <div className="mt-6 text-center">
                 <p className="text-gray-600">
                   Não tem uma conta?{' '}

@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { DollarSign, CreditCard, Landmark, Download, Eye, Plus } from 'lucide-react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
+import { AddExpenseModal } from '@/components/modals/AddExpenseModal';
+import { PayoutRequestModal } from '@/components/modals/PayoutRequestModal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -21,7 +23,13 @@ const OrganizerFinancial = () => {
   const [events, setEvents] = useState<Event[]>([]);
   const [financialSummary, setFinancialSummary] = useState<FinancialSummary | null>(null);
   const [bankModalOpen, setBankModalOpen] = useState(false);
+  const [expenseModalOpen, setExpenseModalOpen] = useState(false);
+  const [payoutModalOpen, setPayoutModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [expenses, setExpenses] = useState([
+    { id: '1', date: '2025-01-10', description: 'Aluguel de Som', amount: 5000, supplier: 'Mega Som & Luz', status: 'paid' },
+    { id: '2', date: '2025-01-12', description: 'Cenografia Palco Principal', amount: 12000, supplier: 'CenoArt Montagens', status: 'pending' },
+  ]);
 
   useEffect(() => {
     loadFinancialData();
@@ -185,8 +193,9 @@ const OrganizerFinancial = () => {
 
         {/* Tabs */}
         <Tabs defaultValue="transactions" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="transactions">Transações</TabsTrigger>
+            <TabsTrigger value="expenses">Despesas</TabsTrigger>
             <TabsTrigger value="payouts">Repasses</TabsTrigger>
             <TabsTrigger value="events">Por Evento</TabsTrigger>
           </TabsList>
@@ -236,13 +245,71 @@ const OrganizerFinancial = () => {
             </Card>
           </TabsContent>
 
+          {/* Expenses Tab */}
+          <TabsContent value="expenses">
+            <Card>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <CardTitle>Gestão de Despesas (Saídas)</CardTitle>
+                  <Button
+                    className="bg-red-600 hover:bg-red-700"
+                    onClick={() => setExpenseModalOpen(true)}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Registrar Despesa
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Data</TableHead>
+                      <TableHead>Descrição</TableHead>
+                      <TableHead>Fornecedor</TableHead>
+                      <TableHead>Valor</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {expenses.map((expense) => (
+                      <TableRow key={expense.id}>
+                        <TableCell>{formatDate(expense.date)}</TableCell>
+                        <TableCell className="font-medium">{expense.description}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="font-bold border-indigo-200 text-indigo-600 uppercase text-[10px]">
+                            {expense.supplier}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-red-600 font-bold">
+                          {formatCurrency(expense.amount)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={expense.status === 'paid' ? 'default' : 'secondary'}>
+                            {expense.status === 'paid' ? 'Pago' : 'Pendente'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="sm">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           {/* Payouts Tab */}
           <TabsContent value="payouts">
             <Card>
               <CardHeader>
                 <div className="flex justify-between items-center">
                   <CardTitle>Histórico de Repasses</CardTitle>
-                  <Button>
+                  <Button onClick={() => setPayoutModalOpen(true)}>
                     <Plus className="h-4 w-4 mr-2" />
                     Solicitar Repasse
                   </Button>
@@ -348,6 +415,18 @@ const OrganizerFinancial = () => {
         <BankInfoModal
           open={bankModalOpen}
           onOpenChange={setBankModalOpen}
+        />
+
+        <AddExpenseModal
+          open={expenseModalOpen}
+          onOpenChange={setExpenseModalOpen}
+          onSuccess={(newExp) => setExpenses([newExp, ...expenses])}
+        />
+
+        <PayoutRequestModal
+          open={payoutModalOpen}
+          onOpenChange={setPayoutModalOpen}
+          availableBalance={5200.00}
         />
       </div>
     </DashboardLayout>
