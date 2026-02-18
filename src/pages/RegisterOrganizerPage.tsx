@@ -1,188 +1,271 @@
 
 import { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import MainLayout from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Crown, Sparkles, Users, Calendar, BarChart3, Shield } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage
+} from '@/components/ui/form';
+import { useToast } from '@/components/ui/use-toast';
+import { api } from '@/services/api';
+import { Mail, User, Lock, Phone, CreditCard, Loader2, CheckCircle, ChevronDown, Rocket, Shield, BarChart3, Calendar, Sparkles, Users } from 'lucide-react';
+
+const registerSchema = z.object({
+  name: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres'),
+  email: z.string().email('E-mail inválido'),
+  password: z.string()
+    .min(8, 'A senha deve ter pelo menos 8 caracteres')
+    .regex(/[A-Z]/, 'A senha deve conter pelo menos uma letra maiúscula')
+    .regex(/[!@#$%^&*(),.?":{}|<>]/, 'A senha deve conter pelo menos um caractere especial'),
+  mobilePhone: z.string().min(10, 'Telefone inválido'),
+  cpfCnpj: z.string().min(11, 'CPF ou CNPJ inválido'),
+});
+
+type RegisterFormData = z.infer<typeof registerSchema>;
 
 const RegisterOrganizerPage = () => {
-  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const { user, setUserByRole } = useAuth();
-  const isUpgrade = searchParams.get('upgrade') === 'true';
+  const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
 
-  const handleRegisterAsOrganizer = async () => {
-    setLoading(true);
+  const form = useForm<RegisterFormData>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: {
+      name: '',
+      email: '',
+      password: '',
+      mobilePhone: '',
+      cpfCnpj: '',
+    },
+  });
 
-    // Simular processo de registro/upgrade
-    setTimeout(() => {
-      if (isUpgrade && user) {
-        // Upgrade de usuário existente
-        setUserByRole('organizer');
-        navigate('/organizer/events/create');
-      } else {
-        // Novo registro como organizador
-        setUserByRole('organizer');
-        navigate('/organizer');
-      }
-      setLoading(false);
-    }, 1500);
+  const onSubmit = async (data: RegisterFormData) => {
+    setIsSubmitting(true);
+    try {
+      await api.post('/api/organizers/register', data);
+      setIsSuccess(true);
+      toast({
+        title: 'Cadastro realizado!',
+        description: 'Verifique seu e-mail para ativar sua conta de organizador.',
+      });
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro no cadastro',
+        description: error.response?.data?.error || 'Tente novamente mais tarde.',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const benefits = [
     {
       icon: Calendar,
-      title: 'Crie Eventos Ilimitados',
+      title: 'Eventos Ilimitados',
       description: 'Publique quantos eventos quiser sem limitações'
     },
     {
       icon: Users,
-      title: 'Gestão Completa de Participantes',
+      title: 'Gestão Completa',
       description: 'Controle total sobre inscrições e check-ins'
     },
     {
       icon: BarChart3,
-      title: 'Relatórios Detalhados',
+      title: 'Relatórios',
       description: 'Analytics completos sobre seus eventos'
     },
     {
       icon: Shield,
-      title: 'Segurança e Confiabilidade',
+      title: 'Segurança',
       description: 'Plataforma segura com suporte dedicado'
     }
   ];
 
   return (
     <MainLayout>
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5 py-12">
+      <div className="bg-[#050505] min-h-screen py-20 flex items-center">
         <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto">
-
-            {/* Header */}
-            <div className="text-center mb-12">
-              <div className="flex justify-center mb-4">
-                <div className="p-3 bg-gradient-primary rounded-2xl">
-                  <Crown className="h-8 w-8 text-white" />
+          <div className="max-w-5xl mx-auto">
+            {isSuccess ? (
+              <div className="max-w-xl mx-auto bg-[#0A0A0A] border border-white/5 p-10 rounded-3xl text-center shadow-2xl">
+                <div className="w-20 h-20 bg-indigo-500/10 rounded-full flex items-center justify-center mb-6 mx-auto">
+                  <Mail className="w-10 h-10 text-indigo-400" />
                 </div>
+                <h2 className="text-3xl font-black text-white mb-4 italic uppercase tracking-tighter">Verifique seu E-mail</h2>
+                <p className="text-gray-400 mb-8 text-lg">
+                  Enviamos um link de ativação para o seu e-mail de organizador. <br />
+                  <strong>Ative sua conta para começar a vender.</strong>
+                </p>
+                <Button
+                  className="w-full h-14 rounded-2xl bg-white text-black hover:bg-gray-200 font-bold uppercase tracking-widest"
+                  onClick={() => navigate('/login')}
+                >
+                  Ir para o Login
+                </Button>
               </div>
-              <h1 className="text-4xl md:text-5xl font-bold mb-4">
-                {isUpgrade ? 'Torne-se um Organizador' : 'Crie Eventos Incríveis'}
-              </h1>
-              <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-                {isUpgrade
-                  ? 'Upgrade sua conta e comece a criar eventos profissionais hoje mesmo'
-                  : 'Junte-se à A2 Tickets 360 e transforme suas ideias em eventos memoráveis'
-                }
-              </p>
-            </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
 
-            <div className="grid md:grid-cols-2 gap-8">
+                {/* Benefits Col */}
+                <div className="lg:col-span-5 space-y-8">
+                  <div className="inline-flex items-center px-4 py-2 rounded-full bg-indigo-500/10 border border-indigo-500/20 mb-2">
+                    <Rocket className="w-4 h-4 text-indigo-400 mr-2" />
+                    <span className="text-xs font-bold uppercase tracking-widest text-indigo-300">Área do Produtor</span>
+                  </div>
 
-              {/* Benefícios */}
-              <div>
-                <h2 className="text-2xl font-bold mb-6 flex items-center">
-                  <Sparkles className="h-6 w-6 text-primary mr-2" />
-                  Por que escolher a A2 Tickets 360?
-                </h2>
+                  <h1 className="text-5xl font-black text-white italic uppercase tracking-tighter leading-none mb-6">
+                    Sua Produtora <br />
+                    <span className="text-indigo-400">com Gestão de Elite.</span>
+                  </h1>
 
-                <div className="space-y-4">
-                  {benefits.map((benefit, index) => (
-                    <Card key={index} className="border-l-4 border-l-primary">
-                      <CardContent className="p-4">
-                        <div className="flex items-start space-x-3">
-                          <div className="p-2 bg-primary/10 rounded-lg">
-                            <benefit.icon className="h-5 w-5 text-primary" />
-                          </div>
-                          <div>
-                            <h3 className="font-semibold text-sm mb-1">{benefit.title}</h3>
-                            <p className="text-xs text-gray-600">{benefit.description}</p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {benefits.map((benefit, index) => (
+                      <div key={index} className="p-4 bg-white/5 border border-white/5 rounded-2xl">
+                        <benefit.icon className="w-6 h-6 text-indigo-400 mb-3" />
+                        <h3 className="text-white font-bold text-sm uppercase mb-1 tracking-tight">{benefit.title}</h3>
+                        <p className="text-gray-500 text-[10px] leading-tight">{benefit.description}</p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              {/* Formulário de Ação */}
-              <div>
-                <Card className="card-modern">
-                  <CardHeader className="text-center">
-                    <CardTitle className="text-xl">
-                      {isUpgrade ? 'Upgrade para Organizador' : 'Cadastro de Organizador'}
-                    </CardTitle>
-                    <CardDescription className="text-sm">
-                      {isUpgrade
-                        ? 'Sua conta será atualizada instantaneamente'
-                        : 'Comece a criar eventos em minutos'
-                      }
-                    </CardDescription>
-                  </CardHeader>
-
-                  <CardContent className="space-y-6">
-                    {isUpgrade && user && (
-                      <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                        <p className="text-sm text-blue-800">
-                          <strong>Olá, {user.name}!</strong><br />
-                          Você será redirecionado para criar seu primeiro evento após o upgrade.
-                        </p>
-                      </div>
-                    )}
-
-                    <div className="space-y-4">
-                      <div className="text-center mb-8">
-                        <h2 className="mt-6 text-3xl font-black text-gray-900 uppercase tracking-tighter">A2 Tickets 360</h2>
-                        <p className="mt-2 text-gray-600">Junte-se a nós e comece a vender seus eventos</p>
-                      </div>
-
-                      <ul className="text-xs space-y-2 text-gray-600">
-                        <li className="flex items-center">
-                          <div className="w-1.5 h-1.5 bg-primary rounded-full mr-2"></div>
-                          Eventos ilimitados
-                        </li>
-                        <li className="flex items-center">
-                          <div className="w-1.5 h-1.5 bg-primary rounded-full mr-2"></div>
-                          Gestão completa de participantes
-                        </li>
-                        <li className="flex items-center">
-                          <div className="w-1.5 h-1.5 bg-primary rounded-full mr-2"></div>
-                          Relatórios e analytics
-                        </li>
-                        <li className="flex items-center">
-                          <div className="w-1.5 h-1.5 bg-primary rounded-full mr-2"></div>
-                          Suporte dedicado
-                        </li>
-                      </ul>
+                {/* Form Col */}
+                <div className="lg:col-span-7">
+                  <div className="bg-[#0A0A0A] border border-white/5 p-8 md:p-10 rounded-3xl shadow-2xl">
+                    <div className="mb-8">
+                      <Button variant="ghost" onClick={() => navigate('/register')} className="text-indigo-400 hover:text-indigo-300 p-0 h-auto font-bold flex items-center group">
+                        <ChevronDown className="w-4 h-4 rotate-90 mr-1 group-hover:-translate-x-1 transition-transform" /> Voltar para Escolha
+                      </Button>
                     </div>
 
-                    <Button
-                      onClick={handleRegisterAsOrganizer}
-                      disabled={loading}
-                      className="w-full btn-primary text-sm"
-                    >
-                      {loading ? (
-                        <div className="flex items-center">
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          {isUpgrade ? 'Fazendo upgrade...' : 'Criando conta...'}
-                        </div>
-                      ) : (
-                        isUpgrade ? 'Fazer Upgrade Agora' : 'Criar Conta de Organizador'
-                      )}
-                    </Button>
+                    <Form {...form}>
+                      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                          <FormField
+                            control={form.control}
+                            name="name"
+                            render={({ field }) => (
+                              <FormItem className="md:col-span-2">
+                                <FormLabel className="text-gray-400 font-bold uppercase text-[10px] tracking-widest pl-1">Nome Fantasia / Empresa</FormLabel>
+                                <FormControl>
+                                  <div className="relative">
+                                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600" />
+                                    <Input placeholder="A2 Produções" className="h-14 bg-[#111] border-white/5 rounded-2xl pl-12 text-white placeholder:text-gray-700 focus:ring-indigo-500" {...field} />
+                                  </div>
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
 
-                    <p className="text-xs text-gray-500 text-center">
-                      Ao continuar, você concorda com nossos{' '}
-                      <a href="/terms" className="text-primary hover:underline">Termos de Uso</a>{' '}
-                      e{' '}
-                      <a href="/privacy" className="text-primary hover:underline">Política de Privacidade</a>
-                    </p>
-                  </CardContent>
-                </Card>
+                          <FormField
+                            control={form.control}
+                            name="email"
+                            render={({ field }) => (
+                              <FormItem className="md:col-span-2">
+                                <FormLabel className="text-gray-400 font-bold uppercase text-[10px] tracking-widest pl-1">E-mail Corporativo</FormLabel>
+                                <FormControl>
+                                  <div className="relative">
+                                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600" />
+                                    <Input type="email" placeholder="contato@empresa.com" className="h-14 bg-[#111] border-white/5 rounded-2xl pl-12 text-white placeholder:text-gray-700 focus:ring-indigo-500" {...field} />
+                                  </div>
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name="cpfCnpj"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-gray-400 font-bold uppercase text-[10px] tracking-widest pl-1">CPF ou CNPJ</FormLabel>
+                                <FormControl>
+                                  <div className="relative">
+                                    <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600" />
+                                    <Input placeholder="00.000.000/0001-00" className="h-14 bg-[#111] border-white/5 rounded-2xl pl-12 text-white placeholder:text-gray-700 focus:ring-indigo-500" {...field} />
+                                  </div>
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name="mobilePhone"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-gray-400 font-bold uppercase text-[10px] tracking-widest pl-1">WhatsApp de Contato</FormLabel>
+                                <FormControl>
+                                  <div className="relative">
+                                    <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600" />
+                                    <Input placeholder="(11) 99999-9999" className="h-14 bg-[#111] border-white/5 rounded-2xl pl-12 text-white placeholder:text-gray-700 focus:ring-indigo-500" {...field} />
+                                  </div>
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name="password"
+                            render={({ field }) => (
+                              <FormItem className="md:col-span-2">
+                                <FormLabel className="text-gray-400 font-bold uppercase text-[10px] tracking-widest pl-1">Defina sua Senha</FormLabel>
+                                <FormControl>
+                                  <div className="relative">
+                                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600" />
+                                    <Input type="password" placeholder="Mínimo 8 caracteres" className="h-14 bg-[#111] border-white/5 rounded-2xl pl-12 text-white placeholder:text-gray-700 focus:ring-indigo-500" {...field} />
+                                  </div>
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+
+                        <Button
+                          type="submit"
+                          className="w-full h-16 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-lg shadow-xl shadow-indigo-500/20 mt-4 transition-all"
+                          disabled={isSubmitting}
+                        >
+                          {isSubmitting ? (
+                            <Loader2 className="w-6 h-6 animate-spin" />
+                          ) : (
+                            "Ativar meu Acesso"
+                          )}
+                        </Button>
+                      </form>
+                    </Form>
+
+                    <div className="mt-8 text-center">
+                      <p className="text-gray-500 text-sm font-medium">
+                        Já é um produtor parceiro?{' '}
+                        <Link to="/login" className="text-indigo-400 font-black hover:underline">
+                          Entrar Agora
+                        </Link>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
