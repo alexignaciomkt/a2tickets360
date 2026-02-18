@@ -19,7 +19,7 @@ class AuthService {
     }
 
     async login(email: string, password: string) {
-        return api.post('/api/auth/login', { email, password });
+        return api.post('/api/login', { email, password });
     }
 }
 

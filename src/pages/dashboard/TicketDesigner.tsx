@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Save, Eye, Download, Upload, Palette, Type, Image, Layout } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -330,11 +329,10 @@ const TicketDesigner = () => {
                     fontFamily: design.fontFamily
                   }}
                 >
-                  {/* Overlay for readability if image used */}
                   {(design.useEventBanner || design.backgroundImage) && (
                     <div className="absolute inset-0 bg-black/40 z-0"></div>
                   )}
-                  {/* Ticket Header */}
+
                   <div
                     className="h-16 flex items-center justify-between px-4 text-white font-bold text-lg z-10"
                     style={{ backgroundColor: design.accentColor }}
@@ -347,48 +345,31 @@ const TicketDesigner = () => {
                     )}
                   </div>
 
-                  {/* Ticket Body */}
-                  <div className="p-4 space-y-2 z-10">
+                  <div className="p-4 space-y-2 z-10 text-sm">
                     <div className="flex justify-between">
                       <span className="font-semibold">Evento:</span>
-                      <span className={(design.useEventBanner || design.backgroundImage) ? "text-white shadow-sm" : ""}>Festival de Música 2025</span>
+                      <span className={(design.useEventBanner || design.backgroundImage) ? "text-white" : ""}>Festival de Música 2025</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="font-semibold">Data:</span>
-                      <span className={(design.useEventBanner || design.backgroundImage) ? "text-white shadow-sm" : ""}>15/03/2024</span>
+                      <span className={(design.useEventBanner || design.backgroundImage) ? "text-white" : ""}>15/03/2024</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="font-semibold">Local:</span>
-                      <span className={(design.useEventBanner || design.backgroundImage) ? "text-white shadow-sm" : ""}>Espaço de Eventos A2</span>
+                      <span className={(design.useEventBanner || design.backgroundImage) ? "text-white" : ""}>Espaço de Eventos A2</span>
                     </div>
                   </div>
 
-                  {/* QR Code Area - REMOVED per user request
-                    <div className="absolute bottom-2 right-2 w-12 h-12 bg-gray-800 rounded flex items-center justify-center">
-                      <div className="w-8 h-8 bg-white rounded grid grid-cols-3 gap-px">
-                        {[...Array(9)].map((_, i) => (
-                          <div key={i} className="bg-black rounded-sm"></div>
-                        ))}
-                      </div>
-                    </div>
-                    */}
-
-                  {/* Ticket Number */}
-                  <div className="absolute bottom-2 left-2 text-xs opacity-70">
+                  <div className="absolute bottom-2 left-2 text-[10px] opacity-70">
                     #00001
                   </div>
                 </div>
-
-                {/* Perforation Effect - REMOVED per user request
-                  <div className="absolute right-0 top-1/2 transform -translate-y-1/2 w-8 h-8 bg-gray-100 rounded-full border-2 border-gray-300"></div>
-                  */}
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
-    </div>
-    </DashboardLayout >
+    </DashboardLayout>
   );
 };
 

@@ -22,15 +22,19 @@ const LoginForm = () => {
       const success = await login(email, password);
 
       if (success) {
-        // Redirect based on role
-        if (email === 'maria@example.com' || email === 'joao@example.com') {
-          navigate('/dashboard');
-        } else if (email === 'ana@eventpro.com') {
-          navigate('/organizer');
-        } else if (email === 'admin@sanjapass.com') {
-          navigate('/admin');
-        } else {
-          navigate('/dashboard');
+        // Redirecionamento automático baseado na role retornada pelo backend
+        const savedUser = localStorage.getItem('A2Tickets_user');
+        if (savedUser) {
+          const user = JSON.parse(savedUser);
+          if (user.role === 'master' || user.role === 'admin') {
+            navigate('/master');
+          } else if (user.role === 'organizer') {
+            navigate('/organizer');
+          } else if (user.role === 'staff') {
+            navigate('/organizer'); // Staff also goes to organizer dashboard context
+          } else {
+            navigate('/dashboard');
+          }
         }
       }
     } finally {
@@ -82,32 +86,6 @@ const LoginForm = () => {
 
       <div className="text-center text-sm text-gray-600">
         <p className="text-gray-500">Faça login para gerenciar sua conta na A2 Tickets 360.</p>
-        <table className="w-full mt-2 text-xs">
-          <thead>
-            <tr className="border-b">
-              <th className="px-2 py-1 text-left">Perfil</th>
-              <th className="px-2 py-1 text-left">Email</th>
-              <th className="px-2 py-1 text-left">Senha</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr className="border-b">
-              <td className="px-2 py-1">Cliente</td>
-              <td className="px-2 py-1">maria@example.com</td>
-              <td className="px-2 py-1">qualquer</td>
-            </tr>
-            <tr className="border-b">
-              <td className="px-2 py-1">Organizador</td>
-              <td className="px-2 py-1">ana@eventpro.com</td>
-              <td className="px-2 py-1">qualquer</td>
-            </tr>
-            <tr>
-              <td className="px-2 py-1">Admin</td>
-              <td className="px-2 py-1">admin@sanjapass.com</td>
-              <td className="px-2 py-1">qualquer</td>
-            </tr>
-          </tbody>
-        </table>
       </div>
     </form>
   );

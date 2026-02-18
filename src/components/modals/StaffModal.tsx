@@ -53,9 +53,9 @@ export const StaffModal = ({
     isActive: true,
     sendCredentials: true,
     // Phase 2 fields
-    contractType: 'daily',
+    contractType: 'daily' as 'daily' | 'clt' | 'freelance' | 'volunteer',
     paymentValue: 0,
-    paymentType: 'fixed',
+    paymentType: 'fixed' as 'fixed' | 'hourly',
     shiftStart: '',
     shiftEnd: '',
     breakDuration: 60
@@ -131,7 +131,7 @@ export const StaffModal = ({
       const dataToSave = {
         ...formData,
         role: legacyRole as 'supervisor' | 'operator' // Maintain legacy field
-      };
+      } as any;
 
       if (staff) {
         await staffService.updateStaffMember(staff.id, dataToSave);

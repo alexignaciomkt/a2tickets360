@@ -13,6 +13,7 @@ import {
   CardFooter
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { visitorService } from '@/services/visitorService';
 
 type CheckInStatus = 'valid' | 'used' | 'invalid';
 type ScanStatus = 'none' | CheckInStatus;
@@ -31,6 +32,7 @@ const CheckinPage = () => {
   const [loading, setLoading] = useState(false);
   const [observation, setObservation] = useState('');
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
+  const [visitorData, setVisitorData] = useState<any>(null);
 
   // Mock attendee data
   const mockAttendee = {
@@ -52,8 +54,28 @@ const CheckinPage = () => {
 
     setLoading(true);
 
-    // Simulate API call delay
+    // Check if it's a visitor QR code
+    if (searchQuery.startsWith('VIS-')) {
+      try {
+        const visitor = await visitorService.validateQrCode(searchQuery);
+        setVisitorData(visitor);
+        setScanStatus(visitor.status === 'checked_in' ? 'used' : 'valid');
+      } catch (error) {
+        setScanStatus('invalid');
+        toast({
+          title: 'Erro na validação',
+          description: 'Visitante não encontrado ou erro no sistema.',
+          variant: 'destructive',
+        });
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    // Existing ticket logic (mock)
     setTimeout(() => {
+      setVisitorData(null);
       // For the demo, we'll just check if the query includes certain keywords
       if (searchQuery.includes('valid')) {
         setScanStatus('valid');
@@ -62,10 +84,8 @@ const CheckinPage = () => {
       } else if (searchQuery.includes('invalid')) {
         setScanStatus('invalid');
       } else {
-        // Default to valid for demo purposes
         setScanStatus('valid');
       }
-
       setLoading(false);
     }, 1000);
   };
@@ -76,11 +96,36 @@ const CheckinPage = () => {
     setObservation('');
   };
 
-  const handleMarkEntry = () => {
-    // Verificamos que o status é válido antes de adicionar ao histórico
+  const handleMarkEntry = async () => {
     if (scanStatus !== 'valid') return;
 
-    // Adicionar ao histórico de check-ins
+    if (visitorData) {
+      try {
+        await visitorService.checkIn(visitorData.id);
+        toast({
+          title: 'Check-in realizado',
+          description: `Visitante: ${visitorData.name}`,
+        });
+
+        const newCheckIn: CheckIn = {
+          name: visitorData.name,
+          ticketId: searchQuery,
+          status: 'valid',
+          time: format(new Date(), "dd/MM/yyyy HH:mm", { locale: ptBR })
+        };
+        setCheckIns(prev => [newCheckIn, ...prev]);
+        resetScan();
+      } catch (error) {
+        toast({
+          title: 'Erro no check-in',
+          description: 'Não foi possível confirmar a entrada do visitante.',
+          variant: 'destructive'
+        });
+      }
+      return;
+    }
+
+    // Mock ticket check-in
     const newCheckIn: CheckIn = {
       name: mockAttendee.name,
       ticketId: searchQuery,
@@ -90,14 +135,12 @@ const CheckinPage = () => {
 
     setCheckIns(prev => [newCheckIn, ...prev]);
 
-    // Mostrar feedback toast
     toast({
       title: 'Check-in realizado',
       description: `${mockAttendee.name} - ${format(new Date(), "dd/MM/yyyy HH:mm", { locale: ptBR })}`,
       variant: 'default',
     });
 
-    // Reset scan
     resetScan();
   };
 
@@ -197,8 +240,8 @@ const CheckinPage = () => {
                     <Button
                       onClick={handleMarkEntry}
                       className={`mt-6 ${scanStatus === 'valid'
-                          ? 'bg-green-600 hover:bg-green-700'
-                          : 'bg-gray-600 hover:bg-gray-700'
+                        ? 'bg-green-600 hover:bg-green-700'
+                        : 'bg-gray-600 hover:bg-gray-700'
                         }`}
                       disabled={scanStatus !== 'valid'}
                     >
@@ -217,36 +260,50 @@ const CheckinPage = () => {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                       <div className="col-span-2 flex items-center">
-                        <img
-                          src={mockAttendee.photo}
-                          alt="Foto do participante"
-                          className="w-16 h-16 rounded-full object-cover border-2 border-gray-200"
-                        />
+                        <div className="h-16 w-16 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-xl border-2 border-indigo-200">
+                          {(visitorData?.name || mockAttendee.name).charAt(0)}
+                        </div>
                         <div className="ml-4">
-                          <h4 className="font-medium text-lg">{mockAttendee.name}</h4>
-                          <p className="text-gray-600 text-sm">{mockAttendee.email}</p>
+                          <h4 className="font-medium text-lg">{visitorData?.name || mockAttendee.name}</h4>
+                          <p className="text-gray-600 text-sm">{visitorData?.email || mockAttendee.email}</p>
                         </div>
                       </div>
 
                       <div>
-                        <p className="text-sm text-gray-500">CPF</p>
-                        <p className="font-medium">{mockAttendee.cpf}</p>
+                        <p className="text-sm text-gray-500">{visitorData ? 'Documento (CPF)' : 'CPF'}</p>
+                        <p className="font-medium">{visitorData?.document || mockAttendee.cpf}</p>
                       </div>
 
                       <div>
-                        <p className="text-sm text-gray-500">Evento</p>
-                        <p className="font-medium">{mockAttendee.eventName}</p>
+                        <p className="text-sm text-gray-500">Tipo</p>
+                        <p className="font-medium text-indigo-600">{visitorData ? 'Visitante (Credencial)' : mockAttendee.ticketType}</p>
                       </div>
 
-                      <div>
-                        <p className="text-sm text-gray-500">Tipo de Ingresso</p>
-                        <p className="font-medium">{mockAttendee.ticketType}</p>
-                      </div>
+                      {visitorData && (
+                        <>
+                          <div>
+                            <p className="text-sm text-gray-500">Empresa</p>
+                            <p className="font-medium">{visitorData.company || 'Pessoa Física'}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500">Cargo</p>
+                            <p className="font-medium">{visitorData.role || 'N/A'}</p>
+                          </div>
+                        </>
+                      )}
 
-                      <div>
-                        <p className="text-sm text-gray-500">Lote</p>
-                        <p className="font-medium">{mockAttendee.ticketBatch}</p>
-                      </div>
+                      {!visitorData && (
+                        <>
+                          <div>
+                            <p className="text-sm text-gray-500">Evento</p>
+                            <p className="font-medium">{mockAttendee.eventName}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500">Lote</p>
+                            <p className="font-medium">{mockAttendee.ticketBatch}</p>
+                          </div>
+                        </>
+                      )}
 
                       <div className="col-span-2 mt-2">
                         <p className="text-sm text-gray-500">Observações do Organizador</p>
@@ -304,8 +361,8 @@ const CheckinPage = () => {
                           <td className="py-2 px-4">{checkIn.ticketId.substring(0, 8)}...</td>
                           <td className="py-2 px-4">
                             <span className={`px-2 py-1 text-xs rounded-full ${checkIn.status === 'valid' ? 'bg-green-100 text-green-800' :
-                                checkIn.status === 'used' ? 'bg-yellow-100 text-yellow-800' :
-                                  'bg-red-100 text-red-800'
+                              checkIn.status === 'used' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-red-100 text-red-800'
                               }`}>
                               {checkIn.status === 'valid' ? 'Válido' :
                                 checkIn.status === 'used' ? 'Já Usado' : 'Inválido'}

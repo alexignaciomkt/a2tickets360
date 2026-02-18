@@ -22,6 +22,8 @@ import OrganizerReports from '@/pages/dashboard/OrganizerReports';
 import OrganizerSettings from '@/pages/dashboard/OrganizerSettings';
 import OrganizerStaff from '@/pages/dashboard/OrganizerStaff';
 import OrganizerSuppliers from '@/pages/dashboard/OrganizerSuppliers';
+import OrganizerStands from '@/pages/dashboard/OrganizerStands';
+import OrganizerSponsors from '@/pages/dashboard/OrganizerSponsors';
 import SupplierDetails from '@/pages/dashboard/SupplierDetails';
 import StaffRolesPage from '@/pages/dashboard/StaffRolesPage';
 import StaffFinancialPage from '@/pages/dashboard/StaffFinancialPage';
@@ -42,6 +44,8 @@ import StaffPortalDashboard from '@/pages/staff/StaffPortalDashboard';
 import WorkerProfilePage from '@/pages/staff/WorkerProfilePage';
 import ProposalsPage from '@/pages/staff/ProposalsPage';
 import AgendaPage from '@/pages/staff/AgendaPage';
+import VisitorRegistrationPage from '@/pages/VisitorRegistrationPage';
+import OrganizerVisitors from '@/pages/dashboard/OrganizerVisitors';
 
 import BuyerProfilePage from '@/pages/BuyerProfilePage';
 import MasterAdminPanel from '@/pages/dashboard/MasterAdminPanel';
@@ -102,7 +106,10 @@ function App() {
               <Route path="/organizer/ticket-validation" element={<TicketValidation />} />
               <Route path="/organizer/ticket-designer" element={<TicketDesigner />} />
               <Route path="/organizer/sales-points" element={<SalesPoints />} />
-              <Route path="/organizer/checkin" element={<CheckinPage />} />
+              <Route path="/organizer/stands" element={<OrganizerStands />} />
+              <Route path="/organizer/events/:eventId/stands" element={<OrganizerStands />} />
+              <Route path="/organizer/sponsors" element={<OrganizerSponsors />} />
+              <Route path="/organizer/events/:eventId/sponsors" element={<OrganizerSponsors />} />
 
               {/* Producer Fan Page (Facebook Replica) */}
               <Route path="/producer-fan/:slug" element={<ProducerFanPage />} />
@@ -132,6 +139,11 @@ function App() {
               <Route path="/master/settings" element={<MasterSettings />} />
               <Route path="/organizer/events/edit/:eventId" element={<CreateEvent />} />
               <Route path="/organizer/events/:eventId" element={<Navigate to="/organizer/events/edit/:eventId" replace />} />
+
+              {/* Visitor & Credentialing */}
+              <Route path="/events/:eventId/register" element={<VisitorRegistrationPage />} />
+              <Route path="/organizer/visitors" element={<OrganizerVisitors />} />
+              <Route path="/organizer/events/:eventId/visitors" element={<OrganizerVisitors />} />
 
               {/* Staff Experience Portal (Phase 6) */}
               <Route path="/staff/portal" element={<StaffPortalDashboard />} />

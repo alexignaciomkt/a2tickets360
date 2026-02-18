@@ -15,14 +15,12 @@ import {
     sponsorTypes,
     sponsors,
     sponsorInstallments,
-    sponsorDeliverables,
-    visitors,
-    admins
+    sponsorDeliverables
 } from './db/schema';
-import { eq, and, or } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import Redis from 'ioredis';
 import dotenv from 'dotenv';
-import { jwt, sign } from 'hono/jwt';
+import { jwt } from 'hono/jwt';
 
 dotenv.config();
 
@@ -53,33 +51,13 @@ async function seedOrganizer() {
             id: testId,
             name: 'A2 Produções Elite',
             email: 'contato@a2tickets360.com.br',
-            passwordHash: await Bun.password.hash('123456'),
+            passwordHash: '123456', // Mock p/ teste
             emailVerified: true
         });
         console.log('✅ Organizador de teste criado');
     }
 }
-
-// SEED: Garantir que o Master Admin existe
-async function seedMasterAdmin() {
-    const email = 'alexignaciomkt@gmail.com';
-    const exists = await db.query.admins.findFirst({
-        where: eq(admins.email, email)
-    });
-
-    if (!exists) {
-        await db.insert(admins).values({
-            name: 'Alex Ignacio',
-            email: email,
-            passwordHash: await Bun.password.hash('Ticketera010203#360'),
-            role: 'master'
-        });
-        console.log('✅ Master Admin criado');
-    }
-}
-
 seedOrganizer();
-seedMasterAdmin();
 
 app.use('*', cors());
 
@@ -90,73 +68,6 @@ const authMiddleware = jwt({
 });
 
 app.get('/', (c: Context) => c.text('Ticketera API - High Performance Ready'));
-
-// --- AUTENTICAÇÃO REAL ---
-
-app.post('/api/login', async (c: Context) => {
-    const { email, password } = await c.req.json();
-    const secret = process.env.JWT_SECRET || 'fallback_secret_for_dev_only';
-
-    try {
-        // 1. Tentar Login como Admin Master
-        const adminUser = await db.query.admins.findFirst({
-            where: eq(admins.email, email)
-        });
-
-        if (adminUser) {
-            const isMatch = await Bun.password.verify(password, adminUser.passwordHash);
-            if (isMatch) {
-                const token = await sign({
-                    id: adminUser.id,
-                    email: adminUser.email,
-                    role: adminUser.role,
-                    exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24) // 24h
-                }, secret);
-                return c.json({ user: adminUser, token });
-            }
-        }
-
-        // 2. Tentar Login como Organizador
-        const organizer = await db.query.organizers.findFirst({
-            where: eq(organizersTable.email, email)
-        });
-
-        if (organizer) {
-            const isMatch = await Bun.password.verify(password, organizer.passwordHash);
-            if (isMatch) {
-                const token = await sign({
-                    id: organizer.id,
-                    email: organizer.email,
-                    role: 'organizer',
-                    exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24)
-                }, secret);
-                return c.json({ user: organizer, token });
-            }
-        }
-
-        // 3. Tentar Login como Staff
-        const staffUser = await db.query.staff.findFirst({
-            where: eq(staff.email, email)
-        });
-
-        if (staffUser) {
-            const isMatch = await Bun.password.verify(password, staffUser.passwordHash);
-            if (isMatch) {
-                const token = await sign({
-                    id: staffUser.id,
-                    email: staffUser.email,
-                    role: 'staff',
-                    exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24)
-                }, secret);
-                return c.json({ user: staffUser, token });
-            }
-        }
-
-        return c.json({ error: 'E-mail ou senha incorretos' }, 401);
-    } catch (error: any) {
-        return c.json({ error: error.message }, 500);
-    }
-});
 
 // --- Rota de Cadastro de Organizador (Com Asaas e Verificação) ---
 app.post('/api/organizers/register', async (c: Context) => {
@@ -816,91 +727,6 @@ app.put('/api/sponsor-deliverables/:id', async (c: Context) => {
             .where(eq(sponsorDeliverables.id, id))
             .returning();
         return c.json(updated);
-    } catch (error: any) {
-        return c.json({ error: error.message }, 400);
-    }
-});
-
-// --- MÓDULO DE VISITANTES ---
-
-// 1. Inscrição Pública de Visitante
-app.post('/api/events/:eventId/visitors/register', async (c: Context) => {
-    const eventId = c.req.param('eventId');
-    const data = await c.req.json();
-    const qrCodeData = `VIS-${uuidv4()}`;
-
-    try {
-        const [newVisitor] = await db.insert(visitors).values({
-            ...data,
-            eventId,
-            qrCodeData,
-            status: 'registered'
-        }).returning();
-
-        // TODO: Enviar email com o QR Code
-
-        return c.json(newVisitor);
-    } catch (error: any) {
-        return c.json({ error: error.message }, 400);
-    }
-});
-
-// 2. Listar Visitantes do Evento
-app.get('/api/events/:eventId/visitors', async (c: Context) => {
-    const eventId = c.req.param('eventId');
-    try {
-        const visitorsList = await db.query.visitors.findMany({
-            where: eq(visitors.eventId, eventId)
-        });
-        return c.json(visitorsList);
-    } catch (error: any) {
-        return c.json({ error: error.message }, 400);
-    }
-});
-
-// 3. Atualizar Visitante
-app.put('/api/visitors/:id', async (c: Context) => {
-    const id = c.req.param('id');
-    const data = await c.req.json();
-    try {
-        const [updated] = await db.update(visitors)
-            .set(data)
-            .where(eq(visitors.id, id))
-            .returning();
-        return c.json(updated);
-    } catch (error: any) {
-        return c.json({ error: error.message }, 400);
-    }
-});
-
-// 4. Validar QR Code de Visitante
-app.get('/api/visitors/validate/:qrCode', async (c: Context) => {
-    const qrCode = c.req.param('qrCode');
-    try {
-        const visitor = await db.query.visitors.findFirst({
-            where: eq(visitors.qrCodeData, qrCode)
-        });
-        if (!visitor) {
-            return c.json({ error: 'Visitante não encontrado' }, 404);
-        }
-        return c.json(visitor);
-    } catch (error: any) {
-        return c.json({ error: error.message }, 400);
-    }
-});
-
-// 5. Check-in do Visitante
-app.post('/api/visitors/:id/checkin', async (c: Context) => {
-    const id = c.req.param('id');
-    try {
-        const [visitor] = await db.update(visitors)
-            .set({
-                status: 'checked_in',
-                checkedInAt: new Date()
-            })
-            .where(eq(visitors.id, id))
-            .returning();
-        return c.json(visitor);
     } catch (error: any) {
         return c.json({ error: error.message }, 400);
     }

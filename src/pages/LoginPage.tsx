@@ -7,7 +7,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 
 const LoginPage = () => {
-  const { setUserByRole } = useAuth();
 
   return (
     <MainLayout>
@@ -21,20 +20,6 @@ const LoginPage = () => {
             <div className="p-6">
               <LoginForm />
 
-              <div className="mt-8 pt-4 border-t border-gray-200">
-                <h3 className="text-center font-medium mb-4">Acesso rápido (desenvolvimento)</h3>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setUserByRole('customer')}>
-                    <Link to="/dashboard">Cliente</Link>
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => setUserByRole('organizer')}>
-                    <Link to="/organizer">Organizador</Link>
-                  </Button>
-                  <Button variant="default" size="sm" onClick={() => setUserByRole('master')}>
-                    <Link to="/master">Master Admin</Link>
-                  </Button>
-                </div>
-              </div>
 
               <div className="mt-6 text-center">
                 <p className="text-gray-600">

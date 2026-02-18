@@ -28,3 +28,5 @@ export const api = {
     put: <T>(endpoint: string, body: any) => request<T>(endpoint, { method: 'PUT', body: JSON.stringify(body) }),
     delete: <T>(endpoint: string) => request<T>(endpoint, { method: 'DELETE' }),
 };
+
+export default api;

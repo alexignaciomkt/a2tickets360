@@ -21,6 +21,7 @@ export interface Event {
   capacity: number;
   status: 'draft' | 'published' | 'active' | 'completed' | 'cancelled';
   imageUrl: string;
+  floorPlanUrl?: string;
   organizerId: string;
   organizerName: string;
   tickets: Ticket[];
@@ -103,4 +104,18 @@ export interface Sale {
   saleDate: string;
   checkInStatus: 'pending' | 'checked-in';
   checkInDate?: string;
+}
+
+export interface Organizer {
+  id: string;
+  name: string;
+  email: string;
+  passwordHash?: string;
+  asaasId?: string;
+  asaasApiKey?: string;
+  walletId?: string;
+  emailVerified: boolean;
+  verificationToken?: string;
+  createdAt: string;
+  updatedAt: string;
 }

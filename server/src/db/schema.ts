@@ -1,6 +1,16 @@
 import { pgTable, text, timestamp, serial, integer, boolean, decimal, jsonb, uuid } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
+// Administradores da Plataforma (Master)
+export const admins = pgTable('admins', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    name: text('name').notNull(),
+    email: text('email').unique().notNull(),
+    passwordHash: text('password_hash').notNull(),
+    role: text('role', { enum: ['master', 'admin'] }).default('master'),
+    createdAt: timestamp('created_at').defaultNow(),
+});
+
 // Organizadores (Donos dos Eventos)
 export const organizers = pgTable('organizers', {
     id: uuid('id').primaryKey().defaultRandom(),
@@ -30,6 +40,7 @@ export const events = pgTable('events', {
     capacity: integer('capacity').notNull(),
     status: text('status', { enum: ['draft', 'published', 'active', 'completed', 'cancelled'] }).default('draft'),
     imageUrl: text('image_url'),
+    floorPlanUrl: text('floor_plan_url'),
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow(),
 });
@@ -187,6 +198,106 @@ export const staffProposals = pgTable('staff_proposals', {
     respondedAt: timestamp('responded_at'),
 });
 
+// --- NOVAS TABELAS PARA FEIRAS E PATROCÍNIO ---
+
+// Tipos de Patrocínio (Por Organizador)
+export const sponsorTypes = pgTable('sponsor_types', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizerId: uuid('organizer_id').references(() => organizers.id).notNull(),
+    name: text('name').notNull(), // Ex: 'Cota Ouro', 'Cota Prata'
+    description: text('description'),
+    defaultValue: decimal('default_value', { precision: 10, scale: 2 }), // Valor sugerido
+    createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Patrocinadores
+export const sponsors = pgTable('sponsors', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    eventId: uuid('event_id').references(() => events.id).notNull(),
+    organizerId: uuid('organizer_id').references(() => organizers.id).notNull(),
+    sponsorTypeId: uuid('sponsor_type_id').references(() => sponsorTypes.id).notNull(),
+    soldByStaffId: uuid('sold_by_staff_id').references(() => staff.id), // Vendedor
+    companyName: text('company_name').notNull(),
+    contactName: text('contact_name'),
+    contactEmail: text('contact_email'),
+    contactPhone: text('contact_phone'),
+    document: text('document'), // CNPJ
+    totalValue: decimal('total_value', { precision: 10, scale: 2 }).notNull(),
+    installments: integer('installments').default(1),
+    status: text('status', { enum: ['prospecting', 'negotiating', 'confirmed', 'delivered', 'cancelled'] }).default('prospecting'),
+    contractUrl: text('contract_url'),
+    notes: text('notes'),
+    createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Parcelas de Patrocínio
+export const sponsorInstallments = pgTable('sponsor_installments', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    sponsorId: uuid('sponsor_id').references(() => sponsors.id).notNull(),
+    installmentNumber: integer('installment_number').notNull(),
+    value: decimal('value', { precision: 10, scale: 2 }).notNull(),
+    dueDate: timestamp('due_date').notNull(),
+    paidDate: timestamp('paid_date'),
+    status: text('status', { enum: ['pending', 'paid', 'overdue'] }).default('pending'),
+    paymentMethod: text('payment_method'),
+    createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Contrapartidas de Patrocínio
+export const sponsorDeliverables = pgTable('sponsor_deliverables', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    sponsorId: uuid('sponsor_id').references(() => sponsors.id).notNull(),
+    description: text('description').notNull(),
+    isCompleted: boolean('is_completed').default(false),
+    completedAt: timestamp('completed_at'),
+    evidenceUrl: text('evidence_url'),
+    createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Categorias de Stands
+export const standCategories = pgTable('stand_categories', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    eventId: uuid('event_id').references(() => events.id).notNull(),
+    name: text('name').notNull(), // Ex: 'Ilha', 'Esquina'
+    size: text('size'), // Ex: '3x3m'
+    price: decimal('price', { precision: 10, scale: 2 }).notNull(),
+    createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Stands
+export const stands = pgTable('stands', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    eventId: uuid('event_id').references(() => events.id).notNull(),
+    organizerId: uuid('organizer_id').references(() => organizers.id).notNull(),
+    categoryId: uuid('category_id').references(() => standCategories.id).notNull(),
+    soldByStaffId: uuid('sold_by_staff_id').references(() => staff.id), // Vendedor
+    identifier: text('identifier').notNull(), // Ex: 'A-01'
+    exhibitorName: text('exhibitor_name'),
+    exhibitorEmail: text('exhibitor_email'),
+    exhibitorPhone: text('exhibitor_phone'),
+    exhibitorDocument: text('exhibitor_document'),
+    status: text('status', { enum: ['available', 'reserved', 'sold'] }).default('available'),
+    reservedUntil: timestamp('reserved_until'),
+    notes: text('notes'),
+    createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Visitantes (Credenciamento Público)
+export const visitors = pgTable('visitors', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    eventId: uuid('event_id').references(() => events.id).notNull(),
+    name: text('name').notNull(),
+    email: text('email').notNull(),
+    phone: text('phone'),
+    document: text('document'), // CPF
+    company: text('company'),
+    role: text('role'),
+    qrCodeData: text('qr_code_data').unique().notNull(),
+    status: text('status', { enum: ['registered', 'confirmed', 'checked_in'] }).default('registered'),
+    registeredAt: timestamp('registered_at').defaultNow(),
+    checkedInAt: timestamp('checked_in_at'),
+});
+
 // --- Relações (Drizzle Relations API) ---
 
 export const organizersRelations = relations(organizers, ({ many }) => ({
@@ -260,5 +371,82 @@ export const staffProposalsRelations = relations(staffProposals, ({ one }) => ({
     organizer: one(organizers, {
         fields: [staffProposals.organizerId],
         references: [organizers.id],
+    }),
+}));
+
+export const sponsorTypesRelations = relations(sponsorTypes, ({ one, many }) => ({
+    organizer: one(organizers, {
+        fields: [sponsorTypes.organizerId],
+        references: [organizers.id],
+    }),
+    sponsors: many(sponsors),
+}));
+
+export const sponsorsRelations = relations(sponsors, ({ one, many }) => ({
+    event: one(events, {
+        fields: [sponsors.eventId],
+        references: [events.id],
+    }),
+    organizer: one(organizers, {
+        fields: [sponsors.organizerId],
+        references: [organizers.id],
+    }),
+    type: one(sponsorTypes, {
+        fields: [sponsors.sponsorTypeId],
+        references: [sponsorTypes.id],
+    }),
+    soldBy: one(staff, {
+        fields: [sponsors.soldByStaffId],
+        references: [staff.id],
+    }),
+    installments: many(sponsorInstallments),
+    deliverables: many(sponsorDeliverables),
+}));
+
+export const sponsorInstallmentsRelations = relations(sponsorInstallments, ({ one }) => ({
+    sponsor: one(sponsors, {
+        fields: [sponsorInstallments.sponsorId],
+        references: [sponsors.id],
+    }),
+}));
+
+export const sponsorDeliverablesRelations = relations(sponsorDeliverables, ({ one }) => ({
+    sponsor: one(sponsors, {
+        fields: [sponsorDeliverables.sponsorId],
+        references: [sponsors.id],
+    }),
+}));
+
+export const standsRelations = relations(stands, ({ one }) => ({
+    event: one(events, {
+        fields: [stands.eventId],
+        references: [events.id],
+    }),
+    organizer: one(organizers, {
+        fields: [stands.organizerId],
+        references: [organizers.id],
+    }),
+    category: one(standCategories, {
+        fields: [stands.categoryId],
+        references: [standCategories.id],
+    }),
+    soldBy: one(staff, {
+        fields: [stands.soldByStaffId],
+        references: [staff.id],
+    }),
+}));
+
+export const standCategoriesRelations = relations(standCategories, ({ one, many }) => ({
+    event: one(events, {
+        fields: [standCategories.eventId],
+        references: [events.id],
+    }),
+    stands: many(stands),
+}));
+
+export const visitorsRelations = relations(visitors, ({ one }) => ({
+    event: one(events, {
+        fields: [visitors.eventId],
+        references: [events.id],
     }),
 }));

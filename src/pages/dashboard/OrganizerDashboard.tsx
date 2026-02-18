@@ -98,6 +98,21 @@ const OrganizerDashboard = () => {
               </div>
             </div>
           </div>
+
+          <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-indigo-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-500 text-sm">Visitantes (Credenciamento)</p>
+                <h3 className="text-3xl font-bold">Gerenciar</h3>
+              </div>
+              <div className="bg-indigo-100 p-3 rounded-full">
+                <Users className="h-7 w-7 text-indigo-600" />
+              </div>
+            </div>
+            <Link to="/organizer/visitors" className="text-indigo-600 text-xs font-bold mt-4 block hover:underline">
+              Ver todos os visitantes →
+            </Link>
+          </div>
         </div>
 
         {/* Sales Chart */}

@@ -15,13 +15,10 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Badge } from '@/components/ui/badge';
 import { organizerService } from '@/services/organizerService';
 import { Event, FinancialSummary } from '@/interfaces/organizer';
 
 const OrganizerFinancial = () => {
-  const [events, setEvents] = useState<Event[]>([]);
-  const [financialSummary, setFinancialSummary] = useState<FinancialSummary | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
   const [financialSummary, setFinancialSummary] = useState<FinancialSummary | null>(null);
   const [expenseModalOpen, setExpenseModalOpen] = useState(false);

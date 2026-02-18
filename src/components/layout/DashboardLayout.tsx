@@ -17,7 +17,8 @@ import {
   MapPin,
   Store,
   TrendingUp,
-  Truck
+  Truck,
+  Handshake
 } from 'lucide-react';
 import Logo from '@/components/ui/logo';
 
@@ -62,6 +63,7 @@ const DashboardLayout = ({ children, userType }: DashboardLayoutProps) => {
               { name: 'Gestão de Staff', path: '/organizer/staff', icon: UserCheck },
               { name: 'Cargos e Permissões', path: '/organizer/staff/roles', icon: ShieldCheck },
               { name: 'Banco de Talentos', path: '/organizer/staff/talent-pool', icon: Users },
+              { name: 'Gestão de Visitantes', path: '/organizer/visitors', icon: Users },
               { name: 'Check-in', path: '/organizer/checkin', icon: ChevronRight },
             ]
           },
@@ -77,6 +79,8 @@ const DashboardLayout = ({ children, userType }: DashboardLayoutProps) => {
             category: 'Vendas & Branding',
             icon: Palette,
             items: [
+              { name: 'Gestão de Stands', path: '/organizer/stands', icon: Store },
+              { name: 'Gestão de Patrocinadores', path: '/organizer/sponsors', icon: Handshake },
               { name: 'Loja/FanPage', path: '/organizer/store', icon: Store },
               { name: 'Designer de Ingressos', path: '/organizer/ticket-designer', icon: Palette },
               { name: 'Validação de Ingressos', path: '/organizer/ticket-validation', icon: ShieldCheck },

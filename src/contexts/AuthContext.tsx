@@ -7,8 +7,8 @@ interface User {
   id: string;
   name: string;
   email: string;
-  role: 'customer' | 'organizer' | 'admin';
-  photoUrl: string;
+  role: 'customer' | 'organizer' | 'admin' | 'staff' | 'master';
+  photoUrl?: string;
 }
 
 interface AuthContextType {
@@ -16,82 +16,52 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   isAuthenticated: boolean;
-  setUserByRole: (role: 'customer' | 'organizer' | 'admin' | 'master') => void;
+  token: string | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const { toast } = useToast();
 
   // Check if user is already logged in from localStorage
   useEffect(() => {
-    const savedUser = localStorage.getItem('A2 Tickets 360_user');
-    if (savedUser) {
+    const savedUser = localStorage.getItem('A2Tickets_user');
+    const savedToken = localStorage.getItem('A2Tickets_token');
+
+    if (savedUser && savedToken) {
       setUser(JSON.parse(savedUser));
-    } else {
-      // Auto login as admin for development
-      const adminUser = users.find(u => u.email === 'admin@sanjapass.com');
-      if (adminUser) {
-        setUserByRole('master');
-      }
+      setToken(savedToken);
     }
   }, []);
 
-  const setUserByRole = (role: 'customer' | 'organizer' | 'admin' | 'master') => {
-    let mockUser: User;
-
-    switch (role) {
-      case 'customer':
-        mockUser = users.find(u => u.email === 'maria@example.com')!;
-        break;
-      case 'organizer':
-        mockUser = users.find(u => u.email === 'ana@eventpro.com')!;
-        break;
-      case 'admin':
-        mockUser = users.find(u => u.email === 'admin@A2 Tickets 360.com')!;
-        break;
-      case 'master':
-        // Create a master admin user if it doesn't exist
-        mockUser = {
-          id: 'master-admin-id',
-          name: 'A2 Tickets 360 Master Admin',
-          email: 'master@A2 Tickets 360.com',
-          role: 'admin', // We'll use admin role but extend privileges in UI
-          photoUrl: 'https://i.pravatar.cc/300?u=master'
-        };
-        break;
-    }
-
-    setUser(mockUser);
-    localStorage.setItem('A2 Tickets 360_user', JSON.stringify(mockUser));
-    toast({
-      title: 'Login automático',
-      description: `Logado como ${mockUser.name} (${role})`,
-    });
-  };
-
   const login = async (email: string, password: string) => {
     try {
-      // Simulate API request delay
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const response = await fetch('http://46.224.101.23:3000/api/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
 
-      // Find user with matching email (password is not checked in this mock)
-      const foundUser = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+      const data = await response.json();
 
-      if (foundUser) {
-        const userData = {
-          id: foundUser.id,
-          name: foundUser.name,
-          email: foundUser.email,
-          role: foundUser.role,
-          photoUrl: foundUser.photoUrl,
+      if (response.ok) {
+        const userData: User = {
+          id: data.user.id,
+          name: data.user.name,
+          email: data.user.email,
+          role: data.user.role,
         };
 
-        // Assuming a token would be received from an actual API, for now, we'll just store the user data
-        // localStorage.setItem('A2 Tickets 360_token', 'mock_token_123'); // If a separate token is needed
-        localStorage.setItem('A2 Tickets 360_user', JSON.stringify(userData));
+        setUser(userData);
+        setToken(data.token);
+
+        localStorage.setItem('A2Tickets_user', JSON.stringify(userData));
+        localStorage.setItem('A2Tickets_token', data.token);
 
         toast({
           title: 'Login realizado com sucesso',
@@ -103,7 +73,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         toast({
           variant: 'destructive',
           title: 'Erro ao fazer login',
-          description: 'Email ou senha incorretos.',
+          description: data.error || 'Email ou senha incorretos.',
         });
         return false;
       }
@@ -111,7 +81,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       toast({
         variant: 'destructive',
         title: 'Erro ao fazer login',
-        description: 'Ocorreu um erro ao processar sua solicitação.',
+        description: 'Não foi possível conectar ao servidor.',
       });
       return false;
     }
@@ -119,8 +89,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logout = () => {
     setUser(null);
-    // localStorage.removeItem('A2 Tickets 360_token'); // If a separate token was stored
-    localStorage.removeItem('A2 Tickets 360_user');
+    setToken(null);
+    localStorage.removeItem('A2Tickets_user');
+    localStorage.removeItem('A2Tickets_token');
     toast({
       title: 'Logout realizado',
       description: 'Você foi desconectado com sucesso.',
@@ -128,7 +99,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user, setUserByRole }}>
+    <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user, token }}>
       {children}
     </AuthContext.Provider>
   );
