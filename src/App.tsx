@@ -7,6 +7,7 @@ import { NotificationProvider } from '@/contexts/NotificationContext';
 import Index from '@/pages/Index';
 import LoginPage from '@/pages/LoginPage';
 import RegisterPage from '@/pages/RegisterPage';
+import RegisterChoicePage from '@/pages/RegisterChoicePage';
 import RegisterOrganizerPage from '@/pages/RegisterOrganizerPage';
 import CustomerDashboard from '@/pages/dashboard/CustomerDashboard';
 import CustomerTickets from '@/pages/dashboard/CustomerTickets';
@@ -70,7 +71,8 @@ function App() {
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/login" element={<LoginPage />} />
-              <Route path="/register" element={<RegisterPage />} />
+              <Route path="/register" element={<RegisterChoicePage />} />
+              <Route path="/register/staff" element={<RegisterPage />} />
               <Route path="/register-organizer" element={<RegisterOrganizerPage />} />
               <Route path="/para-produtores" element={<ParaProdutores />} />
               <Route path="/work-with-us" element={<WorkWithUs />} />

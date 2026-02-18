@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, CheckCircle, XCircle, MoreHorizontal, Plus } from 'lucide-react';
+import { Users, CheckCircle, XCircle, MoreHorizontal, Plus, Edit, Trash2, ShieldAlert } from 'lucide-react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,9 +7,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
 import { masterService } from '@/services/masterService';
 import { Organizer } from '@/interfaces/organizer';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // Mock data para os organizadores
 const mockOrganizers = [
@@ -87,7 +95,10 @@ const OrganizersManagement = () => {
   const [organizers, setOrganizers] = useState<Organizer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedOrg, setSelectedOrg] = useState<Organizer | null>(null);
   const [newOrg, setNewOrg] = useState({ name: '', email: '', password: '' });
+  const [editForm, setEditForm] = useState({ name: '', email: '' });
 
   useEffect(() => {
     loadOrganizers();
@@ -148,6 +159,48 @@ const OrganizersManagement = () => {
       toast({
         title: 'Erro ao criar',
         description: error.response?.data?.error || 'Tente novamente.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleEdit = (org: Organizer) => {
+    setSelectedOrg(org);
+    setEditForm({ name: org.name, email: org.email });
+    setIsEditModalOpen(true);
+  };
+
+  const handleUpdateOrganizer = async () => {
+    if (!selectedOrg) return;
+    try {
+      await masterService.updateOrganizer(selectedOrg.id, editForm);
+      setIsEditModalOpen(false);
+      loadOrganizers();
+      toast({
+        title: 'Organizador atualizado',
+        description: 'Os dados foram salvos com sucesso.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Erro ao atualizar',
+        description: 'Tente novamente.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Tem certeza que deseja excluir este organizador?')) return;
+    try {
+      await masterService.updateOrganizer(id, { isActive: false } as any);
+      loadOrganizers();
+      toast({
+        title: 'Organizador removido',
+        description: 'O acesso foi desabilitado.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Erro ao remover',
         variant: 'destructive',
       });
     }
@@ -250,9 +303,30 @@ const OrganizersManagement = () => {
                                   </Button>
                                 </div>
                               ) : (
-                                <Button variant="ghost" size="sm" className="text-gray-400">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="text-gray-400">
+                                      <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-800 text-white">
+                                    <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                                    <DropdownMenuSeparator className="bg-zinc-800" />
+                                    <DropdownMenuItem className="focus:bg-zinc-800 focus:text-white cursor-pointer" onClick={() => handleEdit(org)}>
+                                      <Edit className="mr-2 h-4 w-4" />
+                                      Editar Dados
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem className="focus:bg-zinc-800 focus:text-white cursor-pointer">
+                                      <ShieldAlert className="mr-2 h-4 w-4" />
+                                      Bloquear Acesso
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator className="bg-zinc-800" />
+                                    <DropdownMenuItem className="focus:bg-red-900/20 text-red-400 focus:text-red-400 cursor-pointer" onClick={() => handleDelete(org.id)}>
+                                      <Trash2 className="mr-2 h-4 w-4" />
+                                      Excluir
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
                               )}
                             </td>
                           </tr>
@@ -317,6 +391,42 @@ const OrganizersManagement = () => {
           <DialogFooter>
             <Button variant="ghost" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
             <Button onClick={handleCreateOrganizer} className="bg-indigo-600 hover:bg-indigo-700">Criar Organizador</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="bg-zinc-900 border-zinc-800 text-white shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold italic tracking-tight">EDITAR ORGANIZADOR</DialogTitle>
+            <DialogDescription className="text-gray-400">
+              Altere os dados básicos do organizador ou empresa.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name" className="text-gray-400 uppercase text-[10px] font-bold tracking-widest pl-1">Nome / Empresa</Label>
+              <Input
+                id="edit-name"
+                value={editForm.name}
+                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                className="bg-zinc-800/50 border-white/5 rounded-xl h-12 focus:ring-indigo-500"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-email" className="text-gray-400 uppercase text-[10px] font-bold tracking-widest pl-1">E-mail</Label>
+              <Input
+                id="edit-email"
+                type="email"
+                value={editForm.email}
+                onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                className="bg-zinc-800/50 border-white/5 rounded-xl h-12 focus:ring-indigo-500"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="ghost" onClick={() => setIsEditModalOpen(false)} className="rounded-xl h-12">Cancelar</Button>
+            <Button onClick={handleUpdateOrganizer} className="bg-indigo-600 hover:bg-indigo-700 rounded-xl h-12 px-8 font-bold">SALVAR ALTERAÇÕES</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

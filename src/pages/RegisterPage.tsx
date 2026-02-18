@@ -18,7 +18,52 @@ import {
 } from '@/components/ui/form';
 import { useToast } from '@/components/ui/use-toast';
 import { authService } from '@/services/authService';
-import { Mail, User, Lock, Phone, MapPin, Loader2, CheckCircle } from 'lucide-react';
+import { Mail, User, Lock, Phone, MapPin, Loader2, CheckCircle, ChevronDown } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+const BRAZILIAN_STATES = [
+  { value: 'AC', label: 'Acre' },
+  { value: 'AL', label: 'Alagoas' },
+  { value: 'AP', label: 'Amapá' },
+  { value: 'AM', label: 'Amazonas' },
+  { value: 'BA', label: 'Bahia' },
+  { value: 'CE', label: 'Ceará' },
+  { value: 'DF', label: 'Distrito Federal' },
+  { value: 'ES', label: 'Espírito Santo' },
+  { value: 'GO', label: 'Goiás' },
+  { value: 'MA', label: 'Maranhão' },
+  { value: 'MT', label: 'Mato Grosso' },
+  { value: 'MS', label: 'Mato Grosso do Sul' },
+  { value: 'MG', label: 'Minas Gerais' },
+  { value: 'PA', label: 'Pará' },
+  { value: 'PB', label: 'Paraíba' },
+  { value: 'PR', label: 'Paraná' },
+  { value: 'PE', label: 'Pernambuco' },
+  { value: 'PI', label: 'Piauí' },
+  { value: 'RJ', label: 'Rio de Janeiro' },
+  { value: 'RN', label: 'Rio Grande do Norte' },
+  { value: 'RS', label: 'Rio Grande do Sul' },
+  { value: 'RO', label: 'Rondônia' },
+  { value: 'RR', label: 'Roraima' },
+  { value: 'SC', label: 'Santa Catarina' },
+  { value: 'SP', label: 'São Paulo' },
+  { value: 'SE', label: 'Sergipe' },
+  { value: 'TO', label: 'Tocantins' },
+];
+
+const COMMON_CITIES: Record<string, string[]> = {
+  'SP': ['São Paulo', 'Campinas', 'Guarulhos', 'São Bernardo do Campo', 'Santo André', 'São José dos Campos', 'Osasco', 'Ribeirão Preto', 'Sorocaba', 'Santos'],
+  'RJ': ['Rio de Janeiro', 'São Gonçalo', 'Duque de Caxias', 'Nova Iguaçu', 'Niterói', 'Belford Roxo', 'Campos dos Goytacazes', 'São João de Meriti', 'Petrópolis', 'Volta Redonda'],
+  'MG': ['Belo Horizonte', 'Uberlândia', 'Contagem', 'Juiz de Fora', 'Betim', 'Montes Claros', 'Ribeirão das Neves', 'Uberaba', 'Governador Valadares', 'Ipatinga'],
+  'DF': ['Brasília'],
+  // Posso adicionar mais conforme a demanda ou usar uma API
+};
 
 const registerSchema = z.object({
   name: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres'),
@@ -39,6 +84,7 @@ const RegisterPage = () => {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [availableCities, setAvailableCities] = useState<string[]>([]);
 
   const form = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
@@ -52,10 +98,31 @@ const RegisterPage = () => {
     },
   });
 
+  const selectedState = form.watch('state');
+
+  useState(() => {
+    if (selectedState && COMMON_CITIES[selectedState]) {
+      setAvailableCities(COMMON_CITIES[selectedState]);
+    } else {
+      setAvailableCities([]);
+    }
+  });
+
+  // Observe mudanças no estado para atualizar cidades
+  const onStateChange = (val: string) => {
+    form.setValue('state', val);
+    form.setValue('city', ''); // Reseta a cidade ao mudar o estado
+    if (COMMON_CITIES[val]) {
+      setAvailableCities(COMMON_CITIES[val]);
+    } else {
+      setAvailableCities(['Outra Cidade']);
+    }
+  };
+
   const onSubmit = async (data: RegisterFormData) => {
     setIsSubmitting(true);
     try {
-      await authService.registerCandidate(data);
+      await authService.registerCandidate(data as any);
       setIsSuccess(true);
       toast({
         title: 'Cadastro realizado!',
@@ -99,6 +166,12 @@ const RegisterPage = () => {
                 <div className="mb-10 text-center">
                   <h1 className="text-4xl font-black text-white italic uppercase tracking-tighter mb-2">Junte-se ao Staff</h1>
                   <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">A2 Tickets 360 &bull; Profissionais de Elite</p>
+                </div>
+
+                <div className="mb-6">
+                  <Button variant="ghost" onClick={() => navigate('/register')} className="text-primary hover:text-primary/80 p-0 h-auto font-bold flex items-center group">
+                    <ChevronDown className="w-4 h-4 rotate-90 mr-1 group-hover:-translate-x-1 transition-transform" /> Voltar para Escolha
+                  </Button>
                 </div>
 
                 <Form {...form}>
@@ -178,12 +251,30 @@ const RegisterPage = () => {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel className="text-gray-400 font-bold uppercase text-[10px] tracking-widest pl-1">Cidade</FormLabel>
-                            <FormControl>
-                              <div className="relative">
-                                <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600" />
-                                <Input placeholder="São José" className="h-14 bg-[#111] border-white/5 rounded-2xl pl-12 text-white placeholder:text-gray-700 focus:ring-primary focus:border-primary" {...field} />
-                              </div>
-                            </FormControl>
+                            {availableCities.length > 1 ? (
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                  <SelectTrigger className="h-14 bg-[#111] border-white/5 rounded-2xl text-white focus:ring-primary">
+                                    <div className="flex items-center">
+                                      <MapPin className="w-4 h-4 mr-2 text-gray-600" />
+                                      <SelectValue placeholder="Selecione..." />
+                                    </div>
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent className="bg-[#111] border-white/10 text-white">
+                                  {availableCities.map(city => (
+                                    <SelectItem key={city} value={city}>{city}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <FormControl>
+                                <div className="relative">
+                                  <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600" />
+                                  <Input placeholder="Digite sua cidade" className="h-14 bg-[#111] border-white/5 rounded-2xl pl-12 text-white placeholder:text-gray-700 focus:ring-primary" {...field} />
+                                </div>
+                              </FormControl>
+                            )}
                             <FormMessage />
                           </FormItem>
                         )}
@@ -195,9 +286,18 @@ const RegisterPage = () => {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel className="text-gray-400 font-bold uppercase text-[10px] tracking-widest pl-1">Estado (UF)</FormLabel>
-                            <FormControl>
-                              <Input placeholder="SP" maxLength={2} className="h-14 bg-[#111] border-white/5 rounded-2xl text-white placeholder:text-gray-700 focus:ring-primary focus:border-primary text-center" {...field} />
-                            </FormControl>
+                            <Select onValueChange={(val) => onStateChange(val)} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger className="h-14 bg-[#111] border-white/5 rounded-2xl text-white focus:ring-primary text-center">
+                                  <SelectValue placeholder="UF" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent className="bg-[#111] border-white/10 text-white max-h-60">
+                                {BRAZILIAN_STATES.map(state => (
+                                  <SelectItem key={state.value} value={state.value}>{state.value} - {state.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                             <FormMessage />
                           </FormItem>
                         )}

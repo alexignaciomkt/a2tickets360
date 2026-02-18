@@ -112,7 +112,7 @@ app.post('/api/login', async (c: Context) => {
                     role: adminUser.role,
                     exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24) // 24h
                 }, secret);
-                return c.json({ user: adminUser, token });
+                return c.json({ user: { ...adminUser, role: adminUser.role }, token });
             }
         }
 
@@ -130,7 +130,7 @@ app.post('/api/login', async (c: Context) => {
                     role: 'organizer',
                     exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24)
                 }, secret);
-                return c.json({ user: organizer, token });
+                return c.json({ user: { ...organizer, role: 'organizer' }, token });
             }
         }
 
@@ -148,7 +148,7 @@ app.post('/api/login', async (c: Context) => {
                     role: 'staff',
                     exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24)
                 }, secret);
-                return c.json({ user: staffUser, token });
+                return c.json({ user: { ...staffUser, role: 'staff' }, token });
             }
         }
 
