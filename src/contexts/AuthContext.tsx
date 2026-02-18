@@ -1,4 +1,4 @@
-
+import { api } from '@/services/api';
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { users } from '@/data/mockData';
@@ -39,49 +39,32 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const login = async (email: string, password: string) => {
     try {
-      const response = await fetch('http://46.224.101.23:3000/api/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
+      const data = await api.post<any>('/api/login', { email, password });
+
+      const userData: User = {
+        id: data.user.id,
+        name: data.user.name,
+        email: data.user.email,
+        role: data.user.role,
+      };
+
+      setUser(userData);
+      setToken(data.token);
+
+      localStorage.setItem('A2Tickets_user', JSON.stringify(userData));
+      localStorage.setItem('A2Tickets_token', data.token);
+
+      toast({
+        title: 'Login realizado com sucesso',
+        description: `Bem-vindo(a) de volta, ${userData.name}!`,
       });
 
-      const data = await response.json();
-
-      if (response.ok) {
-        const userData: User = {
-          id: data.user.id,
-          name: data.user.name,
-          email: data.user.email,
-          role: data.user.role,
-        };
-
-        setUser(userData);
-        setToken(data.token);
-
-        localStorage.setItem('A2Tickets_user', JSON.stringify(userData));
-        localStorage.setItem('A2Tickets_token', data.token);
-
-        toast({
-          title: 'Login realizado com sucesso',
-          description: `Bem-vindo(a) de volta, ${userData.name}!`,
-        });
-
-        return true;
-      } else {
-        toast({
-          variant: 'destructive',
-          title: 'Erro ao fazer login',
-          description: data.error || 'Email ou senha incorretos.',
-        });
-        return false;
-      }
-    } catch (error) {
+      return true;
+    } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Erro ao fazer login',
-        description: 'Não foi possível conectar ao servidor.',
+        description: error.message || 'Email ou senha incorretos.',
       });
       return false;
     }
