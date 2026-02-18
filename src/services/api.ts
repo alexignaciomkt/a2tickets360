@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://46.224.101.23:3000';
+const API_URL = import.meta.env.VITE_API_URL || 'https://46.224.101.23.sslip.io';
 
 export async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const token = localStorage.getItem('auth_token');
