@@ -70,6 +70,8 @@ export const events = pgTable('events', {
     eventType: text('event_type', { enum: ['paid', 'free'] }).default('paid'),
     date: text('date').notNull(), // Formato ISO ou YYYY-MM-DD
     time: text('time').notNull(),
+    endDate: text('end_date'),
+    endTime: text('end_time'),
     duration: text('duration'),
     locationName: text('location_name'),
     locationAddress: text('location_address'),
@@ -123,6 +125,7 @@ export const staff = pgTable('staff', {
     name: text('name').notNull(),
     email: text('email').unique().notNull(),
     passwordHash: text('password_hash').notNull(),
+    photoUrl: text('photo_url'),
     roleId: text('role_id').notNull(),
     eventFunction: text('event_function'),
     isActive: boolean('is_active').default(true),

@@ -19,6 +19,11 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Menu,
+  X,
+  Users
+} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { staffService } from '@/services/staffService';
 import { StaffMember, StaffRole } from '@/interfaces/staff';
@@ -58,8 +63,22 @@ export const StaffModal = ({
     paymentType: 'fixed' as 'fixed' | 'hourly',
     shiftStart: '',
     shiftEnd: '',
-    breakDuration: 60
+    breakDuration: 60,
+    photoUrl: ''
   });
+
+  const [previews, setPreviews] = useState({
+    photo: ''
+  });
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setPreviews({ photo: url });
+      setFormData(prev => ({ ...prev, photoUrl: url }));
+    }
+  };
 
   useEffect(() => {
     loadRoles();
@@ -90,8 +109,10 @@ export const StaffModal = ({
         paymentType: staff.paymentType || 'fixed',
         shiftStart: staff.shiftStart || '',
         shiftEnd: staff.shiftEnd || '',
-        breakDuration: staff.breakDuration || 60
+        breakDuration: staff.breakDuration || 60,
+        photoUrl: staff.photoUrl || ''
       });
+      setPreviews({ photo: staff.photoUrl || '' });
     } else {
 
       setFormData({
@@ -108,8 +129,10 @@ export const StaffModal = ({
         paymentType: 'fixed',
         shiftStart: '',
         shiftEnd: '',
-        breakDuration: 60
+        breakDuration: 60,
+        photoUrl: ''
       });
+      setPreviews({ photo: '' });
     }
   }, [staff, open, events, roles, initialData]);
 
@@ -194,6 +217,38 @@ export const StaffModal = ({
             </TabsList>
 
             <TabsContent value="general" className="space-y-4">
+              <div className="flex flex-col items-center justify-center py-4 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 mb-4 transition-all hover:bg-gray-100 group relative overflow-hidden">
+                {previews.photo ? (
+                  <div className="relative w-24 h-24">
+                    <img src={previews.photo} alt="Preview" className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-md" />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPreviews({ photo: '' });
+                        setFormData({ ...formData, photoUrl: '' });
+                      }}
+                      className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-1 shadow-sm hover:bg-red-600 transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-2 cursor-pointer" onClick={() => document.getElementById('staff-photo')?.click()}>
+                    <div className="w-20 h-20 rounded-full bg-indigo-50 flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
+                      <Users className="w-8 h-8 text-indigo-400 group-hover:text-indigo-600" />
+                    </div>
+                    <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Adicionar Foto</span>
+                  </div>
+                )}
+                <input
+                  id="staff-photo"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleFileUpload}
+                />
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Nome Completo</Label>

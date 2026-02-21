@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { Calendar, Ticket, Clock, MapPin, Star, History, Image as ImageIcon, Settings as SettingsIcon } from 'lucide-react';
+import { Calendar, Ticket, Clock, MapPin, Star, History, Image as ImageIcon, Settings as SettingsIcon, Camera, X, Loader2 } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import { users, PurchasedTicket, events, Event } from '@/data/mockData';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,6 +14,8 @@ const BuyerProfilePage = () => {
     const [tickets, setTickets] = useState<PurchasedTicket[]>([]);
     const [visitedEvents, setVisitedEvents] = useState<Event[]>([]);
     const [activeTickets, setActiveTickets] = useState<PurchasedTicket[]>([]);
+    const [uploading, setUploading] = useState(false);
+    const [photoPreview, setPhotoPreview] = useState<string | null>(null);
 
     useEffect(() => {
         if (user) {
@@ -43,13 +45,42 @@ const BuyerProfilePage = () => {
                             <Card className="rounded-2xl border-none shadow-premium overflow-hidden">
                                 <div className="h-24 bg-gradient-to-r from-[#FF6B00] to-[#FF8533]"></div>
                                 <CardContent className="p-6 -mt-12 text-center">
-                                    <div className="relative inline-block mb-4">
-                                        <img
-                                            src={user?.photoUrl || 'https://i.pravatar.cc/300'}
-                                            className="w-24 h-24 rounded-full border-4 border-white shadow-lg mx-auto object-cover"
-                                            alt="Profile"
-                                        />
-                                        <div className="absolute bottom-0 right-0 p-1 bg-white rounded-full shadow-sm border border-gray-100">
+                                    <div className="relative inline-block mb-4 group">
+                                        <div className="relative w-24 h-24 mx-auto">
+                                            <img
+                                                src={photoPreview || user?.photoUrl || 'https://i.pravatar.cc/300'}
+                                                className="w-24 h-24 rounded-full border-4 border-white shadow-lg object-cover"
+                                                alt="Profile"
+                                            />
+                                            {uploading && (
+                                                <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center">
+                                                    <Loader2 className="w-6 h-6 text-white animate-spin" />
+                                                </div>
+                                            )}
+                                            <label
+                                                htmlFor="photo-upload"
+                                                className="absolute bottom-0 right-0 p-2 bg-indigo-600 text-white rounded-full shadow-md cursor-pointer hover:bg-indigo-700 transition-all scale-90 hover:scale-100"
+                                            >
+                                                <Camera className="w-4 h-4" />
+                                                <input
+                                                    id="photo-upload"
+                                                    type="file"
+                                                    accept="image/*"
+                                                    className="hidden"
+                                                    onChange={async (e) => {
+                                                        const file = e.target.files?.[0];
+                                                        if (file) {
+                                                            setUploading(true);
+                                                            const url = URL.createObjectURL(file);
+                                                            setPhotoPreview(url);
+                                                            // Em um app real, aqui chamaria o serviço de upload
+                                                            setTimeout(() => setUploading(false), 1000);
+                                                        }
+                                                    }}
+                                                />
+                                            </label>
+                                        </div>
+                                        <div className="absolute top-0 -right-2 p-1 bg-white rounded-full shadow-sm border border-gray-100">
                                             <div className="w-5 h-5 bg-green-500 rounded-full border-2 border-white"></div>
                                         </div>
                                     </div>

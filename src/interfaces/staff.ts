@@ -12,6 +12,7 @@ export interface StaffRole {
     canManageStaff: boolean; // Pode criar/editar outros staffs
   };
   eventFunction?: string; // Função padrão (ex: "Segurança de Portão")
+  photoUrl?: string;
 }
 
 export interface StaffMember {
@@ -42,6 +43,7 @@ export interface StaffMember {
 
   isActive: boolean;
   sendCredentials: boolean;
+  photoUrl?: string;
   createdAt: string;
   lastLogin?: string;
 }

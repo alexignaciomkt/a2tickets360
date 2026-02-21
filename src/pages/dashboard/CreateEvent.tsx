@@ -70,6 +70,8 @@ const CreateEvent = () => {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [endTime, setEndTime] = useState('');
   const [duration, setDuration] = useState('');
   const [locationName, setLocationName] = useState('');
   const [locationAddress, setLocationAddress] = useState('');
@@ -133,7 +135,7 @@ const CreateEvent = () => {
     try {
       const eventData = {
         organizerId: user.id,
-        title, description, category, eventType, date, time, duration,
+        title, description, category, eventType, date, time, endDate, endTime, duration,
         locationName, locationAddress, locationCity, locationState, locationPostalCode,
         capacity, status,
         imageUrl: imageUrl || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800',
@@ -282,21 +284,41 @@ const CreateEvent = () => {
         <h4 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
           <Calendar className="h-4 w-4 text-indigo-500" /> Data & Horário
         </h4>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="text-xs text-gray-500 mb-1 block">Data *</label>
-            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)}
-              className="bg-white border-gray-300 text-gray-900 focus:border-indigo-500" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-4">
+            <h5 className="text-xs font-bold text-indigo-600 uppercase tracking-wider">Início do Evento</h5>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Data *</label>
+                <Input type="date" value={date} onChange={(e) => setDate(e.target.value)}
+                  className="bg-white border-gray-300 text-gray-900 focus:border-indigo-500 h-11" />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Horário *</label>
+                <Input type="time" value={time} onChange={(e) => setTime(e.target.value)}
+                  className="bg-white border-gray-300 text-gray-900 focus:border-indigo-500 h-11" />
+              </div>
+            </div>
           </div>
-          <div>
-            <label className="text-xs text-gray-500 mb-1 block">Horário *</label>
-            <Input type="time" value={time} onChange={(e) => setTime(e.target.value)}
-              className="bg-white border-gray-300 text-gray-900 focus:border-indigo-500" />
+          <div className="space-y-4">
+            <h5 className="text-xs font-bold text-rose-600 uppercase tracking-wider">Término do Evento</h5>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Data de Término</label>
+                <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)}
+                  className="bg-white border-gray-300 text-gray-900 focus:border-rose-500 h-11" />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Horário de Término</label>
+                <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)}
+                  className="bg-white border-gray-300 text-gray-900 focus:border-rose-500 h-11" />
+              </div>
+            </div>
           </div>
-          <div>
-            <label className="text-xs text-gray-500 mb-1 block">Duração estimada</label>
-            <Input value={duration} onChange={(e) => setDuration(e.target.value)} placeholder="Ex: 8 horas"
-              className="bg-white border-gray-300 text-gray-900 placeholder:text-gray-400 focus:border-indigo-500" />
+          <div className="md:col-span-2">
+            <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Duração estimada ou Observação</label>
+            <Input value={duration} onChange={(e) => setDuration(e.target.value)} placeholder="Ex: 8 horas ou 'Até o último convidado'"
+              className="bg-white border-gray-300 text-gray-900 placeholder:text-gray-400 focus:border-indigo-500 h-11" />
           </div>
         </div>
       </div>
