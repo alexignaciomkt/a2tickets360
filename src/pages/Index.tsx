@@ -2,12 +2,14 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { MapPin, Calendar, Star, ChevronLeft, ChevronRight, Music, Mic2, Heart, Laptop, Zap, ArrowRight, Camera, ShoppingBag } from 'lucide-react';
-import { events as MOCK_EVENTS } from '@/data/mockData';
+import { eventService, Event } from '@/services/eventService';
 import MainLayout from '@/components/layout/MainLayout';
 
 const Index = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [featuredEvents, setFeaturedEvents] = useState<any[]>([]);
+  const [featuredEvents, setFeaturedEvents] = useState<Event[]>([]);
+  const [allEvents, setAllEvents] = useState<Event[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Static branding banners (Always present)
   const brandingBanners = [
@@ -34,16 +36,22 @@ const Index = () => {
   ];
 
   useEffect(() => {
-    const loadFeatured = async () => {
+    const fetchData = async () => {
+      setIsLoading(true);
       try {
-        const res = await fetch('/api/public/featured-events');
-        const data = await res.json();
-        setFeaturedEvents(data);
+        const [featured, all] = await Promise.all([
+          eventService.getFeaturedEvents(),
+          eventService.getPublicEvents()
+        ]);
+        setFeaturedEvents(featured);
+        setAllEvents(all);
       } catch (error) {
-        console.error('Erro ao carregar destaques:', error);
+        console.error('Erro ao listar eventos:', error);
+      } finally {
+        setIsLoading(false);
       }
     };
-    loadFeatured();
+    fetchData();
   }, []);
 
   // Combine branding + featured
@@ -52,11 +60,11 @@ const Index = () => {
     ...featuredEvents.map(event => ({
       id: event.id,
       title: event.title.toUpperCase(),
-      subtitle: `${new Date(event.date).toLocaleDateString('pt-BR')} • ${event.locationCity}`,
+      subtitle: `${new Date(event.date).toLocaleDateString('pt-BR')} • ${event.location.city}`,
       description: event.description?.substring(0, 150) + '...',
       cta: 'Garantir Ingresso',
       link: `/events/${event.id}`,
-      imageUrl: event.imageUrl || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=1200',
+      imageUrl: event.bannerUrl || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=1200',
       badge: 'Evento em Destaque'
     }))
   ];
@@ -180,7 +188,7 @@ const Index = () => {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
-              {MOCK_EVENTS.filter(e => e.category === cat.id).slice(0, 4).map(event => (
+              {allEvents.filter(e => e.category === cat.id).slice(0, 4).map(event => (
                 <Link
                   key={event.id}
                   to={`/events/${event.id}`}

@@ -24,6 +24,10 @@ export const masterService = {
         return await api.get('/api/master/events/pending');
     },
 
+    getEvents: async (): Promise<any[]> => {
+        return await api.get('/api/master/events');
+    },
+
     approveEvent: async (id: string): Promise<any> => {
         return await api.put(`/api/master/events/${id}/approve`, {});
     },
@@ -34,6 +38,10 @@ export const masterService = {
 
     approveOrganizerManually: async (id: string): Promise<any> => {
         return await api.post(`/api/master/organizers/${id}/approve-manually`, {});
+    },
+
+    getStats: async (): Promise<any> => {
+        return await api.get('/api/master/stats');
     },
 };
 

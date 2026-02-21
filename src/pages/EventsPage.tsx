@@ -3,7 +3,8 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import MainLayout from '@/components/layout/MainLayout';
 import EventCard from '@/components/events/EventCard';
-import { events, Event } from '@/data/mockData';
+import { eventService, Event } from '@/services/eventService';
+import { Loader2 } from 'lucide-react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ChevronDown, Calendar, MapPin, Filter } from 'lucide-react';
@@ -22,9 +23,10 @@ const EventsPage = () => {
   const [filteredEvents, setFilteredEvents] = useState<Event[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>(initialCategory);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
 
   // Featured events for carousel
-  const featuredEvents = events.slice(0, 5);
+  const featuredEvents = allEvents.filter(e => e.isFeatured).slice(0, 5);
 
   // New Filters
   const [selectedDate, setSelectedDate] = useState<string>('');
@@ -60,9 +62,18 @@ const EventsPage = () => {
   };
 
   useEffect(() => {
-    // Simulate API fetch
-    setAllEvents(events);
-    // Initial filter will happen in the filter useEffect
+    const fetchEvents = async () => {
+      setIsLoading(true);
+      try {
+        const data = await eventService.getPublicEvents();
+        setAllEvents(data);
+      } catch (error) {
+        console.error('Erro ao buscar eventos:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchEvents();
   }, []);
 
   // Filter events when any filter changes
@@ -116,7 +127,7 @@ const EventsPage = () => {
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex flex-col justify-end p-6 text-white">
                         <h2 className="text-2xl md:text-3xl font-bold mb-2">{event.title}</h2>
-                        <p className="text-sm md:text-base mb-4">{event.location.city}, {event.date}</p>
+                        <p className="text-sm md:text-base mb-4">{event.location.city}, {new Date(event.date).toLocaleDateString('pt-BR')}</p>
                         <a href={`/events/${event.id}`} className="btn-primary inline-block w-max py-2 px-4">
                           Ver detalhes
                         </a>
@@ -194,18 +205,37 @@ const EventsPage = () => {
           </div>
 
           {/* Events Grid */}
-          {filteredEvents.length > 0 ? (
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl shadow-sm border border-gray-100">
+              <Loader2 className="h-12 w-12 animate-spin text-indigo-600 mb-4" />
+              <p className="text-gray-500 font-medium tracking-tight">Estamos encontrando os melhores eventos para você...</p>
+            </div>
+          ) : filteredEvents.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredEvents.map((event) => (
                 <EventCard key={event.id} event={event} />
               ))}
             </div>
           ) : (
-            <div className="text-center py-16">
-              <h3 className="text-xl font-medium mb-2">Nenhum evento encontrado</h3>
-              <p className="text-gray-600">
-                Tente ajustar os filtros ou busque por outros termos
+            <div className="text-center py-20 bg-white rounded-3xl shadow-sm border border-gray-50 px-6">
+              <div className="bg-gray-50 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Filter className="h-10 w-10 text-gray-300" />
+              </div>
+              <h3 className="text-2xl font-black text-gray-900 mb-3 tracking-tighter uppercase">Nenhum evento encontrado</h3>
+              <p className="text-gray-500 max-w-md mx-auto mb-10 leading-relaxed font-medium">
+                Infelizmente não encontramos nenhum evento com os filtros aplicados ({searchQuery || selectedCategory || selectedCity || 'Filtros'}). Tente buscar por outros termos ou limpar os filtros.
               </p>
+              <Button
+                onClick={() => {
+                  setSearchQuery('');
+                  setSelectedCategory('all');
+                  setSelectedCity('');
+                  setSelectedDate('');
+                }}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-10 py-6 rounded-2xl font-black text-lg shadow-xl shadow-indigo-100 transition-all uppercase tracking-tight"
+              >
+                Limpar Todos os Filtros
+              </Button>
             </div>
           )}
         </div>

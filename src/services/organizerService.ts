@@ -98,6 +98,10 @@ class OrganizerService {
   async validateStatus(organizerId: string): Promise<{ profileComplete: boolean }> {
     return api.post(`/api/organizers/${organizerId}/validate-status`, {});
   }
+
+  async getStats(organizerId: string): Promise<any> {
+    return api.get(`/api/organizers/${organizerId}/stats`);
+  }
 }
 
 export const organizerService = new OrganizerService();

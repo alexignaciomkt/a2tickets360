@@ -15,7 +15,8 @@ import {
   CheckCircle2,
   Ticket as TicketIcon
 } from 'lucide-react';
-import { events as MOCK_EVENTS } from '@/data/mockData';
+import { eventService, Event } from '@/services/eventService';
+import { Loader2 } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 
 const EventDetailPage = () => {
@@ -23,15 +24,53 @@ const EventDetailPage = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState<'details' | 'tickets' | 'checkout' | 'success'>('details');
   const [quantity, setQuantity] = useState(1);
-  const [event, setEvent] = useState(MOCK_EVENTS.find(e => e.id === id) || MOCK_EVENTS[0]);
+  const [event, setEvent] = useState<Event | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const found = MOCK_EVENTS.find(e => e.id === id);
-    if (found) setEvent(found);
+    if (!id) return;
+
+    const fetchEvent = async () => {
+      setIsLoading(true);
+      try {
+        const data = await eventService.getEventById(id);
+        setEvent(data);
+      } catch (error) {
+        console.error('Erro ao buscar evento:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchEvent();
     window.scrollTo(0, 0);
   }, [id]);
 
-  const ticketPrice = event.tickets[0]?.price || 150;
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <div className="max-w-7xl mx-auto py-40 flex flex-col items-center justify-center">
+          <Loader2 className="h-12 w-12 animate-spin text-indigo-600 mb-4" />
+          <p className="text-gray-500 font-medium">Carregando detalhes do evento...</p>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  if (!event) {
+    return (
+      <MainLayout>
+        <div className="max-w-7xl mx-auto py-40 text-center">
+          <Info className="h-16 w-16 text-gray-300 mx-auto mb-6" />
+          <h2 className="text-3xl font-black text-gray-900 mb-4 uppercase tracking-tighter">Evento não encontrado</h2>
+          <p className="text-gray-500 mb-8 max-w-md mx-auto">Não encontramos o evento que você está procurando. Ele pode ter sido removido ou o link está incorreto.</p>
+          <Link to="/events" className="btn-primary py-4 px-10 inline-block">Ver todos os eventos</Link>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  const ticketPrice = event.tickets?.[0]?.price || 0;
   const serviceFee = Math.round(ticketPrice * 0.08); // 8% fee
   const total = (ticketPrice * quantity) + (serviceFee * quantity);
 
@@ -155,7 +194,7 @@ const EventDetailPage = () => {
                 <div className="flex items-center gap-4">
                   <img src="https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=400&h=400&fit=crop" className="w-16 h-20 rounded-xl object-cover border-2 border-white shadow-lg group-hover:border-indigo-200 transition-all" alt="Producer" />
                   <div>
-                    <h3 className="font-black text-xl group-hover:text-indigo-600 transition tracking-tighter uppercase">{event.organizer.name}</h3>
+                    <h3 className="font-black text-xl group-hover:text-indigo-600 transition tracking-tighter uppercase">{event.organizer?.name || 'Organizador'}</h3>
                     <p className="text-indigo-600 font-black uppercase tracking-widest text-[10px]">Produtor Verificado A2</p>
                     <div className="flex gap-4 mt-3">
                       <div className="text-center">

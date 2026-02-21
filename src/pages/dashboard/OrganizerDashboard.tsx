@@ -11,6 +11,7 @@ import WelcomeModal from '@/components/modals/WelcomeModal';
 const OrganizerDashboard = () => {
   const { user } = useAuth();
   const [eventsList, setEventsList] = useState<Event[]>([]);
+  const [stats, setStats] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showWelcome, setShowWelcome] = useState(false);
   const organizerId = user?.id || '';
@@ -18,17 +19,21 @@ const OrganizerDashboard = () => {
   useEffect(() => {
     if (!organizerId) return;
 
-    const fetchEvents = async () => {
+    const fetchData = async () => {
       try {
-        const data = await organizerService.getEvents(organizerId);
-        setEventsList(data);
+        const [events, statsData] = await Promise.all([
+          organizerService.getEvents(organizerId),
+          organizerService.getStats(organizerId)
+        ]);
+        setEventsList(events);
+        setStats(statsData);
       } catch (error) {
-        console.error('Error fetching events:', error);
+        console.error('Error fetching dashboard data:', error);
       } finally {
         setIsLoading(false);
       }
     };
-    fetchEvents();
+    fetchData();
 
     // Check for welcome flag
     const welcomeFlag = localStorage.getItem('A2Tickets_showWelcome');
@@ -104,7 +109,7 @@ const OrganizerDashboard = () => {
               <div>
                 <p className="text-gray-700 font-bold text-sm">Próximo Evento</p>
                 <h3 className="text-lg font-black text-gray-900 truncate">
-                  {eventsList[0]?.title || 'Nenhum evento'}
+                  {stats?.nextEvent?.title || 'Nenhum evento'}
                 </h3>
               </div>
               <div className="bg-orange-100 p-3 rounded-full">
@@ -117,14 +122,14 @@ const OrganizerDashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-500 text-sm">Visitantes (Credenciamento)</p>
-                <h3 className="text-3xl font-bold">Gerenciar</h3>
+                <h3 className="text-3xl font-bold">{stats?.visitorCount || 0}</h3>
               </div>
               <div className="bg-indigo-100 p-3 rounded-full">
                 <Users className="h-7 w-7 text-indigo-600" />
               </div>
             </div>
             <Link to="/organizer/visitors" className="text-indigo-600 text-xs font-bold mt-4 block hover:underline">
-              Ver todos os visitantes →
+              Gerenciar visitantes →
             </Link>
           </div>
         </div>
@@ -145,9 +150,10 @@ const OrganizerDashboard = () => {
           <div className="h-64 flex items-center justify-center bg-gray-50 rounded-lg">
             <div className="text-center">
               <LineChart className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500">
-                Gráfico de vendas de ingressos seria exibido aqui.
+              <p className="text-gray-500 font-medium">
+                Sua produção ainda não possui dados de vendas suficientes para gerar gráficos.
               </p>
+              <p className="text-xs text-gray-400 mt-1">Dados atualizados em tempo real.</p>
             </div>
           </div>
         </div>
@@ -198,8 +204,19 @@ const OrganizerDashboard = () => {
                   </tr>
                 ) : eventsList.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-10 text-center text-gray-500">
-                      Nenhum evento criado ainda. Clique em "Novo Evento" para começar.
+                    <td colSpan={5} className="py-20 text-center">
+                      <div className="flex flex-col items-center justify-center">
+                        <div className="bg-gray-50 p-6 rounded-full mb-4">
+                          <Calendar className="h-12 w-12 text-gray-300" />
+                        </div>
+                        <h3 className="text-xl font-black text-gray-900 mb-2 uppercase tracking-tighter">Nenhum evento encontrado</h3>
+                        <p className="text-gray-500 max-w-sm mx-auto mb-8 font-medium">
+                          Você ainda não criou nenhum evento. Comece agora mesmo e leve sua produção para o próximo nível!
+                        </p>
+                        <Link to="/organizer/events/create" className="btn-primary py-3 px-8 rounded-xl font-black text-sm uppercase tracking-widest shadow-lg shadow-indigo-100 flex items-center gap-2">
+                          <Plus className="w-4 h-4" /> Criar Primeiro Evento
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 ) : eventsList.map((event) => {

@@ -22,7 +22,7 @@ import {
     eventCategories,
     organizerPosts
 } from './db/schema';
-import { eq, and, or, ne, isNull } from 'drizzle-orm';
+import { eq, and, or, ne, isNull, sql, gte, lte } from 'drizzle-orm';
 import Redis from 'ioredis';
 import dotenv from 'dotenv';
 import { jwt, sign } from 'hono/jwt';
@@ -722,12 +722,86 @@ app.get('/api/events/:id', async (c: Context) => {
     const result = await db.query.events.findFirst({
         where: eq(events.id, id),
         with: {
-            tickets: true
+            tickets: true,
+            organizer: true
         }
     } as any);
 
     if (!result) return c.json({ error: 'Evento não encontrado' }, 404);
-    return c.json(result);
+
+    // Transform location
+    const transformed = {
+        ...result,
+        location: {
+            name: (result as any).locationName,
+            address: (result as any).locationAddress,
+            city: (result as any).locationCity,
+            state: (result as any).locationState,
+            postalCode: (result as any).locationPostalCode
+        }
+    };
+
+    return c.json(transformed);
+});
+
+// 3.5 Listar todos os eventos públicos
+app.get('/api/public/events', async (c: Context) => {
+    try {
+        const results = await db.query.events.findMany({
+            where: eq(events.status, 'published'),
+            with: {
+                tickets: true,
+                organizer: true
+            },
+            orderBy: (events: any, { desc }: any) => [desc(events.date)]
+        } as any);
+
+        const transformedResults = results.map((event: any) => ({
+            ...event,
+            location: {
+                name: event.locationName,
+                address: event.locationAddress,
+                city: event.locationCity,
+                state: event.locationState,
+                postalCode: event.locationPostalCode
+            }
+        }));
+
+        return c.json(transformedResults);
+    } catch (error: any) {
+        return c.json({ error: error.message }, 500);
+    }
+});
+
+app.get('/api/public/featured-events', async (c: Context) => {
+    try {
+        const results = await db.query.events.findMany({
+            where: and(
+                eq(events.status, 'published'),
+                eq(events.isFeatured, true)
+            ),
+            with: {
+                tickets: true,
+                organizer: true
+            },
+            orderBy: (events: any, { desc }: any) => [desc(events.date)]
+        } as any);
+
+        const transformedResults = results.map((event: any) => ({
+            ...event,
+            location: {
+                name: event.locationName,
+                address: event.locationAddress,
+                city: event.locationCity,
+                state: event.locationState,
+                postalCode: event.locationPostalCode
+            }
+        }));
+
+        return c.json(transformedResults);
+    } catch (error: any) {
+        return c.json({ error: error.message }, 500);
+    }
 });
 
 // 4. Criar Categoria de Ingresso
@@ -1431,22 +1505,104 @@ function isProfileActuallyComplete(org: any) {
 }
 
 // Rota para validar e atualizar status de completude
-app.post('/api/organizers/:id/validate-status', async (c: Context) => {
-    const id = c.req.param('id');
+app.get('/api/master/events', async (c: Context) => {
     try {
-        const org = await db.query.organizers.findFirst({
-            where: eq(organizersTable.id, id)
+        const allEvents = await db.query.events.findMany({
+            with: {
+                organizer: true,
+                tickets: true
+            },
+            orderBy: (events, { desc }) => [desc(events.createdAt)]
+        });
+        return c.json(allEvents);
+    } catch (error: any) {
+        return c.json({ error: error.message }, 400);
+    }
+});
+
+app.get('/api/master/events/pending', async (c: Context) => {
+    try {
+        const pending = await db.query.events.findMany({
+            where: eq(events.status, 'draft'), // Adjust status as needed
+            with: {
+                organizer: true
+            },
+            orderBy: (events, { desc }) => [desc(events.createdAt)]
+        });
+        return c.json(pending);
+    } catch (error: any) {
+        return c.json({ error: error.message }, 400);
+    }
+});
+
+app.get('/api/master/stats', async (c: Context) => {
+    try {
+        const totalEvents = await db.select({ count: sql`count(*)` }).from(events);
+        const totalOrganizers = await db.select({ count: sql`count(*)` }).from(organizersTable);
+        const pendingEvents = await db.select({ count: sql`count(*)` }).from(events).where(eq(events.status, 'draft')); // Or whatever status is pending
+
+        // Total Revenue from paid sales
+        const revenueResult = await db.select({ total: sql`sum(total_price)` }).from(sales).where(eq(sales.paymentStatus, 'paid'));
+        const totalRevenue = revenueResult[0]?.total || 0;
+
+        return c.json({
+            totalEvents: Number(totalEvents[0].count),
+            totalOrganizers: Number(totalOrganizers[0].count),
+            pendingEvents: Number(pendingEvents[0].count),
+            totalRevenue: Number(totalRevenue)
+        });
+    } catch (error: any) {
+        return c.json({ error: error.message }, 400);
+    }
+});
+
+app.get('/api/customer/tickets', async (c: Context) => {
+    const email = c.req.query('email');
+    if (!email) return c.json({ error: 'Email é obrigatório' }, 400);
+
+    try {
+        const tickets = await db.query.sales.findMany({
+            where: eq(sales.buyerEmail, email),
+            with: {
+                event: true,
+                ticket: true
+            },
+            orderBy: (sales, { desc }) => [desc(sales.createdAt)]
+        });
+        return c.json(tickets);
+    } catch (error: any) {
+        return c.json({ error: error.message }, 400);
+    }
+});
+
+app.get('/api/organizers/:id/stats', async (c: Context) => {
+    const organizerId = c.req.param('id');
+    try {
+        // Count staff
+        const staffCount = await db.select({ count: sql`count(*)` })
+            .from(staff)
+            .where(eq(staff.organizerId, organizerId));
+
+        // Count visitors through events
+        const visitorCount = await db.select({ count: sql`count(*)` })
+            .from(visitors)
+            .innerJoin(events, eq(visitors.eventId, events.id))
+            .where(eq(events.organizerId, organizerId));
+
+        // Get next event
+        const nextEvent = await db.query.events.findFirst({
+            where: and(
+                eq(events.organizerId, organizerId),
+                gte(events.date, new Date().toISOString().split('T')[0])
+            ),
+            orderBy: (events, { asc }) => [asc(events.date), asc(events.time)]
         });
 
-        if (!org) return c.json({ error: 'Organizador não encontrado' }, 404);
-
-        const isComplete = isProfileActuallyComplete(org);
-
-        await db.update(organizersTable)
-            .set({ profileComplete: isComplete, updatedAt: new Date() })
-            .where(eq(organizersTable.id, id));
-
-        return c.json({ profileComplete: isComplete });
+        return c.json({
+            staffCount: Number(staffCount[0].count),
+            visitorCount: Number(visitorCount[0].count),
+            nextEvent: nextEvent || null
+        });
     } catch (error: any) {
         return c.json({ error: error.message }, 400);
     }

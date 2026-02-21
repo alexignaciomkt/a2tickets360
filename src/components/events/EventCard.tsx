@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Calendar } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Event } from '@/data/mockData';
+import { eventService, Event } from '@/services/eventService';
 
 interface EventCardProps {
   event: Event;
@@ -16,8 +16,8 @@ const EventCard = ({ event }: EventCardProps) => {
   return (
     <div className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 card-hover">
       <div className="relative">
-        <img 
-          src={event.bannerUrl} 
+        <img
+          src={event.bannerUrl}
           alt={event.title}
           className="w-full h-48 object-cover"
         />
@@ -25,17 +25,17 @@ const EventCard = ({ event }: EventCardProps) => {
           <h3 className="text-white font-bold text-xl line-clamp-1">{event.title}</h3>
         </div>
       </div>
-      
+
       <div className="p-4">
         <div className="flex items-center text-sm text-gray-600 mb-2">
           <Calendar className="h-4 w-4 mr-1" />
           <span>{formattedDate}</span>
         </div>
-        
+
         <p className="text-sm text-gray-600 mb-3 line-clamp-2">
           {event.location.name}, {event.location.city} - {event.location.state}
         </p>
-        
+
         <div className="flex items-center justify-between mt-4">
           <div>
             <span className="text-xs text-gray-500">A partir de</span>
@@ -45,8 +45,8 @@ const EventCard = ({ event }: EventCardProps) => {
                 : 'Grátis'}
             </p>
           </div>
-          
-          <Link 
+
+          <Link
             to={`/events/${event.id}`}
             className="btn-primary py-2 px-4 text-sm"
           >

@@ -1,5 +1,5 @@
-
 import { Users, Calendar, DollarSign, ShieldCheck, FileText, Save } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { events } from '@/data/mockData';
 import { useState, useEffect } from 'react';
@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { api } from '@/services/api';
+import masterService from '@/services/masterService';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const AdminDashboard = () => {
@@ -18,10 +19,37 @@ const AdminDashboard = () => {
     privacy: { title: '', content: '' },
     terms: { title: '', content: '' }
   });
+  const [stats, setStats] = useState({
+    totalEvents: 0,
+    totalOrganizers: 0,
+    pendingEvents: 0,
+    totalRevenue: 0
+  });
+  const [pendingList, setPendingList] = useState<any[]>([]);
+  const [recentEvents, setRecentEvents] = useState<any[]>([]);
 
   useEffect(() => {
     loadLegalPages();
+    loadDashboardData();
   }, []);
+
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      const [statsData, pendingData, allEvents] = await Promise.all([
+        masterService.getStats(),
+        masterService.getPendingEvents(),
+        masterService.getEvents()
+      ]);
+      setStats(statsData);
+      setPendingList(pendingData);
+      setRecentEvents(allEvents);
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const loadLegalPages = async () => {
     try {
@@ -55,14 +83,15 @@ const AdminDashboard = () => {
     }
   };
 
-  // In a real application, these would come from API calls
-  const totalEvents = events.length;
-  const totalUsers = 250; // Mock data
-  const totalRevenue = events.reduce(
-    (acc, event) => acc + event.tickets.reduce((sum, ticket) => sum + ((ticket.quantity - ticket.remaining) * ticket.price), 0),
-    0
-  );
-  const pendingEvents = 3; // Mock data
+  const handleApproveEvent = async (id: string) => {
+    try {
+      await masterService.approveEvent(id);
+      toast({ title: 'Sucesso', description: 'Evento aprovado com sucesso.' });
+      loadDashboardData();
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Erro', description: 'Erro ao aprovar evento.' });
+    }
+  };
 
   return (
     <DashboardLayout userType="admin">
@@ -92,7 +121,7 @@ const AdminDashboard = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-gray-700 font-bold text-sm">Total de Eventos</p>
-                    <h3 className="text-3xl font-black text-gray-900">{totalEvents}</h3>
+                    <h3 className="text-3xl font-black text-gray-900">{stats.totalEvents}</h3>
                   </div>
                   <div className="bg-primary/10 p-3 rounded-full">
                     <Calendar className="h-7 w-7 text-primary" />
@@ -103,8 +132,8 @@ const AdminDashboard = () => {
               <div className="bg-white rounded-lg shadow-md p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-gray-700 font-bold text-sm">Total de Usuários</p>
-                    <h3 className="text-3xl font-black text-gray-900">{totalUsers}</h3>
+                    <p className="text-gray-700 font-bold text-sm">Total de Organizadores</p>
+                    <h3 className="text-3xl font-black text-gray-900">{stats.totalOrganizers}</h3>
                   </div>
                   <div className="bg-secondary/10 p-3 rounded-full">
                     <Users className="h-7 w-7 text-secondary" />
@@ -116,7 +145,7 @@ const AdminDashboard = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-gray-500 text-sm">Faturamento Total</p>
-                    <h3 className="text-3xl font-bold">R$ {totalRevenue.toFixed(2).replace('.', ',')}</h3>
+                    <h3 className="text-3xl font-bold">R$ {stats.totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</h3>
                   </div>
                   <div className="bg-green-100 p-3 rounded-full">
                     <DollarSign className="h-7 w-7 text-green-600" />
@@ -128,7 +157,7 @@ const AdminDashboard = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-gray-500 text-sm">Eventos Pendentes</p>
-                    <h3 className="text-3xl font-bold">{pendingEvents}</h3>
+                    <h3 className="text-3xl font-bold">{stats.pendingEvents}</h3>
                   </div>
                   <div className="bg-orange-100 p-3 rounded-full">
                     <ShieldCheck className="h-7 w-7 text-orange-600" />
@@ -160,27 +189,39 @@ const AdminDashboard = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {/* Mock pending events */}
-                    <tr>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="font-medium text-gray-900">Feira de Artesanato</div>
-                        <div className="text-sm text-gray-500">São José dos Campos, SP</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm">Vale Cultural</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm">2025-09-20</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button className="text-green-600 hover:text-green-800 mr-4">
-                          Aprovar
-                        </button>
-                        <button className="text-red-600 hover:text-red-800">
-                          Rejeitar
-                        </button>
-                      </td>
-                    </tr>
+                    {pendingList.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="px-6 py-12 text-center text-gray-500 font-medium">
+                          Nenhum evento pendente de aprovação.
+                        </td>
+                      </tr>
+                    ) : (
+                      pendingList.map((event) => (
+                        <tr key={event.id}>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="font-medium text-gray-900">{event.title}</div>
+                            <div className="text-sm text-gray-500">{event.locationCity || 'Cidade não informada'}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm">{event.organizer?.name || 'Organizador Desconhecido'}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm">{event.date}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button
+                              onClick={() => handleApproveEvent(event.id)}
+                              className="text-green-600 hover:text-green-800 mr-4 font-bold"
+                            >
+                              Aprovar
+                            </button>
+                            <button className="text-red-600 hover:text-red-800 font-bold">
+                              Rejeitar
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -212,49 +253,58 @@ const AdminDashboard = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {events.map((event) => {
-                      const ticketsSold = event.tickets.reduce(
-                        (sum, ticket) => sum + (ticket.quantity - ticket.remaining),
-                        0
-                      );
-                      const totalTickets = event.tickets.reduce(
-                        (sum, ticket) => sum + ticket.quantity,
-                        0
-                      );
+                    {recentEvents.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-12 text-center text-gray-500 font-medium">
+                          Nenhum evento registrado no sistema.
+                        </td>
+                      </tr>
+                    ) : (
+                      recentEvents.map((event) => {
+                        const ticketsSold = event.tickets?.reduce(
+                          (sum: number, ticket: any) => sum + (ticket.quantity - ticket.remaining),
+                          0
+                        ) || 0;
+                        const totalTickets = event.tickets?.reduce(
+                          (sum: number, ticket: any) => sum + ticket.quantity,
+                          0
+                        ) || 1; // avoid divide by zero
 
-                      return (
-                        <tr key={event.id}>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="font-medium text-gray-900">{event.title}</div>
-                            <div className="text-sm text-gray-500">{event.location.city}, {event.location.state}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm">{event.organizer.name}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm">
-                              {ticketsSold} / {totalTickets} ingressos
-                            </div>
-                            <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
-                              <div
-                                className="bg-primary h-1.5 rounded-full"
-                                style={{ width: `${(ticketsSold / totalTickets) * 100}%` }}
-                              ></div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                              Ativo
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <a href={`/admin/events/${event.id}`} className="text-primary hover:text-primary/80">
-                              Detalhes
-                            </a>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                        return (
+                          <tr key={event.id}>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="font-medium text-gray-900">{event.title}</div>
+                              <div className="text-sm text-gray-500">{event.locationCity}, {event.locationState}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm">{event.organizer?.name}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm">
+                                {ticketsSold} / {totalTickets} ingressos
+                              </div>
+                              <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
+                                <div
+                                  className="bg-primary h-1.5 rounded-full"
+                                  style={{ width: `${Math.min((ticketsSold / totalTickets) * 100, 100)}%` }}
+                                ></div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${event.status === 'published' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                                }`}>
+                                {event.status === 'published' ? 'Ativo' : 'Rascunho'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                              <Link to={`/organizer/events/edit/${event.id}`} className="text-primary hover:text-primary/80">
+                                Detalhes
+                              </Link>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
                   </tbody>
                 </table>
               </div>
