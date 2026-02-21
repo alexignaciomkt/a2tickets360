@@ -1,8 +1,8 @@
-
-import { useNavigate } from 'react-router-dom';
-import { 
-  Users, DollarSign, CheckCircle, FileText, 
-  AlertTriangle, BarChart2, Calendar
+import { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import {
+  Users, DollarSign, CheckCircle, FileText,
+  AlertTriangle, BarChart2, Calendar, Loader2
 } from 'lucide-react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
@@ -11,21 +11,28 @@ import StatCard from '@/components/dashboard/StatCard';
 import FunctionCard from '@/components/dashboard/FunctionCard';
 import SystemCard from '@/components/dashboard/SystemCard';
 import AlertCard from '@/components/dashboard/AlertCard';
+import masterService from '@/services/masterService';
 
 const MasterAdminPanel = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  
-  // Estatísticas mock para o dashboard
-  const stats = {
-    totalUsers: 8562,
-    activeOrganizers: 124,
-    pendingApprovals: 37,
-    totalRevenue: 284750.56,
-    commissions: 28475.05,
-    alertsCount: 5,
-    eventsThisMonth: 42
-  };
+  const [stats, setStats] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        setIsLoading(true);
+        const data = await masterService.getStats();
+        setStats(data);
+      } catch (error) {
+        console.error('Erro ao buscar estatísticas do master:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchStats();
+  }, []);
 
   // Alertas mock para o dashboard
   const alerts = [
@@ -53,9 +60,9 @@ const MasterAdminPanel = () => {
       icon: Users,
       description: "Aprovar novos organizadores, visualizar estatísticas e gerenciar permissões.",
       stats: [
-        { label: "Total de Organizadores", value: stats.activeOrganizers },
-        { label: "Aguardando Aprovação", value: 8 },
-        { label: "Novos no Último Mês", value: 24 },
+        { label: "Total de Organizadores", value: stats?.totalOrganizers || 0 },
+        { label: "Aguardando Aprovação", value: stats?.pendingOrganizers || 0 },
+        { label: "Ativos", value: stats?.activeOrganizers || 0 },
       ],
       buttonText: "Ver Todos",
       onButtonClick: () => navigate('/master/organizers'),
@@ -65,9 +72,9 @@ const MasterAdminPanel = () => {
       icon: DollarSign,
       description: "Acompanhe receitas, comissões e transações financeiras da plataforma.",
       stats: [
-        { label: "Faturamento Total", value: `R$ ${stats.totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` },
-        { label: "Comissões", value: `R$ ${stats.commissions.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` },
-        { label: "Repasses (Mês)", value: 32 },
+        { label: "Faturamento Total", value: `R$ ${(stats?.totalRevenue || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` },
+        { label: "Comissões (10%)", value: `R$ ${(stats?.totalCommissions || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` },
+        { label: "Repasses (Mês)", value: stats?.totalPayouts || 0 },
       ],
       buttonText: "Ver Dashboard",
       onButtonClick: () => navigate('/master/financial'),
@@ -77,9 +84,9 @@ const MasterAdminPanel = () => {
       icon: CheckCircle,
       description: "Revisar e aprovar novos eventos submetidos pelos organizadores.",
       stats: [
-        { label: "Aguardando Aprovação", value: stats.pendingApprovals },
-        { label: "Aprovados Hoje", value: 12 },
-        { label: "Rejeitados (Semana)", value: 5 },
+        { label: "Aguardando Aprovação", value: stats?.pendingEvents || 0 },
+        { label: "Total de Eventos", value: stats?.totalEvents || 0 },
+        { label: "Novos este Mês", value: stats?.eventsThisMonth || 0 },
       ],
       buttonText: "Ver Pendentes",
       onButtonClick: () => navigate('/master/approve'),
@@ -148,52 +155,52 @@ const MasterAdminPanel = () => {
     <DashboardLayout userType="admin">
       <div className="space-y-6">
         {/* Header Section */}
-        <AdminHeaderSection 
+        <AdminHeaderSection
           title="Painel Administrativo Master"
           subtitle="Bem-vindo(a),"
           userName={user?.name || 'Administrador'}
           photoUrl={user?.photoUrl || 'https://i.pravatar.cc/150'}
         />
-        
+
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard 
-            title="Usuários Totais" 
-            value={stats.totalUsers.toLocaleString('pt-BR')}
+          <StatCard
+            title="Usuários Totais"
+            value={isLoading ? '...' : (stats?.totalUsers || 0).toLocaleString('pt-BR')}
             icon={Users}
             iconColor="text-blue-600"
             iconBgColor="bg-blue-100"
           />
-          
-          <StatCard 
-            title="Organizadores Ativos" 
-            value={stats.activeOrganizers}
+
+          <StatCard
+            title="Organizadores Ativos"
+            value={isLoading ? '...' : (stats?.activeOrganizers || 0)}
             icon={Users}
             iconColor="text-green-600"
             iconBgColor="bg-green-100"
           />
-          
-          <StatCard 
-            title="Eventos Aguardando" 
-            value={stats.pendingApprovals}
+
+          <StatCard
+            title="Eventos Aguardando"
+            value={isLoading ? '...' : (stats?.pendingEvents || 0)}
             icon={CheckCircle}
             iconColor="text-yellow-600"
             iconBgColor="bg-yellow-100"
           />
-          
-          <StatCard 
-            title="Eventos este Mês" 
-            value={stats.eventsThisMonth}
+
+          <StatCard
+            title="Eventos este Mês"
+            value={isLoading ? '...' : (stats?.eventsThisMonth || 0)}
             icon={Calendar}
             iconColor="text-purple-600"
             iconBgColor="bg-purple-100"
           />
         </div>
-        
+
         {/* Main Admin Modules */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {functionCards.map((card, index) => (
-            <FunctionCard 
+            <FunctionCard
               key={index}
               title={card.title}
               icon={card.icon}
@@ -203,19 +210,19 @@ const MasterAdminPanel = () => {
               onButtonClick={card.onButtonClick}
             />
           ))}
-          
+
           {systemCards.map((card, index) => (
-            <SystemCard 
+            <SystemCard
               key={index}
               title={card.title}
               icon={card.icon}
               modules={card.modules}
             />
           ))}
-          
+
           {/* Alerts Card */}
-          <AlertCard 
-            alertCount={stats.alertsCount} 
+          <AlertCard
+            alertCount={stats.alertsCount}
             alerts={alerts}
             onViewAllClick={() => navigate('/master/alerts')}
           />

@@ -1539,17 +1539,37 @@ app.get('/api/master/stats', async (c: Context) => {
     try {
         const totalEvents = await db.select({ count: sql`count(*)` }).from(events);
         const totalOrganizers = await db.select({ count: sql`count(*)` }).from(organizersTable);
-        const pendingEvents = await db.select({ count: sql`count(*)` }).from(events).where(eq(events.status, 'draft')); // Or whatever status is pending
+        const activeOrganizers = await db.select({ count: sql`count(*)` }).from(organizersTable).where(eq(organizersTable.isActive, true));
+        const pendingOrganizers = await db.select({ count: sql`count(*)` }).from(organizersTable).where(eq(organizersTable.profileComplete, false));
+
+        const totalVisitors = await db.select({ count: sql`count(*)` }).from(visitors);
+
+        const pendingEvents = await db.select({ count: sql`count(*)` }).from(events).where(eq(events.status, 'draft'));
 
         // Total Revenue from paid sales
         const revenueResult = await db.select({ total: sql`sum(total_price)` }).from(sales).where(eq(sales.paymentStatus, 'paid'));
-        const totalRevenue = revenueResult[0]?.total || 0;
+        const totalRevenue = Number(revenueResult[0]?.total || 0);
+        const totalCommissions = totalRevenue * 0.10; // Assuming 10% flat commission for now
+
+        // Events this month
+        const firstDayOfMonth = new Date();
+        firstDayOfMonth.setDate(1);
+        firstDayOfMonth.setHours(0, 0, 0, 0);
+        const eventsThisMonth = await db.select({ count: sql`count(*)` })
+            .from(events)
+            .where(gte(events.date, firstDayOfMonth.toISOString().split('T')[0]));
 
         return c.json({
             totalEvents: Number(totalEvents[0].count),
             totalOrganizers: Number(totalOrganizers[0].count),
+            activeOrganizers: Number(activeOrganizers[0].count),
+            pendingOrganizers: Number(pendingOrganizers[0].count),
+            totalUsers: Number(totalVisitors[0].count),
             pendingEvents: Number(pendingEvents[0].count),
-            totalRevenue: Number(totalRevenue)
+            totalRevenue: totalRevenue,
+            totalCommissions: totalCommissions,
+            eventsThisMonth: Number(eventsThisMonth[0].count),
+            newOrganizersMonth: 0 // TODO: Add logic for new organizers this month if needed
         });
     } catch (error: any) {
         return c.json({ error: error.message }, 400);
