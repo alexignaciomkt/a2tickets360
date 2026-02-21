@@ -51,125 +51,77 @@ const TicketBuilder = ({ tickets, onChange, eventType }: TicketBuilderProps) => 
         onChange(tickets.filter(t => t.id !== id));
     };
 
-    if (eventType === 'free') {
-        return (
-            <div className="space-y-4">
-                <div className="bg-gray-50 border border-gray-200 rounded-xl p-6">
-                    <div className="flex items-center gap-3 mb-4">
-                        <div className="p-2 bg-emerald-50 rounded-lg">
-                            <Ticket className="h-5 w-5 text-emerald-600" />
-                        </div>
-                        <div>
-                            <h4 className="text-gray-900 font-medium">Inscrição Gratuita</h4>
-                            <p className="text-xs text-gray-500">Configure como os participantes se inscreverão</p>
-                        </div>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label className="text-sm text-gray-600 mb-1 block">Nome do Ingresso</label>
-                            <Input
-                                value={tickets[0]?.name || 'Inscrição Gratuita'}
-                                onChange={(e) => {
-                                    if (tickets.length === 0) {
-                                        onChange([{ id: `temp_${Date.now()}`, name: e.target.value, price: 0, quantity: 100, category: 'standard' }]);
-                                    } else {
-                                        updateTicket(tickets[0].id, 'name', e.target.value);
-                                    }
-                                }}
-                                className="bg-white border-gray-300 text-gray-900"
-                                placeholder="Ex: Credenciamento"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-sm text-gray-600 mb-1 block">Limite de Inscrições</label>
-                            <Input
-                                type="number"
-                                value={tickets[0]?.quantity || 100}
-                                onChange={(e) => {
-                                    if (tickets.length === 0) {
-                                        onChange([{ id: `temp_${Date.now()}`, name: 'Inscrição Gratuita', price: 0, quantity: parseInt(e.target.value) || 0, category: 'standard' }]);
-                                    } else {
-                                        updateTicket(tickets[0].id, 'quantity', parseInt(e.target.value) || 0);
-                                    }
-                                }}
-                                className="bg-white border-gray-300 text-gray-900"
-                                placeholder="100"
-                            />
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
     return (
         <div className="space-y-4">
             {tickets.map((ticket, idx) => (
                 <div
                     key={ticket.id}
-                    className="bg-gray-50 border border-gray-200 rounded-xl p-5 transition-all hover:border-indigo-200"
+                    className="bg-white border border-gray-200 rounded-xl p-5 transition-all hover:border-indigo-200 shadow-sm"
                 >
                     <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-sm font-bold text-indigo-600">
+                        <div className="flex items-center gap-3">
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold ${eventType === 'free' ? 'bg-emerald-50 text-emerald-600' : 'bg-indigo-50 text-indigo-600'}`}>
                                 {idx + 1}
                             </div>
-                            <span className="text-sm text-gray-500">Lote {idx + 1}</span>
+                            <span className="text-sm font-medium text-gray-500">
+                                {eventType === 'free' ? `Lote de Inscrição ${idx + 1}` : `Lote de Ingresso ${idx + 1}`}
+                            </span>
                         </div>
                         {tickets.length > 1 && (
-                            <Button
+                            <button
                                 type="button"
-                                variant="ghost"
-                                size="sm"
                                 onClick={() => removeTicket(ticket.id)}
-                                className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                                className="text-gray-400 hover:text-red-500 transition-colors p-1"
                             >
                                 <Trash2 className="h-4 w-4" />
-                            </Button>
+                            </button>
                         )}
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <div>
-                            <label className="text-sm text-gray-600 mb-1 block">Nome</label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div className="lg:col-span-1">
+                            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">Nome</label>
                             <Input
                                 value={ticket.name}
                                 onChange={(e) => updateTicket(ticket.id, 'name', e.target.value)}
-                                className="bg-white border-gray-300 text-gray-900"
-                                placeholder="Ex: Pista"
+                                className="bg-gray-50 border-gray-200 text-gray-900 focus:bg-white transition-colors"
+                                placeholder={eventType === 'free' ? "Ex: Credenciamento" : "Ex: Pista"}
                             />
                         </div>
                         <div>
-                            <label className="text-sm text-gray-600 mb-1 block">Preço (R$)</label>
+                            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">
+                                {eventType === 'free' ? 'Preço (Gratuito)' : 'Preço (R$)'}
+                            </label>
                             <div className="relative">
-                                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                <DollarSign className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ${eventType === 'free' ? 'text-gray-300' : 'text-gray-400'}`} />
                                 <Input
                                     type="number"
                                     step="0.01"
-                                    value={ticket.price}
+                                    disabled={eventType === 'free'}
+                                    value={eventType === 'free' ? 0 : ticket.price}
                                     onChange={(e) => updateTicket(ticket.id, 'price', parseFloat(e.target.value) || 0)}
-                                    className="pl-10 bg-white border-gray-300 text-gray-900"
+                                    className={`pl-10 border-gray-200 text-gray-900 focus:bg-white transition-colors ${eventType === 'free' ? 'bg-gray-100 cursor-not-allowed opacity-60' : 'bg-gray-50'}`}
                                     placeholder="0.00"
                                 />
                             </div>
                         </div>
                         <div>
-                            <label className="text-sm text-gray-600 mb-1 block">Quantidade</label>
+                            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">Quantidade</label>
                             <Input
                                 type="number"
                                 value={ticket.quantity}
                                 onChange={(e) => updateTicket(ticket.id, 'quantity', parseInt(e.target.value) || 0)}
-                                className="bg-white border-gray-300 text-gray-900"
+                                className="bg-gray-50 border-gray-200 text-gray-900 focus:bg-white transition-colors"
                                 placeholder="100"
                             />
                         </div>
                         <div>
-                            <label className="text-sm text-gray-600 mb-1 block">Tipo</label>
+                            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">Categoria</label>
                             <Select
                                 value={ticket.category}
                                 onValueChange={(val) => updateTicket(ticket.id, 'category', val)}
                             >
-                                <SelectTrigger className="bg-white border-gray-300 text-gray-900">
+                                <SelectTrigger className="bg-gray-50 border-gray-200 text-gray-900 focus:bg-white transition-colors">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -187,16 +139,16 @@ const TicketBuilder = ({ tickets, onChange, eventType }: TicketBuilderProps) => 
                 type="button"
                 onClick={addTicket}
                 variant="outline"
-                className="w-full border-dashed border-gray-300 text-gray-500 hover:text-indigo-600 hover:border-indigo-400 hover:bg-indigo-50 gap-2"
+                className="w-full border-dashed border-gray-300 text-gray-500 hover:text-indigo-600 hover:border-indigo-400 hover:bg-gray-50 gap-2 h-12"
             >
                 <Plus className="h-4 w-4" />
-                Adicionar Lote de Ingresso
+                {eventType === 'free' ? 'Adicionar Novo Lote de Inscrição' : 'Adicionar Lote de Ingresso'}
             </Button>
 
             {tickets.length > 0 && (
-                <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Total de ingressos disponíveis:</span>
-                    <span className="text-lg font-bold text-gray-900">
+                <div className={`${eventType === 'free' ? 'bg-emerald-50 border-emerald-100' : 'bg-indigo-50 border-indigo-100'} border rounded-xl p-4 flex items-center justify-between`}>
+                    <span className="text-sm text-gray-600">Total de inscrições disponíveis:</span>
+                    <span className={`text-lg font-black ${eventType === 'free' ? 'text-emerald-700' : 'text-indigo-700'}`}>
                         {tickets.reduce((sum, t) => sum + t.quantity, 0).toLocaleString('pt-BR')}
                     </span>
                 </div>

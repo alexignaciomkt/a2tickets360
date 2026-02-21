@@ -111,7 +111,7 @@ const CreateEvent = () => {
       case 1: return !!category;
       case 2: return title.length >= 1 && description.length >= 10;
       case 3: return !!date && !!time && !!locationName && !!locationAddress && capacity > 0;
-      case 4: return tickets.length > 0 && tickets.every(t => t.name && t.quantity > 0 && (eventType === 'free' || t.price >= 0));
+      case 4: return tickets.length > 0 && tickets.every(t => t.name.trim().length > 0 && t.quantity > 0);
       default: return true;
     }
   };
@@ -182,7 +182,14 @@ const CreateEvent = () => {
             )}
           </button>
 
-          <button type="button" onClick={() => setEventType('free')}
+          <button type="button" onClick={() => {
+            setEventType('free');
+            setTickets(prev => prev.map(t => ({
+              ...t,
+              price: 0,
+              name: t.name || 'Inscrição Gratuita'
+            })));
+          }}
             className={`relative p-6 rounded-xl border-2 transition-all duration-300 text-left group
               ${eventType === 'free'
                 ? 'border-emerald-500 bg-emerald-50 shadow-lg shadow-emerald-100'
