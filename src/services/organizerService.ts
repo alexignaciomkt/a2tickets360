@@ -80,6 +80,24 @@ class OrganizerService {
   async getSales(eventId: string): Promise<Sale[]> {
     return api.get(`/api/events/${eventId}/sales`);
   }
+
+  // Feed Management (Organizer Posts)
+  async createPost(organizerId: string, postData: { imageUrl: string, caption?: string }): Promise<any> {
+    return api.post(`/api/organizers/${organizerId}/posts`, postData);
+  }
+
+  async getPosts(organizerId: string): Promise<any[]> {
+    return api.get(`/api/organizers/${organizerId}/posts`);
+  }
+
+  async deletePost(organizerId: string, postId: string): Promise<boolean> {
+    return api.delete(`/api/organizers/${organizerId}/posts/${postId}`);
+  }
+
+  // Profile Status Validation
+  async validateStatus(organizerId: string): Promise<{ profileComplete: boolean }> {
+    return api.post(`/api/organizers/${organizerId}/validate-status`, {});
+  }
 }
 
 export const organizerService = new OrganizerService();

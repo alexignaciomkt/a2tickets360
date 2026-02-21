@@ -88,6 +88,9 @@ export const events = pgTable('events', {
     status: text('status', { enum: ['draft', 'published', 'active', 'completed', 'cancelled'] }).default('draft'),
     imageUrl: text('image_url'),
     floorPlanUrl: text('floor_plan_url'),
+    isFeatured: boolean('is_featured').default(false),
+    featuredUntil: timestamp('featured_until'),
+    featuredPaymentStatus: text('featured_payment_status').default('none'), // none, pending, paid
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow(),
 });
@@ -346,12 +349,31 @@ export const visitors = pgTable('visitors', {
     checkedInAt: timestamp('checked_in_at'),
 });
 
+// Páginas Legais (Privacidade, Termos, etc)
+export const legalPages = pgTable('legal_pages', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    slug: text('slug').unique().notNull(), // 'privacy', 'terms'
+    title: text('title').notNull(),
+    content: text('content').notNull(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// Posts dos Organizadores (Feed/Instagram-like)
+export const organizerPosts = pgTable('organizer_posts', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizerId: uuid('organizer_id').references(() => organizers.id).notNull(),
+    imageUrl: text('image_url').notNull(),
+    caption: text('caption'),
+    createdAt: timestamp('created_at').defaultNow(),
+});
+
 // --- Relações (Drizzle Relations API) ---
 
 export const organizersRelations = relations(organizers, ({ many }) => ({
     events: many(events),
     suppliers: many(suppliers),
     staff: many(staff),
+    posts: many(organizerPosts),
 }));
 
 export const eventsRelations = relations(events, ({ one, many }) => ({
@@ -496,5 +518,12 @@ export const visitorsRelations = relations(visitors, ({ one }) => ({
     event: one(events, {
         fields: [visitors.eventId],
         references: [events.id],
+    }),
+}));
+
+export const organizerPostsRelations = relations(organizerPosts, ({ one }) => ({
+    organizer: one(organizers, {
+        fields: [organizerPosts.organizerId],
+        references: [organizers.id],
     }),
 }));

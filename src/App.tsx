@@ -9,8 +9,7 @@ import LoginPage from '@/pages/LoginPage';
 import RegisterPage from '@/pages/RegisterPage';
 import RegisterChoicePage from '@/pages/RegisterChoicePage';
 import RegisterOrganizerPage from '@/pages/RegisterOrganizerPage';
-import TermsPage from '@/pages/TermsPage';
-import PrivacyPage from '@/pages/PrivacyPage';
+import LegalPage from '@/pages/LegalPage';
 import CustomerDashboard from '@/pages/dashboard/CustomerDashboard';
 import CustomerTickets from '@/pages/dashboard/CustomerTickets';
 import CheckoutPage from '@/pages/CheckoutPage';
@@ -77,8 +76,8 @@ function App() {
               <Route path="/register" element={<RegisterChoicePage />} />
               <Route path="/register/staff" element={<RegisterPage />} />
               <Route path="/register-organizer" element={<RegisterOrganizerPage />} />
-              <Route path="/terms" element={<TermsPage />} />
-              <Route path="/privacy" element={<PrivacyPage />} />
+              <Route path="/terms" element={<LegalPage slug="terms" />} />
+              <Route path="/privacy" element={<LegalPage slug="privacy" />} />
               <Route path="/para-produtores" element={<ParaProdutores />} />
               <Route path="/work-with-us" element={<WorkWithUs />} />
               <Route path="/validador" element={<StaffReaderPage />} />

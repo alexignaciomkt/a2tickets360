@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Tag, FileText, MapPin, Ticket, CheckCircle2,
   ArrowLeft, ArrowRight, Camera, Calendar, Clock,
-  Users, DollarSign, Sparkles, Save, Send, ShieldCheck
+  Users, DollarSign, Sparkles, Save, Send, ShieldCheck, Star, QrCode
 } from 'lucide-react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,7 @@ import EventWizardStepper from '@/components/events/EventWizardStepper';
 import CategoryCombobox from '@/components/events/CategoryCombobox';
 import TicketBuilder, { TicketTier } from '@/components/events/TicketBuilder';
 import EventPreviewCard from '@/components/events/EventPreviewCard';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 
 const STEPS = [
   { number: 1, title: 'Tipo & Categoria', icon: <Tag className="h-4 w-4" /> },
@@ -31,6 +32,8 @@ const CreateEvent = () => {
   const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [wantsHighlight, setWantsHighlight] = useState(false);
+  const [showPixModal, setShowPixModal] = useState(false);
 
   // Renderização do Aviso de Perfil Incompleto (Não bloqueante)
   const renderProfileWarning = () => {
@@ -139,6 +142,8 @@ const CreateEvent = () => {
         locationName, locationAddress, locationCity, locationState, locationPostalCode,
         capacity, status,
         imageUrl: imageUrl || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800',
+        isFeatured: wantsHighlight,
+        featuredPaymentStatus: wantsHighlight ? 'pending' : 'none',
       };
       const newEvent = await organizerService.createEvent(eventData);
       for (const ticket of tickets) {
@@ -392,6 +397,50 @@ const CreateEvent = () => {
         imageUrl: previewUrl || imageUrl,
         date, time, duration, locationName, locationAddress, locationCity, locationState, capacity, tickets,
       }} />
+
+      {/* Seção de Promoção / Monetização */}
+      <div className={`mt-8 p-6 rounded-[2.5rem] border-2 transition-all duration-500 overflow-hidden relative group
+        ${wantsHighlight
+          ? 'border-indigo-500 bg-indigo-50/50 shadow-2xl shadow-indigo-100'
+          : 'border-gray-100 bg-white hover:border-gray-200'}`}>
+
+        {wantsHighlight && (
+          <div className="absolute top-0 right-0 p-4 bg-indigo-500 text-white rounded-bl-3xl animate-in zoom-in duration-300">
+            <Star className="w-6 h-6 fill-current" />
+          </div>
+        )}
+
+        <div className="flex flex-col md:flex-row items-center gap-8 relative z-10">
+          <div className={`w-20 h-20 rounded-[1.5rem] flex items-center justify-center shrink-0 transition-transform duration-500 group-hover:scale-110
+            ${wantsHighlight ? 'bg-indigo-600 text-white drop-shadow-xl' : 'bg-gray-100 text-gray-400'}`}>
+            <Star className={`w-10 h-10 ${wantsHighlight ? 'fill-current' : ''}`} />
+          </div>
+
+          <div className="flex-1 text-center md:text-left">
+            <h4 className="text-xl font-black text-gray-900 uppercase tracking-tighter mb-2">Destaque seu Evento na Home</h4>
+            <p className="text-sm text-gray-500 font-medium">
+              Sua arte aparecerá no carrossel principal da plataforma por 30 dias.
+              Ideal para aumentar a visibilidade e as vendas.
+            </p>
+          </div>
+
+          <div className="shrink-0 flex flex-col items-center gap-2">
+            <div className="text-2xl font-black text-indigo-600 tracking-tighter">R$ 49,90</div>
+            <Button
+              type="button"
+              onClick={() => {
+                if (!wantsHighlight) setShowPixModal(true);
+                setWantsHighlight(!wantsHighlight);
+              }}
+              variant={wantsHighlight ? "default" : "outline"}
+              className={`rounded-full h-12 px-8 font-black uppercase text-xs tracking-widest transition-all
+                ${wantsHighlight ? 'bg-indigo-600 hover:bg-indigo-700' : 'border-gray-200 hover:border-indigo-300 hover:text-indigo-600'}`}
+            >
+              {wantsHighlight ? 'Destaque Selecionado' : 'Selecionar Destaque'}
+            </Button>
+          </div>
+        </div>
+      </div>
       <div className="flex flex-col sm:flex-row gap-3 pt-4">
         <Button type="button" onClick={() => handleSubmit('draft')} disabled={isSubmitting}
           variant="outline" className="flex-1 border-gray-300 text-gray-600 hover:bg-gray-50 gap-2 h-12">
@@ -451,6 +500,60 @@ const CreateEvent = () => {
           </div>
         )}
       </div>
+
+      {/* PIX Payment Modal Simulation */}
+      <Dialog open={showPixModal} onOpenChange={setShowPixModal}>
+        <DialogContent className="max-w-md bg-white border-2 border-gray-100 rounded-[2.5rem] shadow-2xl p-0 overflow-hidden text-gray-900">
+          <DialogHeader className="p-8 bg-indigo-600 text-white">
+            <div className="flex items-center gap-4 mb-2">
+              <div className="p-3 bg-white/20 backdrop-blur-md rounded-2xl">
+                <QrCode className="h-6 w-6" />
+              </div>
+              <DialogTitle className="text-2xl font-black uppercase tracking-tighter leading-none">Pagamento via PIX</DialogTitle>
+            </div>
+            <DialogDescription className="text-indigo-100 font-medium opacity-90">
+              Escaneie o código abaixo para ativar o destaque do seu evento imediatamente.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="p-8 flex flex-col items-center gap-6">
+            <div className="p-4 bg-white border-2 border-indigo-100 rounded-[2rem] shadow-inner relative group">
+              <img
+                src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=simulated-pix-payment"
+                alt="PIX QR Code"
+                className="w-48 h-48 rounded-xl"
+              />
+              <div className="absolute inset-0 flex items-center justify-center bg-white/80 opacity-0 group-hover:opacity-100 transition-opacity rounded-[2rem] cursor-pointer">
+                <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Copiar Código PIX</span>
+              </div>
+            </div>
+
+            <div className="w-full space-y-3">
+              <div className="flex justify-between items-center text-sm font-bold border-b border-gray-100 pb-3">
+                <span className="text-gray-400 uppercase tracking-widest text-[10px]">Serviço</span>
+                <span className="text-gray-900">Destaque 30 Dias - Home</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-400 uppercase tracking-widest text-[10px] font-bold">Total</span>
+                <span className="text-2xl font-black text-indigo-600 tracking-tighter">R$ 49,90</span>
+              </div>
+            </div>
+
+            <p className="text-[10px] text-gray-400 text-center font-bold uppercase tracking-widest leading-relaxed">
+              * O destaque será ativado após a confirmação do pagamento pelo nosso sistema financeiro.
+            </p>
+          </div>
+
+          <DialogFooter className="p-8 bg-gray-50 border-t border-gray-100">
+            <Button
+              onClick={() => setShowPixModal(false)}
+              className="w-full h-14 bg-gray-900 hover:bg-indigo-600 text-white font-black uppercase tracking-tighter rounded-2xl transition-all shadow-lg active:scale-95"
+            >
+              Já realizei o pagamento
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };

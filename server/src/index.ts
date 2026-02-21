@@ -10,6 +10,7 @@ import {
     staff,
     candidates,
     staffProposals,
+    legalPages,
     stands,
     standCategories,
     sponsorTypes,
@@ -18,7 +19,8 @@ import {
     sponsorDeliverables,
     visitors,
     admins,
-    eventCategories
+    eventCategories,
+    organizerPosts
 } from './db/schema';
 import { eq, and, or, ne, isNull } from 'drizzle-orm';
 import Redis from 'ioredis';
@@ -609,6 +611,8 @@ app.post('/api/events', async (c: Context) => {
             capacity: Number(data.capacity) || 0,
             status: data.status || 'draft',
             imageUrl: data.imageUrl,
+            isFeatured: data.isFeatured || false,
+            featuredPaymentStatus: data.featuredPaymentStatus || 'none',
         }).returning();
         return c.json(newEvent);
     } catch (error: any) {
@@ -616,7 +620,69 @@ app.post('/api/events', async (c: Context) => {
     }
 });
 
-// 2. Listar Eventos por Organizador (Dual support plural/singular)
+app.get('/api/public/featured-events', async (c: Context) => {
+    try {
+        const featured = await db.query.events.findMany({
+            where: and(
+                eq(events.isFeatured, true),
+                eq(events.status, 'published')
+            ),
+            orderBy: (events, { desc }) => [desc(events.createdAt)]
+        });
+        return c.json(featured);
+    } catch (error: any) {
+        return c.json({ error: error.message }, 400);
+    }
+});
+
+// --- Páginas Legais ---
+
+app.get('/api/legal/:slug', async (c) => {
+    const slug = c.req.param('slug');
+    try {
+        let page = await db.query.legalPages.findFirst({
+            where: eq(legalPages.slug, slug),
+        });
+
+        // Seed inicial se não existir
+        if (!page) {
+            const title = slug === 'privacy' ? 'Política de Privacidade' : 'Termos de Uso';
+            const [newPage] = await db.insert(legalPages).values({
+                slug,
+                title,
+                content: '# ' + title + '\n\nConteúdo em breve...',
+            }).returning();
+            page = newPage;
+        }
+
+        return c.json(page);
+    } catch (error) {
+        return c.json({ error: 'Erro ao buscar página legal' }, 500);
+    }
+});
+
+app.put('/api/legal/:slug', async (c) => {
+    const slug = c.req.param('slug');
+    const { content, title } = await c.req.json();
+    try {
+        const updated = await db.update(legalPages)
+            .set({
+                content,
+                title,
+                updatedAt: new Date()
+            })
+            .where(eq(legalPages.slug, slug))
+            .returning();
+
+        if (updated.length === 0) {
+            return c.json({ error: 'Página não encontrada' }, 404);
+        }
+
+        return c.json(updated[0]);
+    } catch (error) {
+        return c.json({ error: 'Erro ao atualizar página legal' }, 500);
+    }
+});
 const getEventsByOrganizer = async (c: Context) => {
     const organizerId = c.req.param('organizerId');
     try {
@@ -1284,6 +1350,126 @@ app.post('/api/visitors/:id/checkin', async (c: Context) => {
             .where(eq(visitors.id, id))
             .returning();
         return c.json(visitor);
+    } catch (error: any) {
+        return c.json({ error: error.message }, 400);
+    }
+});
+
+// --- MÓDULO DE FEED DO ORGANIZADOR ---
+
+// 1. Criar Post
+app.post('/api/organizers/:id/posts', async (c: Context) => {
+    const organizerId = c.req.param('id');
+    const { imageUrl, caption } = await c.req.json();
+    try {
+        const [newPost] = await db.insert(organizerPosts).values({
+            organizerId,
+            imageUrl,
+            caption
+        }).returning();
+        return c.json(newPost);
+    } catch (error: any) {
+        return c.json({ error: error.message }, 400);
+    }
+});
+
+// 2. Listar Posts do Organizador
+app.get('/api/organizers/:id/posts', async (c: Context) => {
+    const organizerId = c.req.param('id');
+    try {
+        const posts = await db.query.organizerPosts.findMany({
+            where: eq(organizerPosts.organizerId, organizerId),
+            orderBy: (posts, { desc }) => [desc(posts.createdAt)]
+        });
+        return c.json(posts);
+    } catch (error: any) {
+        return c.json({ error: error.message }, 400);
+    }
+});
+
+// 3. Remover Post
+app.delete('/api/organizers/:id/posts/:postId', async (c: Context) => {
+    const organizerId = c.req.param('id');
+    const postId = c.req.param('postId');
+    try {
+        const deleted = await db.delete(organizerPosts)
+            .where(and(
+                eq(organizerPosts.id, postId),
+                eq(organizerPosts.organizerId, organizerId)
+            ))
+            .returning();
+
+        if (deleted.length === 0) return c.json({ error: 'Post não encontrado' }, 404);
+        return c.json({ success: true });
+    } catch (error: any) {
+        return c.json({ error: error.message }, 400);
+    }
+});
+
+// Helper: Validar Completude do Perfil
+function isProfileActuallyComplete(org: any) {
+    const requiredFields = [
+        'name', 'email', 'phone', 'address', 'city', 'state', 'postalCode',
+        'companyName', 'bio', 'logoUrl', 'bannerUrl'
+    ];
+
+    // Check basic fields
+    for (const field of requiredFields) {
+        if (!org[field]) return false;
+    }
+
+    // Check document (either CPF/RG or CNPJ)
+    const hasCpf = !!(org.cpf && org.rg);
+    const hasCnpj = !!org.cnpj;
+
+    if (!hasCpf && !hasCnpj) return false;
+
+    // Check documents uploaded
+    if (!org.documentFrontUrl || !org.documentBackUrl) return false;
+
+    return true;
+}
+
+// Rota para validar e atualizar status de completude
+app.post('/api/organizers/:id/validate-status', async (c: Context) => {
+    const id = c.req.param('id');
+    try {
+        const org = await db.query.organizers.findFirst({
+            where: eq(organizersTable.id, id)
+        });
+
+        if (!org) return c.json({ error: 'Organizador não encontrado' }, 404);
+
+        const isComplete = isProfileActuallyComplete(org);
+
+        await db.update(organizersTable)
+            .set({ profileComplete: isComplete, updatedAt: new Date() })
+            .where(eq(organizersTable.id, id));
+
+        return c.json({ profileComplete: isComplete });
+    } catch (error: any) {
+        return c.json({ error: error.message }, 400);
+    }
+});
+
+app.put('/api/master/events/:id/featured', async (c: Context) => {
+    const id = c.req.param('id');
+    const { isFeatured } = await c.req.json();
+    try {
+        const [updated] = await db.update(events)
+            .set({
+                isFeatured,
+                featuredUntil: isFeatured ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) : null,
+                updatedAt: new Date()
+            })
+            .where(eq(events.id, id))
+            .returning();
+
+        if (!updated) {
+            return c.json({ error: 'Evento não encontrado' }, 404);
+        }
+
+        return c.json(updated);
     } catch (error: any) {
         return c.json({ error: error.message }, 400);
     }

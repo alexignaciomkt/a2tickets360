@@ -17,6 +17,7 @@ const STEPS = [
     { number: 1, title: 'Identidade Visual', icon: <Palette className="h-4 w-4" /> },
     { number: 2, title: 'Dados Pessoais', icon: <User className="h-4 w-4" /> },
     { number: 3, title: 'Financeiro', icon: <Landmark className="h-4 w-4" /> },
+    { number: 4, title: 'Seu Feed', icon: <Camera className="h-4 w-4" /> },
 ];
 
 const OrganizerOnboarding = () => {
@@ -26,6 +27,7 @@ const OrganizerOnboarding = () => {
     const [currentStep, setCurrentStep] = useState(1);
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [feedPosts, setFeedPosts] = useState<any[]>([]);
 
     // Form State
     const [formData, setFormData] = useState({
@@ -111,6 +113,10 @@ const OrganizerOnboarding = () => {
                     logo: profile.logoUrl || null,
                     banner: profile.bannerUrl || null,
                 });
+
+                // Load Feed Posts
+                const posts = await organizerService.getPosts(user!.id);
+                setFeedPosts(posts);
             }
         } catch (err) {
             console.error('Erro ao carregar perfil:', err);
@@ -144,6 +150,38 @@ const OrganizerOnboarding = () => {
                     description: 'Não foi possível salvar a imagem no servidor.'
                 });
             }
+        }
+    };
+
+    const handlePhotoFeedUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (!files || files.length === 0) return;
+
+        setSaving(true);
+        try {
+            const newPosts = [];
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const { url } = await organizerService.uploadImage(file);
+                const post = await organizerService.createPost(user!.id, { imageUrl: url });
+                newPosts.push(post);
+            }
+            setFeedPosts(prev => [...newPosts, ...prev]);
+            toast({ title: 'Sucesso', description: `${files.length} foto(s) adicionada(s) ao seu feed.` });
+        } catch (err) {
+            console.error('Erro no upload do feed:', err);
+            toast({ variant: 'destructive', title: 'Erro no Upload', description: 'Não foi possível salvar as fotos.' });
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const removeFeedPhoto = async (postId: string) => {
+        try {
+            await organizerService.deletePost(user!.id, postId);
+            setFeedPosts(prev => prev.filter(p => p.id !== postId));
+        } catch (err) {
+            console.error('Erro ao remover post:', err);
         }
     };
 
@@ -228,7 +266,7 @@ const OrganizerOnboarding = () => {
         if (loading || saving) return;
 
         const next = currentStep + 1;
-        if (next > 3) return;
+        if (next > 4) return;
 
         // Tenta salvar, mas permite avançar mesmo com erro no save
         const saved = await saveProfile(next);
@@ -277,6 +315,9 @@ const OrganizerOnboarding = () => {
         const saved = await saveProfile();
         if (saved) {
             try {
+                // Backend validation of completion
+                await organizerService.validateStatus(user!.id);
+
                 await organizerService.completeProfile(user!.id);
                 // Flag to show welcome modal on dashboard
                 localStorage.setItem('A2Tickets_showWelcome', 'true');
@@ -539,6 +580,63 @@ const OrganizerOnboarding = () => {
                             </div>
                         </div>
                     )}
+
+                    {/* Step 4: Feed / Social */}
+                    {currentStep === 4 && (
+                        <div className="animate-in fade-in slide-in-from-right-4 duration-500 space-y-8">
+                            <div>
+                                <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                                    <Camera className="h-5 w-5 text-indigo-500" /> Seu Feed Profissional
+                                </h3>
+                                <p className="text-sm text-gray-500">Adicione fotos de seus eventos passados ou de sua infraestrutura para sua FanPage.</p>
+                            </div>
+
+                            <div className="space-y-6">
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                                    {/* Upload Button */}
+                                    <div className="relative aspect-square rounded-2xl border-2 border-dashed border-indigo-200 bg-indigo-50/30 flex flex-col items-center justify-center group hover:border-indigo-400 transition-all cursor-pointer">
+                                        <input
+                                            type="file"
+                                            multiple
+                                            accept="image/*"
+                                            onChange={handlePhotoFeedUpload}
+                                            className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                                        />
+                                        <Upload className="h-6 w-6 text-indigo-400 group-hover:scale-110 transition-transform" />
+                                        <span className="text-[10px] font-bold text-indigo-400 uppercase mt-2">Adicionar Fotos</span>
+                                    </div>
+
+                                    {/* Feed Previews */}
+                                    {feedPosts.map((post) => (
+                                        <div key={post.id} className="relative aspect-square rounded-2xl overflow-hidden group shadow-sm text-right">
+                                            <img src={post.imageUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                <Button
+                                                    variant="destructive"
+                                                    size="sm"
+                                                    onClick={() => removeFeedPhoto(post.id)}
+                                                    className="h-8 w-8 p-0 rounded-full"
+                                                >
+                                                    ×
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="bg-amber-50 border border-amber-100 rounded-2xl p-6 flex gap-4 items-start">
+                                <Sparkles className="h-5 w-5 text-amber-500 shrink-0 mt-1" />
+                                <div className="text-sm">
+                                    <h4 className="font-bold text-amber-900">Dica de Elite</h4>
+                                    <p className="text-amber-800/80 mt-1">
+                                        Fotos de alta qualidade de seus eventos anteriores geram mais confiança para seus novos clientes.
+                                        Capriche na seleção!
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Footer Navigation */}
@@ -562,9 +660,9 @@ const OrganizerOnboarding = () => {
                             Fazer mais tarde
                         </Button>
                         <p className="hidden sm:block text-xs font-bold text-gray-400 uppercase tracking-widest px-4 border-l border-gray-200">
-                            Passo {currentStep} de 3
+                            Passo {currentStep} de 4
                         </p>
-                        {currentStep < 3 ? (
+                        {currentStep < 4 ? (
                             <Button
                                 onClick={nextStep}
                                 disabled={loading || saving}

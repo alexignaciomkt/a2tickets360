@@ -22,6 +22,9 @@ export interface Event {
   status: 'draft' | 'published' | 'active' | 'completed' | 'cancelled';
   imageUrl: string;
   floorPlanUrl?: string;
+  isFeatured?: boolean;
+  featuredUntil?: string;
+  featuredPaymentStatus?: 'none' | 'pending' | 'paid';
   organizerId: string;
   organizerName: string;
   tickets: Ticket[];
@@ -130,6 +133,8 @@ export interface Organizer {
   logoUrl?: string;
   bannerUrl?: string;
   bio?: string;
+  documentFrontUrl?: string;
+  documentBackUrl?: string;
 
   // Status
   profileComplete: boolean;

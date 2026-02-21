@@ -7,16 +7,67 @@ import MainLayout from '@/components/layout/MainLayout';
 
 const Index = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [featuredEvents, setFeaturedEvents] = useState<any[]>([]);
 
-  // Filter featured events from our real mock data
-  const featuredEvents = MOCK_EVENTS.slice(0, 4);
+  // Static branding banners (Always present)
+  const brandingBanners = [
+    {
+      id: 'branding-1',
+      title: 'ORGANIZE SEU EVENTO COM ELITE',
+      subtitle: 'A melhor plataforma de gestão para produtores do Brasil',
+      description: 'Taxas competitivas, gestão completa de staff e fornecedores, e checkout ultra-rápido para seus clientes.',
+      cta: 'Começar Agora',
+      link: '/auth/register',
+      imageUrl: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?q=80&w=2070&auto=format&fit=crop',
+      badge: 'Solução Completa'
+    },
+    {
+      id: 'branding-2',
+      title: 'O BANCO DE TALENTOS QUE VOCÊ PRECISA',
+      subtitle: 'Encontre profissionais qualificados para o seu backstage',
+      description: 'Milhares de profissionais de staff, som, iluminação e segurança prontos para fazer seu evento brilhar.',
+      cta: 'Ver Banco de Talentos',
+      link: '/work-with-us',
+      imageUrl: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?q=80&w=2070&auto=format&fit=crop',
+      badge: 'Para Profissionais'
+    }
+  ];
 
   useEffect(() => {
+    const loadFeatured = async () => {
+      try {
+        const res = await fetch('/api/public/featured-events');
+        const data = await res.json();
+        setFeaturedEvents(data);
+      } catch (error) {
+        console.error('Erro ao carregar destaques:', error);
+      }
+    };
+    loadFeatured();
+  }, []);
+
+  // Combine branding + featured
+  const allBanners = [
+    ...brandingBanners,
+    ...featuredEvents.map(event => ({
+      id: event.id,
+      title: event.title.toUpperCase(),
+      subtitle: `${new Date(event.date).toLocaleDateString('pt-BR')} • ${event.locationCity}`,
+      description: event.description?.substring(0, 150) + '...',
+      cta: 'Garantir Ingresso',
+      link: `/events/${event.id}`,
+      imageUrl: event.imageUrl || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=1200',
+      badge: 'Evento em Destaque'
+    }))
+  ];
+
+  useEffect(() => {
+    if (allBanners.length <= 1) return;
     const timer = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % featuredEvents.length);
-    }, 6000);
+      setCurrentSlide((prev) => (prev + 1) % allBanners.length);
+    }, 8000);
     return () => clearInterval(timer);
-  }, [featuredEvents.length]);
+  }, [allBanners.length]);
 
   return (
     <MainLayout>
@@ -27,30 +78,33 @@ const Index = () => {
             className="flex h-full transition-transform duration-1000 cubic-bezier(0.4, 0, 0.2, 1)"
             style={{ transform: `translateX(-${currentSlide * 100}%)` }}
           >
-            {featuredEvents.map((event) => (
-              <div key={event.id} className="min-w-full h-full relative">
+            {allBanners.map((banner) => (
+              <div key={banner.id} className="min-w-full h-full relative">
                 <img
-                  src={event.heroImageUrl || event.bannerUrl}
-                  alt={event.title}
-                  className="w-full h-full object-cover brightness-[0.3] scale-105"
+                  src={banner.imageUrl}
+                  alt={banner.title}
+                  className="w-full h-full object-cover brightness-[0.2] scale-105"
                 />
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="text-center text-white px-4 max-w-5xl">
                     <div className="inline-flex items-center gap-2 bg-indigo-600/90 backdrop-blur-sm text-[10px] md:text-xs uppercase font-black tracking-widest px-4 py-1.5 rounded-full mb-6 animate-fade-in shadow-xl">
-                      <Zap className="w-3 h-3 fill-current text-yellow-300" /> Evento em Destaque
+                      <Zap className="w-3 h-3 fill-current text-yellow-300" /> {banner.badge}
                     </div>
-                    <h1 className="text-4xl md:text-6xl font-black mb-6 tracking-tighter leading-tight drop-shadow-2xl">
-                      {event.title}
+                    <div className="text-lg md:text-2xl font-bold mb-2 text-indigo-400 uppercase tracking-tighter opacity-90">
+                      {banner.subtitle}
+                    </div>
+                    <h1 className="text-4xl md:text-7xl font-black mb-6 tracking-tighter leading-tight drop-shadow-2xl uppercase">
+                      {banner.title}
                     </h1>
                     <p className="text-lg md:text-xl mb-8 text-gray-300 font-medium max-w-2xl mx-auto leading-relaxed opacity-90">
-                      {event.description}
+                      {banner.description}
                     </p>
                     <div className="flex flex-col md:flex-row gap-4 justify-center">
-                      <Link to={`/events/${event.id}`} className="bg-white text-gray-900 px-8 py-3 rounded-[2rem] font-black text-lg hover:bg-indigo-600 hover:text-white transition-all duration-300 shadow-2xl hover:scale-105 active:scale-95 flex items-center justify-center gap-2">
-                        Comprar Ingressos <ChevronRight className="w-5 h-5" />
+                      <Link to={banner.link} className="bg-white text-gray-900 px-8 py-3 rounded-[2rem] font-black text-lg hover:bg-indigo-600 hover:text-white transition-all duration-300 shadow-2xl hover:scale-105 active:scale-95 flex items-center justify-center gap-2">
+                        {banner.cta} <ChevronRight className="w-5 h-5" />
                       </Link>
                       <Link to="/events" className="bg-white/10 hover:bg-white/20 backdrop-blur-xl text-white border border-white/30 px-8 py-3 rounded-[2rem] font-black text-lg transition-all duration-300 flex items-center justify-center">
-                        Ver Programação
+                        Explorar Eventos
                       </Link>
                     </div>
                   </div>
@@ -61,13 +115,13 @@ const Index = () => {
 
           {/* Banner Navigation Buttons */}
           <button
-            onClick={() => setCurrentSlide((prev) => (prev - 1 + featuredEvents.length) % featuredEvents.length)}
+            onClick={() => setCurrentSlide((prev) => (prev - 1 + allBanners.length) % allBanners.length)}
             className="absolute left-8 top-1/2 -translate-y-1/2 p-5 rounded-[1.5rem] bg-black/30 hover:bg-indigo-600 text-white backdrop-blur-md transition-all z-20 group"
           >
             <ChevronLeft className="w-8 h-8 group-hover:-translate-x-1 transition" />
           </button>
           <button
-            onClick={() => setCurrentSlide((prev) => (prev + 1) % featuredEvents.length)}
+            onClick={() => setCurrentSlide((prev) => (prev + 1) % allBanners.length)}
             className="absolute right-8 top-1/2 -translate-y-1/2 p-5 rounded-[1.5rem] bg-black/30 hover:bg-indigo-600 text-white backdrop-blur-md transition-all z-20 group"
           >
             <ChevronRight className="w-8 h-8 group-hover:translate-x-1 transition" />
@@ -75,7 +129,7 @@ const Index = () => {
 
           {/* Carousel Indicators */}
           <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-4 z-20">
-            {featuredEvents.map((_, idx) => (
+            {allBanners.map((_, idx) => (
               <button
                 key={idx}
                 onClick={() => setCurrentSlide(idx)}

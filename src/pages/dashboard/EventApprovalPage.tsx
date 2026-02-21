@@ -11,7 +11,8 @@ import {
   Calendar,
   User,
   Clock,
-  ArrowRight
+  ArrowRight,
+  Star
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { masterService } from '@/services/masterService';
@@ -58,6 +59,22 @@ const EventApprovalPage = () => {
       toast({
         title: 'Erro ao aprovar',
         description: 'Tente novamente mais tarde.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleToggleFeatured = async (id: string, currentStatus: boolean) => {
+    try {
+      await masterService.toggleFeaturedEvent(id, !currentStatus);
+      loadEvents();
+      toast({
+        title: !currentStatus ? 'Evento em destaque!' : 'Removido dos destaques',
+        description: !currentStatus ? 'O evento agora aparecerá no carrossel da home.' : 'O evento não aparecerá mais no carrossel.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Erro ao atualizar destaque',
         variant: 'destructive',
       });
     }
@@ -145,6 +162,7 @@ const EventApprovalPage = () => {
                       <th className="px-6 py-4 text-left font-black text-gray-900 uppercase tracking-tighter">Organizador</th>
                       <th className="px-6 py-4 text-left font-black text-gray-900 uppercase tracking-tighter">Data/Hora</th>
                       <th className="px-6 py-4 text-left font-black text-gray-900 uppercase tracking-tighter">Integridade</th>
+                      <th className="px-6 py-4 text-left font-black text-gray-900 uppercase tracking-tighter">Destaque</th>
                       <th className="px-6 py-4 text-right font-black text-gray-900 uppercase tracking-tighter">Ações</th>
                     </tr>
                   </thead>
@@ -191,6 +209,24 @@ const EventApprovalPage = () => {
                                   <AlertTriangle className="w-3.5 h-3.5" />
                                 </button>
                               )}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex flex-col gap-1">
+                              <Button
+                                size="sm"
+                                variant={event.isFeatured ? "default" : "outline"}
+                                onClick={() => handleToggleFeatured(event.id, !!event.isFeatured)}
+                                className={`h-8 rounded-lg font-bold uppercase text-[10px] tracking-widest gap-2 ${event.isFeatured ? 'bg-indigo-600' : 'text-gray-400'}`}
+                              >
+                                <Star className={`w-3 h-3 ${event.isFeatured ? 'fill-current' : ''}`} />
+                                {event.isFeatured ? 'Destaque ON' : 'Destacar'}
+                              </Button>
+                              {event.featuredPaymentStatus === 'paid' ? (
+                                <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest ml-1 animate-pulse">★ Pago</span>
+                              ) : event.featuredPaymentStatus === 'pending' ? (
+                                <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest ml-1">★ Pagamento Pendente</span>
+                              ) : null}
                             </div>
                           </td>
                           <td className="px-6 py-4 text-right">

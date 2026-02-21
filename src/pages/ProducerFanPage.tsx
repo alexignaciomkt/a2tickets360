@@ -40,6 +40,7 @@ const ProducerFanPage = () => {
   const { toast } = useToast();
 
   const [producerData, setProducerData] = useState<any>(null);
+  const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -53,6 +54,11 @@ const ProducerFanPage = () => {
       setLoading(true);
       const data = await organizerService.getProducerBySlug(slug!);
       setProducerData(data);
+
+      if (data?.id) {
+        const producerPosts = await organizerService.getPosts(data.id);
+        setPosts(producerPosts);
+      }
     } catch (err) {
       console.error('Erro ao carregar produtor:', err);
       toast({
@@ -109,28 +115,6 @@ const ProducerFanPage = () => {
     whatsappNumber: producerData.whatsappNumber
   };
 
-  const posts: Post[] = [
-    {
-      id: '1',
-      producerId: '1',
-      content: '🎵 Ansiosos para o Festival de Verão? 🌴🌊 Os últimos ingressos do lote 1 estão voando! Não fique de fora da melhor festa do ano.',
-      imageUrl: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=800&h=600&fit=crop',
-      likes: 1284,
-      comments: 45,
-      shares: 12,
-      createdAt: '2 horas atrás'
-    },
-    {
-      id: '2',
-      producerId: '1',
-      content: '✨ Backstage do último evento! Veja como foi incrível a produção do Show Acústico Intimista. Obrigado a todos que estiveram presentes!',
-      imageUrl: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=800&h=600&fit=crop',
-      likes: 189,
-      comments: 28,
-      shares: 8,
-      createdAt: '1 dia atrás'
-    }
-  ];
 
   const producerEvents = mockEvents.filter(e => e.organizer.id === '1');
 
@@ -354,7 +338,7 @@ const ProducerFanPage = () => {
                   </div>
 
                   <div className="px-4 pb-4 text-sm text-gray-800 leading-relaxed">
-                    {post.content}
+                    {post.caption || 'Sem legenda.'}
                   </div>
 
                   {post.imageUrl && (
@@ -363,7 +347,7 @@ const ProducerFanPage = () => {
                     </div>
                   )}
 
-                  {/* Like/Comment Summary */}
+                  {/* Like/Comment Summary (Mocked for now) */}
                   <div className="p-4 border-b mx-4 flex items-center justify-between text-sm text-gray-500">
                     <div className="flex items-center gap-1">
                       <div className="flex -space-x-1">
@@ -374,11 +358,11 @@ const ProducerFanPage = () => {
                           <Heart className="w-3 h-3 fill-current" />
                         </div>
                       </div>
-                      <span className="hover:underline cursor-pointer ml-1">{post.likes.toLocaleString()}</span>
+                      <span className="hover:underline cursor-pointer ml-1">{Math.floor(Math.random() * 500) + 10}</span>
                     </div>
                     <div className="flex gap-3">
-                      <span className="hover:underline cursor-pointer">{post.comments} comentários</span>
-                      <span className="hover:underline cursor-pointer">{post.shares} compartilhamentos</span>
+                      <span className="hover:underline cursor-pointer">{Math.floor(Math.random() * 50)} comentários</span>
+                      <span className="hover:underline cursor-pointer">{Math.floor(Math.random() * 20)} compartilhamentos</span>
                     </div>
                   </div>
 

@@ -28,6 +28,10 @@ export const masterService = {
         return await api.put(`/api/master/events/${id}/approve`, {});
     },
 
+    toggleFeaturedEvent: async (id: string, isFeatured: boolean): Promise<any> => {
+        return await api.put(`/api/master/events/${id}/featured`, { isFeatured });
+    },
+
     approveOrganizerManually: async (id: string): Promise<any> => {
         return await api.post(`/api/master/organizers/${id}/approve-manually`, {});
     },

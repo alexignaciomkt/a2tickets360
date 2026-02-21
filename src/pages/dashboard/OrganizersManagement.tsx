@@ -67,11 +67,22 @@ const OrganizersManagement = () => {
     report += `Olá **${org.name}**, detectamos que seu perfil ainda não está completo. Para que possamos aprovar seus eventos com agilidade, por favor complete os seguintes itens:\n\n`;
 
     const missing = [];
-    if (!org.cnpj) missing.push("- [ ] **CNPJ ou CPF**: Documentação fiscal obrigatória.");
-    if (!org.companyAddress) missing.push("- [ ] **Endereço Completo**: Necessário para contratos e notas.");
-    if (!org.mobilePhone) missing.push("- [ ] **Telefone de Contato**: Vital para suporte durante eventos.");
-    if (!org.logoUrl) missing.push("- [ ] **Logo da Empresa/Produtor**: Exibição na página do evento.");
-    if (!org.bio) missing.push("- [ ] **Bio/Descrição**: Conte um pouco sobre sua produtora.");
+    if (!org.companyName) missing.push("- [ ] **Nome da Produtora**: Identificação comercial.");
+    if (!org.phone) missing.push("- [ ] **Telefone de Contato**: Vital para suporte.");
+    if (!org.address || !org.city) missing.push("- [ ] **Endereço Completo**: Necessário para registro.");
+    if (!org.logoUrl || !org.bannerUrl) missing.push("- [ ] **Identidade Visual**: Logo e Banner da FanPage.");
+    if (!org.bio) missing.push("- [ ] **Sobre a Produtora**: Descrição para o público.");
+
+    const hasDoc = (org.cpf && org.rg) || org.cnpj;
+    if (!hasDoc) missing.push("- [ ] **Documentação Principal**: CPF/RG ou CNPJ.");
+
+    if (!org.documentFrontUrl || !org.documentBackUrl) {
+      missing.push("- [ ] **Fotos do Documento**: Comprovação de identidade (Frente e Verso).");
+    }
+
+    if (!org.asaasApiKey) {
+      missing.push("- [ ] **Integração Financeira**: Chave API do Asaas para vendas.");
+    }
 
     if (missing.length === 0) {
       report = "### ✅ Cadastro Completo!\n\nTodos os dados obrigatórios foram preenchidos. O administrador revisará seu perfil em breve.";
