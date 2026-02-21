@@ -28,13 +28,14 @@ const LoginForm = () => {
           const user = JSON.parse(savedUser);
           if (user.role === 'master' || user.role === 'admin') {
             navigate('/master');
-          } else if (user.role === 'organizer' || user.role === 'staff') {
-            // Se for produtor e não tiver perfil completo, vai para onboarding
-            if (user.role === 'organizer' && !user.profileComplete) {
+          } else if (user.role === 'organizer') {
+            if (!user.profileComplete) {
               navigate('/organizer/onboarding');
             } else {
               navigate('/organizer');
             }
+          } else if (user.role === 'staff') {
+            navigate('/staff/portal');
           } else {
             navigate('/dashboard');
           }

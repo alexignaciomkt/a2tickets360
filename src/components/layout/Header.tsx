@@ -68,8 +68,17 @@ const Header = () => {
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator className="bg-gray-50" />
 
-                {/* ORGANIZER / ADMIN menu */}
-                {(user.role === 'organizer' || user.role === 'admin' || user.role === 'master') ? (
+                {/* ROLE-BASED DASHBOARD LINKS */}
+                {user.role === 'master' || user.role === 'admin' ? (
+                  <DropdownMenuItem className="p-3 rounded-xl cursor-pointer hover:bg-indigo-50 group" asChild>
+                    <Link to="/master" className="flex items-center gap-3">
+                      <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-indigo-600 group-hover:text-white transition">
+                        <LayoutDashboard className="w-4 h-4" />
+                      </div>
+                      <span className="font-black text-xs uppercase text-gray-700">Painel Master</span>
+                    </Link>
+                  </DropdownMenuItem>
+                ) : user.role === 'organizer' ? (
                   <>
                     <DropdownMenuItem className="p-3 rounded-xl cursor-pointer hover:bg-indigo-50 group" asChild>
                       <Link to="/organizer/dashboard" className="flex items-center gap-3">
@@ -88,6 +97,15 @@ const Header = () => {
                       </Link>
                     </DropdownMenuItem>
                   </>
+                ) : user.role === 'staff' ? (
+                  <DropdownMenuItem className="p-3 rounded-xl cursor-pointer hover:bg-indigo-50 group" asChild>
+                    <Link to="/staff/portal" className="flex items-center gap-3">
+                      <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-indigo-600 group-hover:text-white transition">
+                        <LayoutDashboard className="w-4 h-4" />
+                      </div>
+                      <span className="font-black text-xs uppercase text-gray-700">Portal Staff</span>
+                    </Link>
+                  </DropdownMenuItem>
                 ) : (
                   <>
                     {/* PARTICIPANT menu */}
