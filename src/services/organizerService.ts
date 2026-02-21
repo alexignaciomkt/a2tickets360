@@ -1,7 +1,23 @@
 import { Event, Ticket, SalesChannel, FinancialSummary, Sale } from '@/interfaces/organizer';
 import { api } from './api';
 
+export interface EventCategory {
+  id: string;
+  name: string;
+  icon: string;
+  createdAt: string;
+}
+
 class OrganizerService {
+  // Event Categories (Global Bank)
+  async getEventCategories(): Promise<EventCategory[]> {
+    return api.get('/api/event-categories');
+  }
+
+  async createEventCategory(name: string, icon?: string): Promise<EventCategory> {
+    return api.post('/api/event-categories', { name, icon });
+  }
+
   // Events Management
   async getEvents(organizerId: string): Promise<Event[]> {
     return api.get(`/api/events/organizer/${organizerId}`);
@@ -21,6 +37,19 @@ class OrganizerService {
 
   async deleteEvent(eventId: string): Promise<boolean> {
     return api.delete(`/api/events/${eventId}`);
+  }
+
+  // Profile Management
+  async getProfile(organizerId: string): Promise<any> {
+    return api.get(`/api/organizers/${organizerId}/profile`);
+  }
+
+  async updateProfile(organizerId: string, data: any): Promise<any> {
+    return api.put(`/api/organizers/${organizerId}/profile`, data);
+  }
+
+  async completeProfile(organizerId: string): Promise<any> {
+    return api.put(`/api/organizers/${organizerId}/complete-profile`, {});
   }
 
   // Tickets Management
@@ -43,3 +72,4 @@ class OrganizerService {
 }
 
 export const organizerService = new OrganizerService();
+

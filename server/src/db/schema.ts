@@ -17,13 +17,47 @@ export const organizers = pgTable('organizers', {
     name: text('name').notNull(),
     email: text('email').unique().notNull(),
     passwordHash: text('password_hash').notNull(),
+
+    // Dados Pessoais
+    cpf: text('cpf'),
+    rg: text('rg'),
+    phone: text('phone'),
+    birthDate: text('birth_date'),
+    address: text('address'),
+    city: text('city'),
+    state: text('state'),
+    postalCode: text('postal_code'),
+    documentFrontUrl: text('document_front_url'),
+    documentBackUrl: text('document_back_url'),
+
+    // Dados da Produtora
+    companyName: text('company_name'),
+    cnpj: text('cnpj'),
+    companyAddress: text('company_address'),
+    logoUrl: text('logo_url'),
+    bannerUrl: text('banner_url'),
+    bio: text('bio'),
+
+    // Status do Cadastro
+    profileComplete: boolean('profile_complete').default(false),
+    lastStep: integer('last_step').default(1),
+
     asaasId: text('asaas_id'), // ID da subconta no Asaas
     asaasApiKey: text('asaas_api_key'),
     walletId: text('wallet_id'),
     emailVerified: boolean('email_verified').default(false),
     verificationToken: text('verification_token'),
+    isActive: boolean('is_active').default(true),
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// Categorias de Eventos (Banco Global Colaborativo)
+export const eventCategories = pgTable('event_categories', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    name: text('name').unique().notNull(),
+    icon: text('icon'), // Nome do ícone Lucide (ex: 'Briefcase')
+    createdAt: timestamp('created_at').defaultNow(),
 });
 
 // Eventos
@@ -33,10 +67,15 @@ export const events = pgTable('events', {
     title: text('title').notNull(),
     description: text('description'),
     category: text('category'),
+    eventType: text('event_type', { enum: ['paid', 'free'] }).default('paid'),
     date: text('date').notNull(), // Formato ISO ou YYYY-MM-DD
     time: text('time').notNull(),
+    duration: text('duration'),
     locationName: text('location_name'),
     locationAddress: text('location_address'),
+    locationCity: text('location_city'),
+    locationState: text('location_state'),
+    locationPostalCode: text('location_postal_code'),
     capacity: integer('capacity').notNull(),
     status: text('status', { enum: ['draft', 'published', 'active', 'completed', 'cancelled'] }).default('draft'),
     imageUrl: text('image_url'),

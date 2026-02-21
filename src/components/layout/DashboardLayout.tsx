@@ -21,6 +21,7 @@ import {
   Handshake
 } from 'lucide-react';
 import Logo from '@/components/ui/logo';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -28,6 +29,7 @@ interface DashboardLayoutProps {
 }
 
 const DashboardLayout = ({ children, userType }: DashboardLayoutProps) => {
+  const { user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
 
@@ -54,6 +56,7 @@ const DashboardLayout = ({ children, userType }: DashboardLayoutProps) => {
               { name: 'Dashboard', path: '/organizer', icon: Home },
               { name: 'Meus Eventos', path: '/organizer/events', icon: Calendar },
               { name: 'Participantes', path: '/organizer/attendees', icon: Users },
+              { name: 'Meu Perfil', path: '/organizer/onboarding', icon: Users },
             ]
           },
           {
@@ -203,7 +206,7 @@ const DashboardLayout = ({ children, userType }: DashboardLayoutProps) => {
         <div className="flex flex-col h-full uppercase">
           <div className="p-6 border-b">
             <Logo variant="default" showText={true} />
-            <p className="text-[10px] text-gray-400 font-black mt-1 uppercase tracking-widest">{getDashboardTitle()}</p>
+            <p className="text-[10px] text-gray-600 font-black mt-1 uppercase tracking-widest">{getDashboardTitle()}</p>
           </div>
 
           <nav className="py-4 flex-grow overflow-y-auto custom-scrollbar">
@@ -212,7 +215,7 @@ const DashboardLayout = ({ children, userType }: DashboardLayoutProps) => {
                 <div key={cat.category} className="px-3">
                   <button
                     onClick={() => toggleCategory(cat.category)}
-                    className="w-full flex items-center justify-between px-3 py-2 text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-primary transition-colors group text-left"
+                    className="w-full flex items-center justify-between px-3 py-2 text-[10px] font-black text-gray-600 uppercase tracking-widest hover:text-primary transition-colors group text-left"
                   >
                     <div className="flex items-center gap-2 flex-1 min-w-0 font-black">
                       {cat.icon && <cat.icon className="w-3.5 h-3.5 group-hover:text-primary shrink-0" />}
@@ -230,7 +233,7 @@ const DashboardLayout = ({ children, userType }: DashboardLayoutProps) => {
                           to={item.path}
                           className={`flex items-center px-6 py-2 rounded-xl text-[11px] font-black transition-all ${active
                             ? 'bg-primary text-white shadow-lg shadow-primary/20 scale-105'
-                            : 'text-gray-500 hover:bg-gray-50'
+                            : 'text-gray-700 hover:bg-gray-50'
                             }`}
                           onClick={() => setSidebarOpen(false)}
                         >
@@ -268,8 +271,23 @@ const DashboardLayout = ({ children, userType }: DashboardLayoutProps) => {
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="bg-white shadow-sm z-10">
-          <div className="px-6 py-4">
+          <div className="px-6 py-4 flex items-center justify-between">
             <h2 className="text-lg font-semibold">{getDashboardTitle()}</h2>
+
+            {userType === 'organizer' && user && !user.profileComplete && location.pathname !== '/organizer/onboarding' && (
+              <div className="flex items-center gap-4 bg-amber-50 border border-amber-100 px-4 py-2 rounded-xl animate-pulse hover:animate-none group">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="h-5 w-5 text-amber-500" />
+                  <p className="text-xs font-bold text-amber-900 uppercase tracking-tighter">Perfil Incompleto</p>
+                </div>
+                <Link
+                  to="/organizer/onboarding"
+                  className="bg-amber-500 text-white px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-amber-600 transition-colors shadow-sm"
+                >
+                  Continuar Onde Parei
+                </Link>
+              </div>
+            )}
           </div>
         </header>
 

@@ -62,24 +62,54 @@ const Header = () => {
                 <DropdownMenuLabel className="px-4 py-3">
                   <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Minha Conta</p>
                   <p className="text-sm font-black text-gray-900 truncate mt-1">{user.email}</p>
+                  <p className="text-[10px] font-bold text-indigo-500 uppercase mt-1">
+                    {user.role === 'organizer' ? 'Produtor' : user.role === 'admin' || user.role === 'master' ? 'Administrador' : user.role === 'staff' ? 'Equipe' : 'Participante'}
+                  </p>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator className="bg-gray-50" />
-                <DropdownMenuItem className="p-3 rounded-xl cursor-pointer hover:bg-indigo-50 group" asChild>
-                  <Link to="/dashboard/tickets" className="flex items-center gap-3">
-                    <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-indigo-600 group-hover:text-white transition">
-                      <Ticket className="w-4 h-4" />
-                    </div>
-                    <span className="font-black text-xs uppercase text-gray-700">Meus Ingressos</span>
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem className="p-3 rounded-xl cursor-pointer hover:bg-indigo-50 group" asChild>
-                  <Link to="/dashboard/settings" className="flex items-center gap-3">
-                    <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-indigo-600 group-hover:text-white transition">
-                      <Settings className="w-4 h-4" />
-                    </div>
-                    <span className="font-black text-xs uppercase text-gray-700">Configurações</span>
-                  </Link>
-                </DropdownMenuItem>
+
+                {/* ORGANIZER / ADMIN menu */}
+                {(user.role === 'organizer' || user.role === 'admin' || user.role === 'master') ? (
+                  <>
+                    <DropdownMenuItem className="p-3 rounded-xl cursor-pointer hover:bg-indigo-50 group" asChild>
+                      <Link to="/organizer/dashboard" className="flex items-center gap-3">
+                        <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-indigo-600 group-hover:text-white transition">
+                          <LayoutDashboard className="w-4 h-4" />
+                        </div>
+                        <span className="font-black text-xs uppercase text-gray-700">Meu Painel</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="p-3 rounded-xl cursor-pointer hover:bg-indigo-50 group" asChild>
+                      <Link to="/organizer/events" className="flex items-center gap-3">
+                        <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-indigo-600 group-hover:text-white transition">
+                          <Ticket className="w-4 h-4" />
+                        </div>
+                        <span className="font-black text-xs uppercase text-gray-700">Meus Eventos</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  </>
+                ) : (
+                  <>
+                    {/* PARTICIPANT menu */}
+                    <DropdownMenuItem className="p-3 rounded-xl cursor-pointer hover:bg-indigo-50 group" asChild>
+                      <Link to="/dashboard/tickets" className="flex items-center gap-3">
+                        <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-indigo-600 group-hover:text-white transition">
+                          <Ticket className="w-4 h-4" />
+                        </div>
+                        <span className="font-black text-xs uppercase text-gray-700">Meus Ingressos</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="p-3 rounded-xl cursor-pointer hover:bg-indigo-50 group" asChild>
+                      <Link to="/dashboard/settings" className="flex items-center gap-3">
+                        <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-indigo-600 group-hover:text-white transition">
+                          <Settings className="w-4 h-4" />
+                        </div>
+                        <span className="font-black text-xs uppercase text-gray-700">Configurações</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  </>
+                )}
+
                 <DropdownMenuSeparator className="bg-gray-50" />
                 <DropdownMenuItem onClick={logout} className="p-3 rounded-xl cursor-pointer hover:bg-red-50 text-red-600 group">
                   <div className="flex items-center gap-3">

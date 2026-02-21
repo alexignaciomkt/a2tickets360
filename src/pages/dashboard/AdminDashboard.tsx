@@ -19,7 +19,7 @@ const AdminDashboard = () => {
         {/* Welcome Section */}
         <div className="bg-white rounded-lg shadow-md p-6">
           <h1 className="text-2xl font-bold mb-2">Painel Administrativo</h1>
-          <p className="text-gray-600">
+          <p className="text-gray-800 font-medium">
             Bem-vindo ao painel administrativo do A2 Tickets 360.
           </p>
         </div>
@@ -29,8 +29,8 @@ const AdminDashboard = () => {
           <div className="bg-white rounded-lg shadow-md p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-500 text-sm">Total de Eventos</p>
-                <h3 className="text-3xl font-bold">{totalEvents}</h3>
+                <p className="text-gray-700 font-bold text-sm">Total de Eventos</p>
+                <h3 className="text-3xl font-black text-gray-900">{totalEvents}</h3>
               </div>
               <div className="bg-primary/10 p-3 rounded-full">
                 <Calendar className="h-7 w-7 text-primary" />
@@ -41,8 +41,8 @@ const AdminDashboard = () => {
           <div className="bg-white rounded-lg shadow-md p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-500 text-sm">Total de Usuários</p>
-                <h3 className="text-3xl font-bold">{totalUsers}</h3>
+                <p className="text-gray-700 font-bold text-sm">Total de Usuários</p>
+                <h3 className="text-3xl font-black text-gray-900">{totalUsers}</h3>
               </div>
               <div className="bg-secondary/10 p-3 rounded-full">
                 <Users className="h-7 w-7 text-secondary" />
@@ -81,18 +81,18 @@ const AdminDashboard = () => {
 
           <div className="overflow-x-auto">
             <table className="min-w-full">
-              <thead className="bg-gray-50 border-b">
+              <thead className="bg-gray-100 border-b border-gray-200">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-black text-gray-900 uppercase tracking-wider">
                     Evento
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-black text-gray-900 uppercase tracking-wider">
                     Organizador
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-black text-gray-900 uppercase tracking-wider">
                     Data
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-right text-xs font-black text-gray-900 uppercase tracking-wider">
                     Ações
                   </th>
                 </tr>
@@ -170,21 +170,21 @@ const AdminDashboard = () => {
 
           <div className="overflow-x-auto">
             <table className="min-w-full">
-              <thead className="bg-gray-50 border-b">
+              <thead className="bg-gray-100 border-b border-gray-200">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-black text-gray-900 uppercase tracking-wider">
                     Evento
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-black text-gray-900 uppercase tracking-wider">
                     Organizador
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-black text-gray-900 uppercase tracking-wider">
                     Vendas
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-black text-gray-900 uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-right text-xs font-black text-gray-900 uppercase tracking-wider">
                     Ações
                   </th>
                 </tr>

@@ -22,8 +22,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { organizerService } from '@/services/organizerService';
 import { Event } from '@/interfaces/organizer';
+import { useAuth } from '@/contexts/AuthContext';
 
 const OrganizerEvents = () => {
+  const { user } = useAuth();
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -34,8 +36,8 @@ const OrganizerEvents = () => {
 
   const loadEvents = async () => {
     try {
-      const organizerId = '1'; // Em uma aplicação real, viria do contexto de autenticação
-      const eventsData = await organizerService.getEvents(organizerId);
+      if (!user?.id) return;
+      const eventsData = await organizerService.getEvents(user.id);
       setEvents(eventsData);
     } catch (error) {
       console.error('Erro ao carregar eventos:', error);

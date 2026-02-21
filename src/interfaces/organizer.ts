@@ -111,10 +111,35 @@ export interface Organizer {
   name: string;
   email: string;
   passwordHash?: string;
+
+  // Dados Pessoais
+  cpf?: string;
+  rg?: string;
+  phone?: string;
+  birthDate?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+
+  // Dados da Produtora
+  companyName?: string;
+  companyAddress?: string; // Alias para endereço da empresa
+  cnpj?: string;
+  mobilePhone?: string; // Alias para telefone celular
+  logoUrl?: string;
+  bannerUrl?: string;
+  bio?: string;
+
+  // Status
+  profileComplete: boolean;
+  isActive: boolean;
+  emailVerified: boolean;
+
   asaasId?: string;
   asaasApiKey?: string;
   walletId?: string;
-  emailVerified: boolean;
+  lastStep?: number;
   verificationToken?: string;
   createdAt: string;
   updatedAt: string;

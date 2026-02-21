@@ -15,7 +15,22 @@ export const masterService = {
         return await api.put(`/api/master/organizers/${id}`, data);
     },
 
-    // Outras funções master podem ser adicionadas aqui (ex: aprovação de eventos)
+    deleteOrganizer: async (id: string): Promise<any> => {
+        return await api.delete(`/api/master/organizers/${id}`);
+    },
+
+    // Aprovação de Eventos
+    getPendingEvents: async (): Promise<any[]> => {
+        return await api.get('/api/master/events/pending');
+    },
+
+    approveEvent: async (id: string): Promise<any> => {
+        return await api.put(`/api/master/events/${id}/approve`, {});
+    },
+
+    approveOrganizerManually: async (id: string): Promise<any> => {
+        return await api.post(`/api/master/organizers/${id}/approve-manually`, {});
+    },
 };
 
 export default masterService;

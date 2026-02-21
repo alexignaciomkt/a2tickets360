@@ -23,6 +23,7 @@ import OrganizerAttendees from '@/pages/dashboard/OrganizerAttendees';
 import OrganizerFinancial from '@/pages/dashboard/OrganizerFinancial';
 import OrganizerReports from '@/pages/dashboard/OrganizerReports';
 import OrganizerSettings from '@/pages/dashboard/OrganizerSettings';
+import OrganizerOnboarding from '@/pages/dashboard/OrganizerOnboarding';
 import OrganizerStaff from '@/pages/dashboard/OrganizerStaff';
 import OrganizerSuppliers from '@/pages/dashboard/OrganizerSuppliers';
 import OrganizerStands from '@/pages/dashboard/OrganizerStands';
@@ -109,6 +110,7 @@ function App() {
               <Route path="/organizer/financial" element={<OrganizerFinancial />} />
               <Route path="/organizer/reports" element={<OrganizerReports />} />
               <Route path="/organizer/settings" element={<OrganizerSettings />} />
+              <Route path="/organizer/onboarding" element={<OrganizerOnboarding />} />
               <Route path="/organizer/ticket-validation" element={<TicketValidation />} />
               <Route path="/organizer/ticket-designer" element={<TicketDesigner />} />
               <Route path="/organizer/sales-points" element={<SalesPoints />} />

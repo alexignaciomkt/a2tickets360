@@ -17,9 +17,10 @@ import {
     sponsorInstallments,
     sponsorDeliverables,
     visitors,
-    admins
+    admins,
+    eventCategories
 } from './db/schema';
-import { eq, and, or } from 'drizzle-orm';
+import { eq, and, or, ne, isNull } from 'drizzle-orm';
 import Redis from 'ioredis';
 import dotenv from 'dotenv';
 import { jwt, sign } from 'hono/jwt';
@@ -78,16 +79,62 @@ async function seedMasterAdmin() {
     }
 }
 
+// SEED: Garantir que as Categorias Globais de Eventos existem
+async function seedEventCategories() {
+    const defaultCategories = [
+        { name: 'Música', icon: 'Music' },
+        { name: 'Feira de Negócios', icon: 'Briefcase' },
+        { name: 'Festival', icon: 'PartyPopper' },
+        { name: 'Workshop', icon: 'Wrench' },
+        { name: 'Conferência', icon: 'Presentation' },
+        { name: 'Teatro', icon: 'Drama' },
+        { name: 'Dança', icon: 'Music2' },
+        { name: 'Esportes', icon: 'Trophy' },
+        { name: 'Gastronomia', icon: 'Utensils' },
+        { name: 'Arte', icon: 'PenTool' },
+        { name: 'Networking', icon: 'Users' },
+        { name: 'Shows', icon: 'Ticket' },
+        { name: 'Educação', icon: 'BookOpen' },
+        { name: 'Tecnologia', icon: 'Monitor' },
+        { name: 'Outros', icon: 'MoreHorizontal' },
+    ];
+
+    for (const cat of defaultCategories) {
+        const exists = await db.query.eventCategories.findFirst({
+            where: eq(eventCategories.name, cat.name)
+        });
+        if (!exists) {
+            await db.insert(eventCategories).values(cat);
+        }
+    }
+    console.log('✅ Categorias de eventos verificadas');
+}
+
 seedOrganizer();
 seedMasterAdmin();
+seedEventCategories();
 
-app.use('*', cors());
 
-// Middleware de Autenticação para Rotas Protegidas
+// Middleware CORS Global
+app.use('/*', cors({
+    origin: '*',
+    allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowHeaders: ['Content-Type', 'Authorization'],
+    exposeHeaders: ['Content-Length'],
+    maxAge: 600,
+    credentials: true,
+}));
+
+// Middleware de Autenticação (JWT)
 const authMiddleware = jwt({
     secret: process.env.JWT_SECRET || 'fallback_secret_for_dev_only',
     alg: 'HS256',
 });
+
+// Aplicar Auth APENAS em rotas protegidas
+// Exemplo: app.use('/api/protected/*', authMiddleware);
+// POR ENQUANTO: Vamos aplicar manualmente onde necessário ou criar grupos
+// NÃO aplicar globalmente para evitar bloquear login/registro
 
 app.get('/', (c: Context) => c.text('Ticketera API - High Performance Ready'));
 
@@ -164,14 +211,17 @@ app.post('/api/organizers/register', async (c: Context) => {
     const token = uuidv4();
 
     try {
-        // 1. Criar Subconta no Asaas (Opcional no momento do registro, ou obrigatório?)
-        // Por segurança, vamos criar apenas se os dados estiverem completos
+        // 1. Criar Subconta no Asaas (Opcional/Resiliente)
         let asaasAccount = null;
         if (cpfCnpj && mobilePhone) {
-            asaasAccount = await asaas.createSubAccount({ name, email, cpfCnpj, mobilePhone });
+            try {
+                asaasAccount = await asaas.createSubAccount({ name, email, cpfCnpj, mobilePhone });
+            } catch (asError) {
+                console.warn('⚠️ Falha ao criar subconta Asaas (Local/Sandbox?):', asError);
+            }
         }
 
-        // 2. Hash da senha (Usando Bun.password se disponível, ou simples se mock)
+        // 2. Hash da senha
         const passwordHash = await Bun.password.hash(password);
 
         // 3. Salvar no Banco
@@ -183,27 +233,37 @@ app.post('/api/organizers/register', async (c: Context) => {
             walletId: asaasAccount?.walletId,
             asaasApiKey: asaasAccount?.apiKey,
             emailVerified: false,
-            verificationToken: token
+            verificationToken: token,
+            isActive: true,
+            profileComplete: false
         }).returning();
 
-        // 4. Enviar e-mail de confirmação
-        const verificationUrl = `http://46.224.101.23:5173/auth/verify?token=${token}&type=organizer`;
+        // 4. Enviar e-mail de confirmação (Resiliente)
+        try {
+            const verificationUrl = `http://46.224.101.23:5173/auth/verify?token=${token}&type=organizer`;
+            await transporter.sendMail({
+                from: '"A2 Tickets 360" <a2tickets360@gmail.com>',
+                to: email,
+                subject: 'Verifique sua conta de Organizador - A2 Tickets 360',
+                html: `
+                    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; background: #050505; color: white; padding: 40px; border-radius: 20px;">
+                        <h1 style="color: #6366f1;">Bem-vindo, Produção Elite!</h1>
+                        <p>Sua jornada na A2 Tickets 360 está prestes a começar. Confirme seu e-mail para ativar seu painel de organizador:</p>
+                        <a href="${verificationUrl}" style="display: inline-block; background: #6366f1; color: white; padding: 12px 24px; border-radius: 10px; text-decoration: none; font-weight: bold; margin-top: 20px;">ATIVAR CONTA</a>
+                        <p style="margin-top: 30px; font-size: 12px; color: #666;">Se você não realizou este cadastro, ignore este e-mail.</p>
+                    </div>
+                `
+            });
+        } catch (mailError) {
+            console.warn('⚠️ Falha ao enviar e-mail (Local/SMTP?):', mailError);
+        }
 
-        await transporter.sendMail({
-            from: '"A2 Tickets 360" <a2tickets360@gmail.com>',
-            to: email,
-            subject: 'Verifique sua conta de Organizador - A2 Tickets 360',
-            html: `
-                <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; background: #050505; color: white; padding: 40px; border-radius: 20px;">
-                    <h1 style="color: #6366f1;">Bem-vindo, Produção Elite!</h1>
-                    <p>Sua jornada na A2 Tickets 360 está prestes a começar. Confirme seu e-mail para ativar seu painel de organizador:</p>
-                    <a href="${verificationUrl}" style="display: inline-block; background: #6366f1; color: white; padding: 12px 24px; border-radius: 10px; text-decoration: none; font-weight: bold; margin-top: 20px;">ATIVAR CONTA</a>
-                    <p style="margin-top: 30px; font-size: 12px; color: #666;">Se você não realizou este cadastro, ignore este e-mail.</p>
-                </div>
-            `
+        return c.json({
+            status: 'success',
+            message: 'Cadastro realizado com sucesso!',
+            organizerId: newOrganizer.id,
+            warning: 'Asaas ou E-mail podem não ter sido processados em ambiente local.'
         });
-
-        return c.json({ status: 'success', message: 'E-mail de verificação enviado!', organizerId: newOrganizer.id });
     } catch (error: any) {
         return c.json({ error: error.message }, 400);
     }
@@ -323,18 +383,129 @@ app.post('/api/auth/login', async (c: Context) => {
     }
 });
 
+// --- Categorias de Eventos (Banco Global) ---
+
+app.get('/api/event-categories', async (c: Context) => {
+    try {
+        const categories = await db.query.eventCategories.findMany({
+            orderBy: (cats: any, { asc }: any) => [asc(cats.name)]
+        });
+        return c.json(categories);
+    } catch (error: any) {
+        return c.json({ error: error.message }, 400);
+    }
+});
+
+app.post('/api/event-categories', async (c: Context) => {
+    const { name, icon } = await c.req.json();
+    try {
+        // Verifica se já existe (case-insensitive)
+        const existing = await db.query.eventCategories.findFirst({
+            where: eq(eventCategories.name, name)
+        });
+        if (existing) return c.json(existing);
+
+        const [newCategory] = await db.insert(eventCategories).values({
+            name,
+            icon: icon || 'Tag'
+        }).returning();
+        return c.json(newCategory);
+    } catch (error: any) {
+        return c.json({ error: error.message }, 400);
+    }
+});
+
 // --- Gestão de Eventos (CRUD Real) ---
+
+// Organizer Routes
+app.get('/api/organizers/:id/profile', async (c) => {
+    const id = c.req.param('id');
+    try {
+        const organizer = await db.query.organizers.findFirst({
+            where: eq(organizersTable.id, id),
+        });
+
+        if (!organizer) {
+            return c.json({ error: 'Organizador não encontrado' }, 404);
+        }
+
+        // Não enviar o passwordHash
+        const { passwordHash, ...profile } = organizer;
+        return c.json(profile);
+    } catch (error) {
+        console.error('Erro ao buscar perfil:', error);
+        return c.json({ error: 'Erro interno do servidor' }, 500);
+    }
+});
+
+app.put('/api/organizers/:id/profile', async (c) => {
+    const id = c.req.param('id');
+    const body = await c.req.json();
+    try {
+        const updated = await db.update(organizersTable)
+            .set({
+                ...body,
+                updatedAt: new Date(),
+            })
+            .where(eq(organizersTable.id, id))
+            .returning();
+
+        if (updated.length === 0) {
+            return c.json({ error: 'Organizador não encontrado' }, 404);
+        }
+
+        const { passwordHash, ...profile } = updated[0];
+        return c.json(profile);
+    } catch (error) {
+        console.error('Erro ao atualizar perfil:', error);
+        return c.json({ error: 'Erro ao atualizar perfil' }, 500);
+    }
+});
+
+app.put('/api/organizers/:id/complete-profile', async (c) => {
+    const id = c.req.param('id');
+    try {
+        const updated = await db.update(organizersTable)
+            .set({
+                profileComplete: true,
+                updatedAt: new Date(),
+            })
+            .where(eq(organizersTable.id, id))
+            .returning();
+
+        if (updated.length === 0) {
+            return c.json({ error: 'Organizador não encontrado' }, 404);
+        }
+
+        const { passwordHash, ...profile } = updated[0];
+        return c.json(profile);
+    } catch (error) {
+        console.error('Erro ao concluir perfil:', error);
+        return c.json({ error: 'Erro ao concluir perfil' }, 500);
+    }
+});
 
 // 1. Criar Evento
 app.post('/api/events', async (c: Context) => {
     const data = await c.req.json();
     try {
         const [newEvent] = await db.insert(events).values({
-            ...data,
-            locationName: data.location?.name,
-            locationAddress: data.location?.address,
+            organizerId: data.organizerId,
+            title: data.title,
+            description: data.description,
+            category: data.category,
+            eventType: data.eventType || 'paid',
+            date: data.date,
+            time: data.time,
+            duration: data.duration,
+            locationName: data.locationName || data.location?.name,
+            locationAddress: data.locationAddress || data.location?.address,
+            locationCity: data.locationCity,
+            locationState: data.locationState,
+            locationPostalCode: data.locationPostalCode,
             capacity: Number(data.capacity) || 0,
-            status: data.status || 'draft'
+            status: data.status || 'draft',
+            imageUrl: data.imageUrl,
         }).returning();
         return c.json(newEvent);
     } catch (error: any) {
@@ -620,10 +791,11 @@ app.post('/api/candidates/:id/proposals/:propId/respond', async (c: Context) => 
 
 // --- MASTER ADMIN: Gestão de Organizadores ---
 
-// 1. Listar todos os organizadores
+// 1. Listar todos os organizadores (Apenas ativos)
 app.get('/api/master/organizers', async (c: Context) => {
     try {
         const organizersList = await db.query.organizers.findMany({
+            where: or(eq(organizersTable.isActive, true), isNull(organizersTable.isActive)),
             orderBy: (organizers, { desc }) => [desc(organizers.createdAt)]
         });
         return c.json(organizersList);
@@ -641,7 +813,8 @@ app.post('/api/master/organizers', async (c: Context) => {
             name,
             email,
             passwordHash,
-            emailVerified: true // Master cria já verificado
+            emailVerified: true, // Master cria já verificado
+            isActive: true
         }).returning();
         return c.json(newOrganizer);
     } catch (error: any) {
@@ -659,10 +832,95 @@ app.put('/api/master/organizers/:id', async (c: Context) => {
             delete data.password;
         }
         const [updated] = await db.update(organizersTable)
-            .set(data)
+            .set({
+                ...data,
+                updatedAt: new Date()
+            })
             .where(eq(organizersTable.id, id))
             .returning();
         return c.json(updated);
+    } catch (error: any) {
+        return c.json({ error: error.message }, 400);
+    }
+});
+
+// 4. Excluir Organizador (Soft Delete)
+app.delete('/api/master/organizers/:id', async (c: Context) => {
+    const id = c.req.param('id');
+    try {
+        const [updated] = await db.update(organizersTable)
+            .set({
+                isActive: false,
+                updatedAt: new Date()
+            })
+            .where(eq(organizersTable.id, id))
+            .returning();
+
+        if (!updated) {
+            return c.json({ error: 'Organizador não encontrado' }, 404);
+        }
+
+        return c.json({ message: 'Organizador excluído com sucesso' });
+    } catch (error: any) {
+        return c.json({ error: error.message }, 400);
+    }
+});
+
+// 5. Listar eventos pendentes para aprovação
+app.get('/api/master/events/pending', async (c: Context) => {
+    try {
+        const pendingEvents = await db.query.events.findMany({
+            where: or(eq(events.status, 'draft'), eq(events.status, 'published')),
+            with: {
+                organizer: true
+            },
+            orderBy: (events, { desc }) => [desc(events.createdAt)]
+        });
+        return c.json(pendingEvents);
+    } catch (error: any) {
+        return c.json({ error: error.message }, 400);
+    }
+});
+
+// 6. Aprovar evento
+app.put('/api/master/events/:id/approve', async (c: Context) => {
+    const id = c.req.param('id');
+    try {
+        const [updated] = await db.update(events)
+            .set({
+                status: 'active',
+                updatedAt: new Date()
+            })
+            .where(eq(events.id, id))
+            .returning();
+
+        if (!updated) {
+            return c.json({ error: 'Evento não encontrado' }, 404);
+        }
+
+        return c.json({ message: 'Evento aprovado com sucesso' });
+    } catch (error: any) {
+        return c.json({ error: error.message }, 400);
+    }
+});
+
+// 7. Aprovar Organizador Manualmente (Bypass Onboarding)
+app.post('/api/master/organizers/:id/approve-manually', async (c: Context) => {
+    const id = c.req.param('id');
+    try {
+        const [updated] = await db.update(organizersTable)
+            .set({
+                profileComplete: true,
+                updatedAt: new Date()
+            })
+            .where(eq(organizersTable.id, id))
+            .returning();
+
+        if (!updated) {
+            return c.json({ error: 'Organizador não encontrado' }, 404);
+        }
+
+        return c.json({ status: 'success', message: 'Cadastro aprovado manualmente!' });
     } catch (error: any) {
         return c.json({ error: error.message }, 400);
     }

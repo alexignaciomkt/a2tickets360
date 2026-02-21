@@ -28,10 +28,13 @@ const LoginForm = () => {
           const user = JSON.parse(savedUser);
           if (user.role === 'master' || user.role === 'admin') {
             navigate('/master');
-          } else if (user.role === 'organizer') {
-            navigate('/organizer');
-          } else if (user.role === 'staff') {
-            navigate('/organizer'); // Staff also goes to organizer dashboard context
+          } else if (user.role === 'organizer' || user.role === 'staff') {
+            // Se for produtor e não tiver perfil completo, vai para onboarding
+            if (user.role === 'organizer' && !user.profileComplete) {
+              navigate('/organizer/onboarding');
+            } else {
+              navigate('/organizer');
+            }
           } else {
             navigate('/dashboard');
           }

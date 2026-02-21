@@ -8,7 +8,8 @@ interface User {
   name: string;
   email: string;
   role: 'customer' | 'organizer' | 'admin' | 'staff' | 'master';
-  photoUrl?: string;
+  profileComplete: boolean;
+  photoUrl: string;
 }
 
 interface AuthContextType {
@@ -46,6 +47,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         name: data.user.name,
         email: data.user.email,
         role: data.user.role,
+        profileComplete: !!data.user.profile_complete,
+        photoUrl: data.user.photo_url || '',
       };
 
       setUser(userData);

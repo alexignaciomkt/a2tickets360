@@ -41,7 +41,7 @@ const OrganizerDashboard = () => {
         {/* Welcome Section */}
         <div className="bg-white rounded-lg shadow-md p-6">
           <h1 className="text-2xl font-bold mb-2">Painel do Organizador</h1>
-          <p className="text-gray-600">
+          <p className="text-gray-800 font-medium">
             Gerencie seus eventos, acompanhe vendas e administre ingressos.
           </p>
         </div>
@@ -75,6 +75,7 @@ const OrganizerDashboard = () => {
           <div className="bg-white rounded-lg shadow-md p-6">
             <div className="flex items-center justify-between">
               <div>
+                <p className="text-gray-500 text-sm">Receita Total</p>
                 <h3 className="text-3xl font-bold">
                   {totalRevenue > 0 ? `R$ ${totalRevenue.toFixed(2).replace('.', ',')}` : 'Grátis'}
                 </h3>
@@ -88,8 +89,8 @@ const OrganizerDashboard = () => {
           <div className="bg-white rounded-lg shadow-md p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-500 text-sm">Próximo Evento</p>
-                <h3 className="text-lg font-bold truncate">
+                <p className="text-gray-700 font-bold text-sm">Próximo Evento</p>
+                <h3 className="text-lg font-black text-gray-900 truncate">
                   {eventsList[0]?.title || 'Nenhum evento'}
                 </h3>
               </div>
@@ -156,21 +157,21 @@ const OrganizerDashboard = () => {
 
           <div className="overflow-x-auto">
             <table className="min-w-full">
-              <thead className="bg-gray-50 border-b">
+              <thead className="bg-gray-100 border-b border-gray-200">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-black text-gray-900 uppercase tracking-wider">
                     Evento
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-black text-gray-900 uppercase tracking-wider">
                     Data
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-black text-gray-900 uppercase tracking-wider">
                     Vendas
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-black text-gray-900 uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-right text-xs font-black text-gray-900 uppercase tracking-wider">
                     Ações
                   </th>
                 </tr>

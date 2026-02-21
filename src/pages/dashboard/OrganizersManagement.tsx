@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, CheckCircle, XCircle, MoreHorizontal, Plus, Edit, Trash2, ShieldAlert } from 'lucide-react';
+import { Users, CheckCircle, XCircle, MoreHorizontal, Plus, Edit, Trash2, ShieldAlert, AlertTriangle, MessageSquare } from 'lucide-react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,75 +19,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-// Mock data para os organizadores
-const mockOrganizers = [
-  {
-    id: 'org1',
-    name: 'Ana Silva',
-    email: 'ana@eventpro.com',
-    company: 'EventPro',
-    events: 24,
-    revenue: 45600,
-    status: 'active',
-    dateJoined: '2023-02-15',
-    photoUrl: 'https://i.pravatar.cc/150?img=1'
-  },
-  {
-    id: 'org2',
-    name: 'Carlos Santos',
-    email: 'carlos@festejaja.com',
-    company: 'FestejaJá',
-    events: 18,
-    revenue: 32400,
-    status: 'active',
-    dateJoined: '2023-05-22',
-    photoUrl: 'https://i.pravatar.cc/150?img=2'
-  },
-  {
-    id: 'org3',
-    name: 'Mariana Oliveira',
-    email: 'mariana@eventosvip.com',
-    company: 'Eventos VIP',
-    events: 12,
-    revenue: 28900,
-    status: 'active',
-    dateJoined: '2023-08-10',
-    photoUrl: 'https://i.pravatar.cc/150?img=3'
-  },
-  {
-    id: 'org4',
-    name: 'Pedro Mendes',
-    email: 'pedro@showtime.com',
-    company: 'ShowTime',
-    events: 8,
-    revenue: 18500,
-    status: 'pending',
-    dateJoined: '2024-01-30',
-    photoUrl: 'https://i.pravatar.cc/150?img=4'
-  },
-  {
-    id: 'org5',
-    name: 'Juliana Costa',
-    email: 'juliana@festivaissp.com',
-    company: 'Festivais SP',
-    events: 0,
-    revenue: 0,
-    status: 'pending',
-    dateJoined: '2024-02-28',
-    photoUrl: 'https://i.pravatar.cc/150?img=5'
-  },
-  {
-    id: 'org6',
-    name: 'Roberto Alves',
-    email: 'roberto@megashows.com',
-    company: 'MegaShows',
-    events: 0,
-    revenue: 0,
-    status: 'pending',
-    dateJoined: '2024-03-15',
-    photoUrl: 'https://i.pravatar.cc/150?img=6'
-  }
-];
+// Mock data removido pois estamos usando o backend real
 
 const OrganizersManagement = () => {
   const { toast } = useToast();
@@ -96,9 +28,11 @@ const OrganizersManagement = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [selectedOrg, setSelectedOrg] = useState<Organizer | null>(null);
   const [newOrg, setNewOrg] = useState({ name: '', email: '', password: '' });
   const [editForm, setEditForm] = useState({ name: '', email: '' });
+  const [isApproving, setIsApproving] = useState(false);
 
   useEffect(() => {
     loadOrganizers();
@@ -122,7 +56,37 @@ const OrganizersManagement = () => {
 
   const filteredOrganizers = activeTab === 'all'
     ? organizers
-    : organizers.filter(org => org.emailVerified ? activeTab === 'active' : activeTab === 'pending');
+    : activeTab === 'active'
+      ? organizers.filter(org => org.emailVerified && org.profileComplete)
+      : organizers.filter(org => !org.emailVerified || !org.profileComplete);
+
+  const pendingCount = organizers.filter(org => !org.emailVerified || !org.profileComplete).length;
+
+  const generateProfileReport = (org: Organizer) => {
+    let report = "### 📋 Pendências de Cadastro\n\n";
+    report += `Olá **${org.name}**, detectamos que seu perfil ainda não está completo. Para que possamos aprovar seus eventos com agilidade, por favor complete os seguintes itens:\n\n`;
+
+    const missing = [];
+    if (!org.cnpj) missing.push("- [ ] **CNPJ ou CPF**: Documentação fiscal obrigatória.");
+    if (!org.companyAddress) missing.push("- [ ] **Endereço Completo**: Necessário para contratos e notas.");
+    if (!org.mobilePhone) missing.push("- [ ] **Telefone de Contato**: Vital para suporte durante eventos.");
+    if (!org.logoUrl) missing.push("- [ ] **Logo da Empresa/Produtor**: Exibição na página do evento.");
+    if (!org.bio) missing.push("- [ ] **Bio/Descrição**: Conte um pouco sobre sua produtora.");
+
+    if (missing.length === 0) {
+      report = "### ✅ Cadastro Completo!\n\nTodos os dados obrigatórios foram preenchidos. O administrador revisará seu perfil em breve.";
+    } else {
+      report += missing.join("\n");
+      report += "\n\n> [!TIP]\n> Acesse 'Configurações' no seu painel para atualizar estes dados.";
+    }
+
+    return report;
+  };
+
+  const handleShowReport = (org: Organizer) => {
+    setSelectedOrg(org);
+    setIsReportModalOpen(true);
+  };
 
   const handleApprove = async (id: string) => {
     try {
@@ -189,18 +153,40 @@ const OrganizersManagement = () => {
     }
   };
 
+  const handleApproveManually = async (org: Organizer) => {
+    try {
+      setIsApproving(true);
+      await masterService.approveOrganizerManually(org.id);
+      setIsReportModalOpen(false);
+      loadOrganizers();
+      toast({
+        title: 'Cadastro Aprovado',
+        description: `O perfil de ${org.name} foi aprovado manualmente.`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Erro ao aprovar',
+        description: 'Tente novamente mais tarde.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsApproving(false);
+    }
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm('Tem certeza que deseja excluir este organizador?')) return;
     try {
-      await masterService.updateOrganizer(id, { isActive: false } as any);
+      await masterService.deleteOrganizer(id);
       loadOrganizers();
       toast({
         title: 'Organizador removido',
-        description: 'O acesso foi desabilitado.',
+        description: 'O organizador foi removido com sucesso.',
       });
     } catch (error) {
       toast({
         title: 'Erro ao remover',
+        description: 'Não foi possível remover o organizador.',
         variant: 'destructive',
       });
     }
@@ -231,52 +217,60 @@ const OrganizersManagement = () => {
               <TabsList className="mb-4">
                 <TabsTrigger value="all">Todos</TabsTrigger>
                 <TabsTrigger value="active">Ativos</TabsTrigger>
-                <TabsTrigger value="pending">Pendentes</TabsTrigger>
+                <TabsTrigger value="pending" className="flex items-center gap-2">
+                  Pendentes
+                  {pendingCount > 0 && (
+                    <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                      {pendingCount}
+                    </span>
+                  )}
+                </TabsTrigger>
               </TabsList>
 
-              <TabsContent value="all" className="m-0">
+              <TabsContent value={activeTab} className="m-0">
                 <div className="rounded-md border">
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
-                      <thead className="bg-gray-50">
+                      <thead className="bg-gray-100 border-b border-gray-200">
                         <tr>
-                          <th className="px-4 py-3 text-left font-medium">Organizador</th>
-                          <th className="px-4 py-3 text-left font-medium">Empresa</th>
-                          <th className="px-4 py-3 text-left font-medium">Eventos</th>
-                          <th className="px-4 py-3 text-left font-medium">Faturamento</th>
-                          <th className="px-4 py-3 text-left font-medium">Status</th>
-                          <th className="px-4 py-3 text-right font-medium">Ações</th>
+                          <th className="px-4 py-3 text-left font-black text-gray-900 uppercase tracking-tighter">Organizador</th>
+                          <th className="px-4 py-3 text-left font-black text-gray-900 uppercase tracking-tighter">Empresa</th>
+                          <th className="px-4 py-3 text-left font-black text-gray-900 uppercase tracking-tighter text-center">Eventos</th>
+                          <th className="px-4 py-3 text-left font-black text-gray-900 uppercase tracking-tighter">Faturamento</th>
+                          <th className="px-4 py-3 text-left font-black text-gray-900 uppercase tracking-tighter">Status</th>
+                          <th className="px-4 py-3 text-left font-black text-gray-900 uppercase tracking-tighter">Cadastro</th>
+                          <th className="px-4 py-3 text-right font-black text-gray-900 uppercase tracking-tighter">Ações</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y">
+                      <tbody className="divide-y text-gray-800">
                         {isLoading ? (
                           <tr>
-                            <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                            <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
                               Carregando organizadores...
                             </td>
                           </tr>
                         ) : filteredOrganizers.length === 0 ? (
                           <tr>
-                            <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
-                              Nenhum organizador encontrado.
+                            <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                              Nenhum organizador encontrado nesta categoria.
                             </td>
                           </tr>
                         ) : filteredOrganizers.map((org) => (
-                          <tr key={org.id}>
-                            <td className="px-4 py-3 whitespace-nowrap">
+                          <tr key={org.id} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-4 py-3 whitespace-nowrap cursor-pointer" onClick={() => !org.profileComplete && handleShowReport(org)}>
                               <div className="flex items-center">
                                 <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold mr-3">
                                   {org.name.charAt(0)}
                                 </div>
                                 <div>
-                                  <div className="font-medium text-white">{org.name}</div>
-                                  <div className="text-gray-400">{org.email}</div>
+                                  <div className="font-black text-gray-900 uppercase tracking-tight">{org.name}</div>
+                                  <div className="text-gray-600 font-medium text-xs">{org.email}</div>
                                 </div>
                               </div>
                             </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-gray-300">A2 Tickets</td>
-                            <td className="px-4 py-3 whitespace-nowrap text-gray-300">0</td>
-                            <td className="px-4 py-3 whitespace-nowrap text-gray-300">
+                            <td className="px-4 py-3 whitespace-nowrap text-gray-700 font-bold">{org.companyName || 'A2 Tickets'}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-gray-700 font-bold text-center">0</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-indigo-700 font-black">
                               R$ 0,00
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap">
@@ -290,6 +284,25 @@ const OrganizersManagement = () => {
                                 </span>
                               )}
                             </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <div
+                                className={`flex items-center gap-2 ${!org.profileComplete ? 'cursor-pointer hover:opacity-80' : ''}`}
+                                onClick={() => !org.profileComplete && handleShowReport(org)}
+                              >
+                                {org.profileComplete ? (
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    Completo
+                                  </span>
+                                ) : (
+                                  <>
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                                      Incompleto
+                                    </span>
+                                    <AlertTriangle className="h-4 w-4 text-amber-500 animate-pulse" />
+                                  </>
+                                )}
+                              </div>
+                            </td>
                             <td className="px-4 py-3 whitespace-nowrap text-right">
                               {!org.emailVerified ? (
                                 <div className="flex justify-end space-x-2">
@@ -297,9 +310,17 @@ const OrganizersManagement = () => {
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => handleApprove(org.id)}
-                                    className="text-green-400 hover:text-green-300 hover:bg-green-900/20"
+                                    className="text-green-600 hover:text-green-700 hover:bg-green-50"
                                   >
                                     <CheckCircle className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDelete(org.id)}
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
                                   </Button>
                                 </div>
                               ) : (
@@ -309,19 +330,19 @@ const OrganizersManagement = () => {
                                       <MoreHorizontal className="h-4 w-4" />
                                     </Button>
                                   </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-800 text-white">
+                                  <DropdownMenuContent align="end" className="bg-white border-gray-200 text-gray-900 shadow-xl">
                                     <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                                    <DropdownMenuSeparator className="bg-zinc-800" />
-                                    <DropdownMenuItem className="focus:bg-zinc-800 focus:text-white cursor-pointer" onClick={() => handleEdit(org)}>
+                                    <DropdownMenuSeparator className="bg-gray-100" />
+                                    <DropdownMenuItem className="focus:bg-gray-100 cursor-pointer" onClick={() => handleEdit(org)}>
                                       <Edit className="mr-2 h-4 w-4" />
                                       Editar Dados
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem className="focus:bg-zinc-800 focus:text-white cursor-pointer">
+                                    <DropdownMenuItem className="focus:bg-gray-100 cursor-pointer">
                                       <ShieldAlert className="mr-2 h-4 w-4" />
                                       Bloquear Acesso
                                     </DropdownMenuItem>
-                                    <DropdownMenuSeparator className="bg-zinc-800" />
-                                    <DropdownMenuItem className="focus:bg-red-900/20 text-red-400 focus:text-red-400 cursor-pointer" onClick={() => handleDelete(org.id)}>
+                                    <DropdownMenuSeparator className="bg-gray-100" />
+                                    <DropdownMenuItem className="focus:bg-red-50 text-red-600 focus:text-red-600 cursor-pointer" onClick={() => handleDelete(org.id)}>
                                       <Trash2 className="mr-2 h-4 w-4" />
                                       Excluir
                                     </DropdownMenuItem>
@@ -335,14 +356,6 @@ const OrganizersManagement = () => {
                     </table>
                   </div>
                 </div>
-              </TabsContent>
-
-              <TabsContent value="active" className="m-0">
-                {/* Content for active tab - same structure as 'all' tab */}
-              </TabsContent>
-
-              <TabsContent value="pending" className="m-0">
-                {/* Content for pending tab - same structure as 'all' tab */}
               </TabsContent>
             </Tabs>
           </CardContent>
@@ -427,6 +440,50 @@ const OrganizersManagement = () => {
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="ghost" onClick={() => setIsEditModalOpen(false)} className="rounded-xl h-12">Cancelar</Button>
             <Button onClick={handleUpdateOrganizer} className="bg-indigo-600 hover:bg-indigo-700 rounded-xl h-12 px-8 font-bold">SALVAR ALTERAÇÕES</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={isReportModalOpen} onOpenChange={setIsReportModalOpen}>
+        <DialogContent className="bg-white border-gray-200 text-gray-900 max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl font-bold">
+              <ShieldAlert className="h-6 w-6 text-amber-500" />
+              Relatório de Validação
+            </DialogTitle>
+            <DialogDescription>
+              Confira os dados que faltam para o perfil de **{selectedOrg?.name}**.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-6 px-4 bg-gray-50 rounded-xl border border-gray-100 font-mono text-sm whitespace-pre-wrap leading-relaxed max-h-[60vh] overflow-y-auto custom-scrollbar">
+            {selectedOrg && generateProfileReport(selectedOrg)}
+          </div>
+
+          <DialogFooter className="flex flex-col sm:flex-row gap-3">
+            <div className="flex-1 flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsReportModalOpen(false)}
+                className="flex-1"
+              >
+                Fechar
+              </Button>
+              <Button
+                variant="outline"
+                className="flex-1 border-amber-200 text-amber-700 hover:bg-amber-50"
+                onClick={() => selectedOrg && handleApproveManually(selectedOrg)}
+                disabled={isApproving}
+              >
+                {isApproving ? 'Aprovando...' : 'Aprovar Manualmente'}
+              </Button>
+            </div>
+            <Button
+              className="bg-green-600 hover:bg-green-700 text-white flex-1 font-bold"
+              onClick={() => window.open(`https://wa.me/${selectedOrg?.mobilePhone?.replace(/\D/g, '')}`, '_blank')}
+            >
+              <MessageSquare className="mr-2 h-4 w-4" />
+              Notificar via WhatsApp
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
