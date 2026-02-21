@@ -418,6 +418,26 @@ app.post('/api/event-categories', async (c: Context) => {
 // --- Gestão de Eventos (CRUD Real) ---
 
 // Organizer Routes
+// Singular alias for compatibility
+app.get('/api/organizer/:id/profile', async (c) => {
+    const id = c.req.param('id');
+    try {
+        const organizer = await db.query.organizers.findFirst({
+            where: eq(organizersTable.id, id),
+        });
+
+        if (!organizer) {
+            return c.json({ error: 'Organizador não encontrado' }, 404);
+        }
+
+        const { passwordHash, ...profile } = organizer;
+        return c.json(profile);
+    } catch (error) {
+        console.error('Erro ao buscar perfil:', error);
+        return c.json({ error: 'Erro interno do servidor' }, 500);
+    }
+});
+
 app.get('/api/organizers/:id/profile', async (c) => {
     const id = c.req.param('id');
     try {
@@ -429,12 +449,37 @@ app.get('/api/organizers/:id/profile', async (c) => {
             return c.json({ error: 'Organizador não encontrado' }, 404);
         }
 
-        // Não enviar o passwordHash
         const { passwordHash, ...profile } = organizer;
         return c.json(profile);
     } catch (error) {
         console.error('Erro ao buscar perfil:', error);
         return c.json({ error: 'Erro interno do servidor' }, 500);
+    }
+});
+
+
+// Put routes with singular aliases
+app.put('/api/organizer/:id/profile', async (c) => {
+    const id = c.req.param('id');
+    const body = await c.req.json();
+    try {
+        const updated = await db.update(organizersTable)
+            .set({
+                ...body,
+                updatedAt: new Date(),
+            })
+            .where(eq(organizersTable.id, id))
+            .returning();
+
+        if (updated.length === 0) {
+            return c.json({ error: 'Organizador não encontrado' }, 404);
+        }
+
+        const { passwordHash, ...profile } = updated[0];
+        return c.json(profile);
+    } catch (error) {
+        console.error('Erro ao atualizar perfil:', error);
+        return c.json({ error: 'Erro ao atualizar perfil' }, 500);
     }
 });
 
@@ -485,6 +530,7 @@ app.put('/api/organizers/:id/complete-profile', async (c) => {
     }
 });
 
+
 // 1. Criar Evento
 app.post('/api/events', async (c: Context) => {
     const data = await c.req.json();
@@ -513,17 +559,39 @@ app.post('/api/events', async (c: Context) => {
     }
 });
 
-// 2. Listar Eventos por Organizador
-app.get('/api/events/organizer/:organizerId', async (c: Context) => {
+// 2. Listar Eventos por Organizador (Dual support plural/singular)
+const getEventsByOrganizer = async (c: Context) => {
     const organizerId = c.req.param('organizerId');
-    const result = await db.query.events.findMany({
-        where: eq(events.organizerId, organizerId),
-        with: {
-            tickets: true
-        }
-    } as any);
-    return c.json(result);
-});
+    try {
+        const results = await db.query.events.findMany({
+            where: eq(events.organizerId, organizerId),
+            with: {
+                tickets: true
+            }
+        } as any);
+
+        // Transform flat location fields into nested location object for the frontend
+        const transformedResults = results.map((event: any) => ({
+            ...event,
+            location: {
+                name: event.locationName,
+                address: event.locationAddress,
+                city: event.locationCity,
+                state: event.locationState,
+                postalCode: event.locationPostalCode,
+                coordinates: { lat: 0, lng: 0 } // Default for now
+            }
+        }));
+
+        return c.json(transformedResults);
+    } catch (error: any) {
+        return c.json({ error: error.message }, 500);
+    }
+};
+
+app.get('/api/events/organizer/:organizerId', getEventsByOrganizer);
+app.get('/api/events/organizers/:organizerId', getEventsByOrganizer);
+
 
 // 3. Detalhes de um Evento
 app.get('/api/events/:id', async (c: Context) => {

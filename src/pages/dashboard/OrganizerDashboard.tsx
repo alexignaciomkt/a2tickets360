@@ -5,13 +5,19 @@ import { Calendar, Users, DollarSign, LineChart, Clock, Plus, Globe, Loader2 } f
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { organizerService } from '@/services/organizerService';
 import { Event } from '@/interfaces/organizer';
+import { useAuth } from '@/contexts/AuthContext';
+import WelcomeModal from '@/components/modals/WelcomeModal';
 
 const OrganizerDashboard = () => {
+  const { user } = useAuth();
   const [eventsList, setEventsList] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const organizerId = '6d123456-789a-4bc3-d2e1-09876543210f'; // ID Fixado para teste
+  const [showWelcome, setShowWelcome] = useState(false);
+  const organizerId = user?.id || '';
 
   useEffect(() => {
+    if (!organizerId) return;
+
     const fetchEvents = async () => {
       try {
         const data = await organizerService.getEvents(organizerId);
@@ -23,7 +29,14 @@ const OrganizerDashboard = () => {
       }
     };
     fetchEvents();
-  }, []);
+
+    // Check for welcome flag
+    const welcomeFlag = localStorage.getItem('A2Tickets_showWelcome');
+    if (welcomeFlag === 'true') {
+      setShowWelcome(true);
+      localStorage.removeItem('A2Tickets_showWelcome');
+    }
+  }, [organizerId]);
 
   const totalEvents = eventsList.length;
   const totalTicketsSold = eventsList.reduce(
@@ -219,7 +232,7 @@ const OrganizerDashboard = () => {
                     <tr key={event.id}>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="font-medium text-gray-900">{event.title}</div>
-                        <div className="text-sm text-gray-500">{event.location.city}, {event.location.state}</div>
+                        <div className="text-sm text-gray-500">{event.location?.city}, {event.location?.state}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         {event.date}
@@ -256,6 +269,7 @@ const OrganizerDashboard = () => {
           </div>
         </div>
       </div>
+      <WelcomeModal isOpen={showWelcome} onClose={() => setShowWelcome(false)} />
     </DashboardLayout>
   );
 };

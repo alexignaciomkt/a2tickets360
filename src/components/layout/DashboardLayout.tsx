@@ -274,18 +274,29 @@ const DashboardLayout = ({ children, userType }: DashboardLayoutProps) => {
           <div className="px-6 py-4 flex items-center justify-between">
             <h2 className="text-lg font-semibold">{getDashboardTitle()}</h2>
 
-            {userType === 'organizer' && user && !user.profileComplete && location.pathname !== '/organizer/onboarding' && (
-              <div className="flex items-center gap-4 bg-amber-50 border border-amber-100 px-4 py-2 rounded-xl animate-pulse hover:animate-none group">
+            {userType === 'organizer' && user && location.pathname !== '/organizer/onboarding' && (
+              <div className={`flex items-center gap-4 px-4 py-2 rounded-xl transition-all ${user.profileComplete ? 'bg-emerald-50 border border-emerald-100 group' : 'bg-amber-50 border border-amber-100 animate-pulse hover:animate-none group'}`}>
                 <div className="flex items-center gap-2">
-                  <ShieldCheck className="h-5 w-5 text-amber-500" />
-                  <p className="text-xs font-bold text-amber-900 uppercase tracking-tighter">Perfil Incompleto</p>
+                  {user.profileComplete ? (
+                    <>
+                      <ShieldCheck className="h-5 w-5 text-emerald-500" />
+                      <p className="text-xs font-bold text-emerald-900 uppercase tracking-tighter">Cadastro Verificado</p>
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck className="h-5 w-5 text-amber-500" />
+                      <p className="text-xs font-bold text-amber-900 uppercase tracking-tighter">Perfil Incompleto</p>
+                    </>
+                  )}
                 </div>
-                <Link
-                  to="/organizer/onboarding"
-                  className="bg-amber-500 text-white px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-amber-600 transition-colors shadow-sm"
-                >
-                  Continuar Onde Parei
-                </Link>
+                {!user.profileComplete && (
+                  <Link
+                    to="/organizer/onboarding"
+                    className="bg-amber-500 text-white px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-amber-600 transition-colors shadow-sm"
+                  >
+                    Continuar Onde Parei
+                  </Link>
+                )}
               </div>
             )}
           </div>

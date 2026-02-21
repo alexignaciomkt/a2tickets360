@@ -61,21 +61,41 @@ const OrganizerOnboarding = () => {
         banner: null as string | null,
     });
 
+    const [lastSavedData, setLastSavedData] = useState<string>('');
+
     useEffect(() => {
         if (user?.id) {
             loadProfile();
         }
     }, [user]);
 
+    // Auto-save logic with debounce
+    useEffect(() => {
+        const currentDataStr = JSON.stringify(formData);
+        if (lastSavedData && currentDataStr !== lastSavedData && !loading && !saving) {
+            const timer = setTimeout(() => {
+                saveProfile();
+            }, 2000); // 2 seconds debounce
+            return () => clearTimeout(timer);
+        }
+    }, [formData, loading]);
+
     const loadProfile = async () => {
         try {
             setLoading(true);
             const profile = await organizerService.getProfile(user!.id);
             if (profile) {
+                // Remove internal fields that shouldn't be in formData for saving
+                const { id, email, createdAt, updatedAt, passwordHash, ...safeProfile } = profile;
+
                 setFormData(prev => ({
                     ...prev,
-                    ...profile
+                    ...safeProfile
                 }));
+
+                // Track initial state to avoid immediate auto-save
+                setLastSavedData(JSON.stringify({ ...formData, ...safeProfile }));
+
                 if (profile.lastStep && profile.lastStep > 1 && profile.lastStep <= 4) {
                     setCurrentStep(profile.lastStep);
                 }
@@ -127,15 +147,55 @@ const OrganizerOnboarding = () => {
     };
 
     const saveProfile = async (step?: number) => {
-        if (!user?.id) return;
+        if (!user?.id) {
+            console.error('SaveProfile: No user ID');
+            return false;
+        }
+
+        if (loading) {
+            console.warn('SaveProfile: Still loading profile');
+            return false;
+        }
+
+        if (saving) return false;
+
         setSaving(true);
         try {
-            const dataToSave = { ...formData };
-            if (step) dataToSave.lastStep = step;
-            await organizerService.updateProfile(user.id, dataToSave);
+            // Explicitly whitelist fields to be sent to the backend
+            // This prevents errors in Drizzle/Postgres when trying to update non-existent or restricted columns
+            const allowedFields = [
+                'name', 'cpf', 'rg', 'phone', 'birthDate', 'address', 'city', 'state', 'postalCode',
+                'documentFrontUrl', 'documentBackUrl', 'companyName', 'cnpj', 'companyAddress',
+                'logoUrl', 'bannerUrl', 'bio', 'asaasApiKey'
+            ];
+
+            const finalData: any = {};
+
+            // Populate finalData only with permitted fields that exist in formData
+            allowedFields.forEach(field => {
+                const value = (formData as any)[field];
+                if (value !== undefined && value !== null) {
+                    finalData[field] = value;
+                }
+            });
+
+            finalData.lastStep = step || currentStep;
+
+            console.log('Tentando salvar:', finalData);
+            await organizerService.updateProfile(user.id, finalData);
+
+            setLastSavedData(JSON.stringify(formData));
             return true;
-        } catch (err) {
-            toast({ variant: 'destructive', title: 'Erro ao salvar', description: 'Tente novamente em instantes.' });
+        } catch (err: any) {
+            console.error('Erro ao salvar perfil:', err);
+            // If it's a manual navigation, show the error but return false to signal failure
+            if (step) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Erro ao salvar',
+                    description: 'Seu progresso não foi salvo, mas vamos tentar prosseguir.'
+                });
+            }
             return false;
         } finally {
             setSaving(false);
@@ -143,17 +203,45 @@ const OrganizerOnboarding = () => {
     };
 
     const nextStep = async () => {
+        console.log('nextStep disparado. Passo atual:', currentStep);
+        if (loading || saving) return;
+
         const next = currentStep + 1;
+        if (next > 4) return;
+
+        // Tenta salvar, mas permite avançar mesmo com erro no save
         const saved = await saveProfile(next);
-        if (saved) {
-            setCurrentStep(next);
+
+        console.log('Resultado do saveProfile:', saved);
+
+        // FORÇA O AVANÇO para não travar o usuário
+        setCurrentStep(next);
+        window.scrollTo(0, 0);
+
+        if (!saved) {
+            toast({
+                variant: 'destructive',
+                title: 'Atenção',
+                description: 'Avançamos, mas houve um erro ao salvar esses dados. Verifique sua conexão.'
+            });
+        }
+    };
+
+    const prevStep = async () => {
+        if (currentStep > 1) {
+            const prev = currentStep - 1;
+            // Save before going back to ensure data is captured
+            await saveProfile(prev);
+            setCurrentStep(prev);
             window.scrollTo(0, 0);
         }
     };
 
-    const prevStep = () => {
-        if (currentStep > 1) {
-            setCurrentStep(prev => prev - 1);
+    const handleStepClick = async (step: number) => {
+        // Save current progress before switching steps via clicking
+        const saved = await saveProfile(step);
+        if (saved) {
+            setCurrentStep(step);
             window.scrollTo(0, 0);
         }
     };
@@ -164,13 +252,17 @@ const OrganizerOnboarding = () => {
     };
 
     const finishOnboarding = async () => {
+        console.log('Finalizando onboarding para usuario:', user?.id);
         const saved = await saveProfile();
         if (saved) {
             try {
                 await organizerService.completeProfile(user!.id);
+                // Flag to show welcome modal on dashboard
+                localStorage.setItem('A2Tickets_showWelcome', 'true');
                 toast({ title: '🎊 Cadastro Concluído!', description: 'Agora você pode criar seus eventos.' });
-                navigate('/organizer/dashboard');
+                navigate('/organizer');
             } catch (err) {
+                console.error('Erro ao completar perfil:', err);
                 toast({ variant: 'destructive', title: 'Erro ao finalizar', description: 'Tente novamente.' });
             }
         }
@@ -200,7 +292,7 @@ const OrganizerOnboarding = () => {
                     </p>
                 </div>
 
-                <EventWizardStepper steps={STEPS} currentStep={currentStep} onStepClick={setCurrentStep} />
+                <EventWizardStepper steps={STEPS} currentStep={currentStep} onStepClick={handleStepClick} />
 
                 <div className="bg-white border border-gray-200 rounded-3xl p-8 md:p-12 shadow-sm min-h-[500px]">
                     {/* Step 1: Dados Pessoais */}
@@ -498,7 +590,7 @@ const OrganizerOnboarding = () => {
                         {currentStep < 4 ? (
                             <Button
                                 onClick={nextStep}
-                                disabled={saving}
+                                disabled={loading || saving}
                                 className="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-tighter px-8 h-12 rounded-2xl shadow-lg shadow-indigo-100 gap-2"
                             >
                                 {saving ? 'Salvando...' : 'Próxima Etapa'} <ArrowRight className="h-4 w-4" />
@@ -506,7 +598,7 @@ const OrganizerOnboarding = () => {
                         ) : (
                             <Button
                                 onClick={finishOnboarding}
-                                disabled={saving}
+                                disabled={loading || saving}
                                 className="bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-tighter px-10 h-12 rounded-2xl shadow-lg shadow-emerald-100 gap-2 animate-bounce hover:animate-none"
                             >
                                 {saving ? 'Salvando...' : 'Concluir Cadastro'} <CheckCircle2 className="h-5 w-5" />

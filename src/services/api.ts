@@ -1,4 +1,5 @@
 const API_URL = import.meta.env.VITE_API_URL || 'https://46.224.101.23.sslip.io';
+console.log('API Conectada em:', API_URL);
 
 export async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const token = localStorage.getItem('A2Tickets_token');
