@@ -37,6 +37,12 @@ export const organizers = pgTable('organizers', {
     logoUrl: text('logo_url'),
     bannerUrl: text('banner_url'),
     bio: text('bio'),
+    slug: text('slug').unique(),
+    category: text('category'),
+    instagramUrl: text('instagram_url'),
+    facebookUrl: text('facebook_url'),
+    whatsappNumber: text('whatsapp_number'),
+    websiteUrl: text('website_url'),
 
     // Status do Cadastro
     profileComplete: boolean('profile_complete').default(false),

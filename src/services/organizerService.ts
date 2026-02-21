@@ -39,6 +39,13 @@ class OrganizerService {
     return api.delete(`/api/events/${eventId}`);
   }
 
+  // Image Upload
+  async uploadImage(file: File): Promise<{ url: string }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/api/upload', formData);
+  }
+
   // Profile Management
   async getProfile(organizerId: string): Promise<any> {
     return api.get(`/api/organizers/${organizerId}/profile`);
@@ -50,6 +57,10 @@ class OrganizerService {
 
   async completeProfile(organizerId: string): Promise<any> {
     return api.put(`/api/organizers/${organizerId}/complete-profile`, {});
+  }
+
+  async getProducerBySlug(slug: string): Promise<any> {
+    return api.get(`/api/organizers/slug/${slug}`);
   }
 
   // Tickets Management

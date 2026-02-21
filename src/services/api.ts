@@ -4,11 +4,13 @@ console.log('API Conectada em:', API_URL);
 export async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const token = localStorage.getItem('A2Tickets_token');
 
+    const isFormData = options.body instanceof FormData;
+
     const headers = {
-        'Content-Type': 'application/json',
+        ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
         ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         ...options.headers,
-    };
+    } as any;
 
     const response = await fetch(`${API_URL}${endpoint}`, {
         ...options,
@@ -25,8 +27,18 @@ export async function request<T>(endpoint: string, options: RequestInit = {}): P
 
 export const api = {
     get: <T>(endpoint: string) => request<T>(endpoint, { method: 'GET' }),
-    post: <T>(endpoint: string, body: any) => request<T>(endpoint, { method: 'POST', body: JSON.stringify(body) }),
-    put: <T>(endpoint: string, body: any) => request<T>(endpoint, { method: 'PUT', body: JSON.stringify(body) }),
+    post: <T>(endpoint: string, body: any, options: RequestInit = {}) =>
+        request<T>(endpoint, {
+            method: 'POST',
+            body: body instanceof FormData ? body : JSON.stringify(body),
+            ...options
+        }),
+    put: <T>(endpoint: string, body: any, options: RequestInit = {}) =>
+        request<T>(endpoint, {
+            method: 'PUT',
+            body: body instanceof FormData ? body : JSON.stringify(body),
+            ...options
+        }),
     delete: <T>(endpoint: string) => request<T>(endpoint, { method: 'DELETE' }),
 };
 

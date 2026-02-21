@@ -14,10 +14,9 @@ import { organizerService } from '@/services/organizerService';
 import EventWizardStepper from '@/components/events/EventWizardStepper';
 
 const STEPS = [
-    { number: 1, title: 'Dados Pessoais', icon: <User className="h-4 w-4" /> },
-    { number: 2, title: 'Sua Produtora', icon: <Building2 className="h-4 w-4" /> },
-    { number: 3, title: 'Identidade Visual', icon: <Palette className="h-4 w-4" /> },
-    { number: 4, title: 'Financeiro', icon: <Landmark className="h-4 w-4" /> },
+    { number: 1, title: 'Identidade Visual', icon: <Palette className="h-4 w-4" /> },
+    { number: 2, title: 'Dados Pessoais', icon: <User className="h-4 w-4" /> },
+    { number: 3, title: 'Financeiro', icon: <Landmark className="h-4 w-4" /> },
 ];
 
 const OrganizerOnboarding = () => {
@@ -30,7 +29,19 @@ const OrganizerOnboarding = () => {
 
     // Form State
     const [formData, setFormData] = useState({
-        // Step 1
+        // Visual (Step 1)
+        companyName: '',
+        bio: '',
+        logoUrl: '',
+        bannerUrl: '',
+        slug: '',
+        category: '',
+        instagramUrl: '',
+        facebookUrl: '',
+        whatsappNumber: '',
+        websiteUrl: '',
+
+        // Pessoal (Step 2)
         cpf: '',
         rg: '',
         phone: '',
@@ -41,15 +52,10 @@ const OrganizerOnboarding = () => {
         postalCode: '',
         documentFrontUrl: '',
         documentBackUrl: '',
-        // Step 2
-        companyName: '',
         cnpj: '',
         companyAddress: '',
-        bio: '',
-        // Step 3
-        logoUrl: '',
-        bannerUrl: '',
-        // Step 4
+
+        // Financeiro (Step 3)
         asaasApiKey: '',
         lastStep: 1,
     });
@@ -118,12 +124,26 @@ const OrganizerOnboarding = () => {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, field: string, previewKey: keyof typeof previews) => {
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: string, previewKey: keyof typeof previews) => {
         const file = e.target.files?.[0];
         if (file) {
-            const url = URL.createObjectURL(file);
-            setPreviews(prev => ({ ...prev, [previewKey]: url }));
-            setFormData(prev => ({ ...prev, [field]: url })); // In a real app, this would be the uploaded S3/Cloudinary URL
+            // Preview imediato local
+            const localUrl = URL.createObjectURL(file);
+            setPreviews(prev => ({ ...prev, [previewKey]: localUrl }));
+
+            try {
+                // Upload real para o servidor
+                const { url } = await organizerService.uploadImage(file);
+                setFormData(prev => ({ ...prev, [field]: url }));
+                setPreviews(prev => ({ ...prev, [previewKey]: url })); // Atualiza para o URL real
+            } catch (err) {
+                console.error('Erro no upload:', err);
+                toast({
+                    variant: 'destructive',
+                    title: 'Erro no Upload',
+                    description: 'Não foi possível salvar a imagem no servidor.'
+                });
+            }
         }
     };
 
@@ -166,7 +186,8 @@ const OrganizerOnboarding = () => {
             const allowedFields = [
                 'name', 'cpf', 'rg', 'phone', 'birthDate', 'address', 'city', 'state', 'postalCode',
                 'documentFrontUrl', 'documentBackUrl', 'companyName', 'cnpj', 'companyAddress',
-                'logoUrl', 'bannerUrl', 'bio', 'asaasApiKey'
+                'logoUrl', 'bannerUrl', 'bio', 'asaasApiKey', 'slug', 'category',
+                'instagramUrl', 'facebookUrl', 'whatsappNumber', 'websiteUrl'
             ];
 
             const finalData: any = {};
@@ -207,7 +228,7 @@ const OrganizerOnboarding = () => {
         if (loading || saving) return;
 
         const next = currentStep + 1;
-        if (next > 4) return;
+        if (next > 3) return;
 
         // Tenta salvar, mas permite avançar mesmo com erro no save
         const saved = await saveProfile(next);
@@ -295,192 +316,91 @@ const OrganizerOnboarding = () => {
                 <EventWizardStepper steps={STEPS} currentStep={currentStep} onStepClick={handleStepClick} />
 
                 <div className="bg-white border border-gray-200 rounded-3xl p-8 md:p-12 shadow-sm min-h-[500px]">
-                    {/* Step 1: Dados Pessoais */}
+                    {/* Step 1: Identidade Visual / Vitrine */}
                     {currentStep === 1 && (
                         <div className="animate-in fade-in slide-in-from-right-4 duration-500 space-y-8">
-                            <div>
-                                <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                                    <User className="h-5 w-5 text-indigo-500" /> Dados do Responsável
-                                </h3>
-                                <p className="text-sm text-gray-500">Informações pessoais para verificação de identidade</p>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="flex items-center justify-between">
                                 <div>
-                                    <label className="text-sm font-semibold text-gray-700 mb-2 block">CPF *</label>
-                                    <Input name="cpf" value={formData.cpf} onChange={handleInputChange} placeholder="000.000.000-00" />
+                                    <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                                        <Palette className="h-5 w-5 text-indigo-500" /> Vitrine do Produtor
+                                    </h3>
+                                    <p className="text-sm text-gray-500">Personalize como os usuários verão sua página pública</p>
                                 </div>
-                                <div>
-                                    <label className="text-sm font-semibold text-gray-700 mb-2 block">RG *</label>
-                                    <Input name="rg" value={formData.rg} onChange={handleInputChange} placeholder="12.345.678-x" />
+                                <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-indigo-50 rounded-xl border border-indigo-100">
+                                    <Sparkles className="h-4 w-4 text-indigo-600" />
+                                    <span className="text-[10px] font-bold text-indigo-600 uppercase">Criação de FanPage</span>
                                 </div>
-                                <div>
-                                    <label className="text-sm font-semibold text-gray-700 mb-2 block">Telefone *</label>
-                                    <Input name="phone" value={formData.phone} onChange={handleInputChange} placeholder="(11) 98765-4321" />
-                                </div>
-                                <div>
-                                    <label className="text-sm font-semibold text-gray-700 mb-2 block">Data de Nascimento *</label>
-                                    <Input type="date" name="birthDate" value={formData.birthDate} onChange={handleInputChange} />
-                                </div>
-                            </div>
-
-                            <div className="space-y-4">
-                                <h4 className="text-sm font-bold text-gray-700 uppercase tracking-widest">Endereço de Correspondência</h4>
-                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                    <div>
-                                        <label className="text-xs text-gray-500 mb-1 block">CEP</label>
-                                        <Input name="postalCode" value={formData.postalCode} onChange={handleInputChange} onBlur={handleCepBlur} placeholder="00000-000" />
-                                    </div>
-                                    <div className="md:col-span-3">
-                                        <label className="text-xs text-gray-500 mb-1 block">Logradouro *</label>
-                                        <Input name="address" value={formData.address} onChange={handleInputChange} placeholder="Rua, Número, Bairro" />
-                                    </div>
-                                    <div className="md:col-span-2">
-                                        <label className="text-xs text-gray-500 mb-1 block">Cidade *</label>
-                                        <Input name="city" value={formData.city} onChange={handleInputChange} />
-                                    </div>
-                                    <div className="md:col-span-2">
-                                        <label className="text-xs text-gray-500 mb-1 block">Estado *</label>
-                                        <Input name="state" value={formData.state} onChange={handleInputChange} />
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="space-y-4">
-                                <h4 className="text-sm font-bold text-gray-700 uppercase tracking-widest flex items-center gap-2">
-                                    <ShieldCheck className="h-4 w-4 text-emerald-500" /> Verificação de Documentos
-                                </h4>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="relative border-2 border-dashed border-gray-200 rounded-2xl p-6 text-center hover:border-indigo-300 transition-colors bg-gray-50 group">
-                                        <input type="file" accept="image/*" onChange={(e) => handleFileUpload(e, 'documentFrontUrl', 'docFront')} className="absolute inset-0 opacity-0 cursor-pointer" />
-                                        {previews.docFront ? (
-                                            <div className="h-40 relative rounded-lg overflow-hidden">
-                                                <img src={previews.docFront} className="h-full w-full object-cover" />
-                                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <p className="text-white text-xs font-bold">Trocar Documento (Frente)</p>
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <div className="py-4">
-                                                <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center mx-auto mb-3">
-                                                    <Camera className="h-6 w-6 text-gray-400" />
-                                                </div>
-                                                <p className="text-sm font-bold text-gray-600">Documento Frente</p>
-                                                <p className="text-xs text-gray-400">RG ou CNH</p>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    <div className="relative border-2 border-dashed border-gray-200 rounded-2xl p-6 text-center hover:border-indigo-300 transition-colors bg-gray-50 group">
-                                        <input type="file" accept="image/*" onChange={(e) => handleFileUpload(e, 'documentBackUrl', 'docBack')} className="absolute inset-0 opacity-0 cursor-pointer" />
-                                        {previews.docBack ? (
-                                            <div className="h-40 relative rounded-lg overflow-hidden">
-                                                <img src={previews.docBack} className="h-full w-full object-cover" />
-                                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <p className="text-white text-xs font-bold">Trocar Documento (Verso)</p>
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <div className="py-4">
-                                                <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center mx-auto mb-3">
-                                                    <Camera className="h-6 w-6 text-gray-400" />
-                                                </div>
-                                                <p className="text-sm font-bold text-gray-600">Documento Verso</p>
-                                                <p className="text-xs text-gray-400">RG ou CNH</p>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Step 2: Sua Produtora */}
-                    {currentStep === 2 && (
-                        <div className="animate-in fade-in slide-in-from-right-4 duration-500 space-y-8">
-                            <div>
-                                <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                                    <Building2 className="h-5 w-5 text-indigo-500" /> Dados da Produtora
-                                </h3>
-                                <p className="text-sm text-gray-500">Fale um pouco sobre sua empresa ou marca</p>
                             </div>
 
                             <div className="space-y-6">
-                                <div>
-                                    <label className="text-sm font-semibold text-gray-700 mb-2 block">Nome Fantasia / Marca *</label>
-                                    <Input name="companyName" value={formData.companyName} onChange={handleInputChange} placeholder="Ex: Eventos Elite" />
-                                </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div>
-                                        <label className="text-sm font-semibold text-gray-700 mb-2 block">CNPJ (Opcional)</label>
-                                        <Input name="cnpj" value={formData.cnpj} onChange={handleInputChange} placeholder="00.000.000/0000-00" />
-                                        <p className="text-[10px] text-gray-400 mt-1 uppercase font-bold tracking-tighter">Não obrigatório, mas recomendado para eventos pagos</p>
+                                        <label className="text-sm font-semibold text-gray-700 mb-2 block">Nome da Produtora / Marca *</label>
+                                        <Input name="companyName" value={formData.companyName} onChange={handleInputChange} placeholder="Ex: Elite Eventos" />
                                     </div>
                                     <div>
-                                        <label className="text-sm font-semibold text-gray-700 mb-2 block">Endereço Comercial</label>
-                                        <Input name="companyAddress" value={formData.companyAddress} onChange={handleInputChange} placeholder="Mesmo do pessoal ou um comercial" />
+                                        <label className="text-sm font-semibold text-gray-700 mb-2 block">URL Personalizada (Slug)</label>
+                                        <div className="flex items-center">
+                                            <span className="bg-gray-100 border border-r-0 border-gray-200 px-3 py-2 rounded-l-xl text-xs text-gray-500">.../p/</span>
+                                            <Input name="slug" value={formData.slug} onChange={handleInputChange} placeholder="minha-produtora" className="rounded-l-none" />
+                                        </div>
                                     </div>
                                 </div>
+
                                 <div>
-                                    <label className="text-sm font-semibold text-gray-700 mb-2 block">Sobre a Produtora</label>
-                                    <Textarea name="bio" value={formData.bio} onChange={handleInputChange} placeholder="Conte um pouco sobre os tipos de eventos que você produz..." rows={4} />
+                                    <label className="text-sm font-semibold text-gray-700 mb-2 block">Sobre a Produtora (Bio)</label>
+                                    <Textarea name="bio" value={formData.bio} onChange={handleInputChange} placeholder="Conte sua história e os tipos de eventos que você produz..." rows={3} />
                                 </div>
-                            </div>
-                        </div>
-                    )}
 
-                    {/* Step 3: Identidade Visual */}
-                    {currentStep === 3 && (
-                        <div className="animate-in fade-in slide-in-from-right-4 duration-500 space-y-8">
-                            <div>
-                                <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                                    <Palette className="h-5 w-5 text-indigo-500" /> Vitrine do Produtor
-                                </h3>
-                                <p className="text-sm text-gray-500">Personalize como os usuários verão sua página pública</p>
-                            </div>
-
-                            <div className="space-y-8">
-                                <div>
-                                    <label className="text-sm font-semibold text-gray-700 mb-4 block">Logo da Produtora</label>
-                                    <div className="flex items-center gap-8">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <div>
+                                        <label className="text-sm font-semibold text-gray-700 mb-4 block">Logo de Perfil</label>
                                         <div className="relative w-32 h-32 rounded-3xl border-2 border-dashed border-gray-200 flex items-center justify-center bg-gray-50 group transition-all hover:border-indigo-400 overflow-hidden">
                                             <input type="file" accept="image/*" onChange={(e) => handleFileUpload(e, 'logoUrl', 'logo')} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
                                             {previews.logo ? (
                                                 <img src={previews.logo} className="w-full h-full object-cover" />
                                             ) : (
-                                                <Upload className="h-6 w-6 text-gray-300" />
+                                                <div className="text-center">
+                                                    <Upload className="h-6 w-6 text-gray-300 mx-auto" />
+                                                    <p className="text-[10px] text-gray-400 mt-1 uppercase font-bold">Subir Foto</p>
+                                                </div>
                                             )}
                                         </div>
-                                        <div className="flex-1">
-                                            <p className="text-sm font-bold text-gray-700">Logo de Perfil</p>
-                                            <p className="text-xs text-gray-500 mt-1">Recomendado: Quadrado, min 400x400px</p>
-                                            <p className="text-xs text-indigo-500 font-bold mt-2 uppercase">Aparecerá no header dos seus eventos</p>
+                                    </div>
+                                    <div>
+                                        <label className="text-sm font-semibold text-gray-700 mb-4 block">Banner de Capa</label>
+                                        <div className="relative h-32 rounded-3xl border-2 border-dashed border-gray-200 flex items-center justify-center bg-gray-50 group transition-all hover:border-indigo-400 overflow-hidden">
+                                            <input type="file" accept="image/*" onChange={(e) => handleFileUpload(e, 'bannerUrl', 'banner')} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
+                                            {previews.banner ? (
+                                                <img src={previews.banner} className="w-full h-full object-cover" />
+                                            ) : (
+                                                <div className="text-center">
+                                                    <Upload className="h-6 w-6 text-gray-300 mx-auto mb-1" />
+                                                    <p className="text-[10px] text-gray-400 uppercase font-bold">Upload Capa</p>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
 
-                                <div>
-                                    <label className="text-sm font-semibold text-gray-700 mb-4 block">Banner de Capa</label>
-                                    <div className="relative h-48 rounded-3xl border-2 border-dashed border-gray-200 flex items-center justify-center bg-gray-50 group transition-all hover:border-indigo-400 overflow-hidden">
-                                        <input type="file" accept="image/*" onChange={(e) => handleFileUpload(e, 'bannerUrl', 'banner')} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
-                                        {previews.banner ? (
-                                            <img src={previews.banner} className="w-full h-full object-cover" />
-                                        ) : (
-                                            <div className="text-center">
-                                                <Upload className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                                                <p className="text-xs text-gray-400 font-bold uppercase">Upload do banner da página do produtor</p>
-                                            </div>
-                                        )}
+                                <div className="space-y-4 pt-4 border-t">
+                                    <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest">Redes Sociais & Contato Público</h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <Input name="instagramUrl" value={formData.instagramUrl} onChange={handleInputChange} placeholder="Instagram URL" />
+                                        <Input name="whatsappNumber" value={formData.whatsappNumber} onChange={handleInputChange} placeholder="WhatsApp (DDD + Número)" />
                                     </div>
                                 </div>
 
-                                {/* Preview Mockup */}
-                                <div className="bg-gray-50 rounded-3xl p-6 border border-gray-100">
-                                    <h4 className="text-[10px] items-center gap-2 font-black text-gray-400 uppercase tracking-widest mb-4 flex">
-                                        <Sparkles className="h-3 w-3" /> Preview da sua FanPage
-                                    </h4>
-                                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden scale-90 origin-top">
-                                        <div className="h-20 bg-gray-200 relative">
+                                {/* Preview Mockup compact */}
+                                <div className="bg-gray-50 rounded-3xl p-6 border border-gray-100 overflow-hidden">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                                            <Sparkles className="h-3 w-3" /> Preview FanPage
+                                        </h4>
+                                        <span className="text-[10px] font-bold text-indigo-600">PROFISSIONAL</span>
+                                    </div>
+                                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden scale-95 origin-top">
+                                        <div className="h-24 bg-gray-200 relative">
                                             {previews.banner && <img src={previews.banner} className="w-full h-full object-cover" />}
                                         </div>
                                         <div className="px-6 pb-6 relative">
@@ -489,7 +409,7 @@ const OrganizerOnboarding = () => {
                                             </div>
                                             <div className="pt-12">
                                                 <h5 className="font-bold text-gray-900">{formData.companyName || 'Sua Produtora'}</h5>
-                                                <p className="text-xs text-gray-400 truncate">{formData.bio || 'Sua descrição aparecerá aqui...'}</p>
+                                                <p className="text-[10px] text-gray-400 truncate">{formData.bio || 'Sua descrição profissional aparecerá aqui...'}</p>
                                             </div>
                                         </div>
                                     </div>
@@ -498,8 +418,65 @@ const OrganizerOnboarding = () => {
                         </div>
                     )}
 
-                    {/* Step 4: Financeiro */}
-                    {currentStep === 4 && (
+                    {/* Step 2: Dados Pessoais & Produtora Dados */}
+                    {currentStep === 2 && (
+                        <div className="animate-in fade-in slide-in-from-right-4 duration-500 space-y-8">
+                            <div>
+                                <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                                    <User className="h-5 w-5 text-indigo-500" /> Registro Profissional
+                                </h3>
+                                <p className="text-sm text-gray-500">Informações para verificação e emissão de notas</p>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="text-xs text-gray-500 mb-1 block">CNPJ (Opcional)</label>
+                                        <Input name="cnpj" value={formData.cnpj} onChange={handleInputChange} placeholder="00.000.000/0000-00" />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs text-gray-500 mb-1 block">Telefone de Contato *</label>
+                                        <Input name="phone" value={formData.phone} onChange={handleInputChange} placeholder="(11) 98765-4321" />
+                                    </div>
+                                </div>
+
+                                <div className="md:col-span-2 space-y-4 pt-4 border-t">
+                                    <h4 className="text-xs font-bold text-gray-700 uppercase tracking-widest">Documentos do Responsável</h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="relative border-2 border-dashed border-gray-200 rounded-2xl p-4 text-center hover:border-indigo-300 transition-colors bg-gray-50 group">
+                                            <input type="file" accept="image/*" onChange={(e) => handleFileUpload(e, 'documentFrontUrl', 'docFront')} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                            {previews.docFront ? (
+                                                <div className="h-24 relative rounded-lg overflow-hidden">
+                                                    <img src={previews.docFront} className="h-full w-full object-cover" />
+                                                </div>
+                                            ) : (
+                                                <div className="py-2">
+                                                    <Camera className="h-6 w-6 text-gray-400 mx-auto mb-1" />
+                                                    <p className="text-[10px] font-bold text-gray-600">Doc Frente</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="relative border-2 border-dashed border-gray-200 rounded-2xl p-4 text-center hover:border-indigo-300 transition-colors bg-gray-50 group">
+                                            <input type="file" accept="image/*" onChange={(e) => handleFileUpload(e, 'documentBackUrl', 'docBack')} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                            {previews.docBack ? (
+                                                <div className="h-24 relative rounded-lg overflow-hidden">
+                                                    <img src={previews.docBack} className="h-full w-full object-cover" />
+                                                </div>
+                                            ) : (
+                                                <div className="py-2">
+                                                    <Camera className="h-6 w-6 text-gray-400 mx-auto mb-1" />
+                                                    <p className="text-[10px] font-bold text-gray-600">Doc Verso</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Step 3: Financeiro */}
+                    {currentStep === 3 && (
                         <div className="animate-in fade-in slide-in-from-right-4 duration-500 space-y-8">
                             <div>
                                 <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
@@ -585,9 +562,9 @@ const OrganizerOnboarding = () => {
                             Fazer mais tarde
                         </Button>
                         <p className="hidden sm:block text-xs font-bold text-gray-400 uppercase tracking-widest px-4 border-l border-gray-200">
-                            Passo {currentStep} de 4
+                            Passo {currentStep} de 3
                         </p>
-                        {currentStep < 4 ? (
+                        {currentStep < 3 ? (
                             <Button
                                 onClick={nextStep}
                                 disabled={loading || saving}

@@ -30,6 +30,10 @@ dotenv.config();
 import { asaas } from './services/asaas';
 import nodemailer from 'nodemailer';
 import { v4 as uuidv4 } from 'uuid';
+import { serveStatic } from '@hono/node-server/serve-static';
+import { writeFile, mkdir } from 'node:fs/promises';
+import { join } from 'node:path';
+import { existsSync } from 'node:fs';
 
 const transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -137,6 +141,40 @@ const authMiddleware = jwt({
 // NÃO aplicar globalmente para evitar bloquear login/registro
 
 app.get('/', (c: Context) => c.text('Ticketera API - High Performance Ready'));
+
+// --- DOWNLOAD/STORAGE ---
+const UPLOADS_DIR = join(process.cwd(), 'uploads');
+if (!existsSync(UPLOADS_DIR)) {
+    await mkdir(UPLOADS_DIR, { recursive: true });
+}
+
+// Servir arquivos estáticos
+app.use('/uploads/*', serveStatic({ root: './' }));
+
+// Endpoint de Upload
+app.post('/api/upload', async (c: Context) => {
+    try {
+        const body = await c.req.parseBody();
+        const file = body['file'] as File;
+
+        if (!file) {
+            return c.json({ error: 'Nenhum arquivo enviado' }, 400);
+        }
+
+        const extension = file.name.split('.').pop();
+        const fileName = `${uuidv4()}.${extension}`;
+        const filePath = join(UPLOADS_DIR, fileName);
+
+        const bytes = await file.arrayBuffer();
+        await writeFile(filePath, Buffer.from(bytes));
+
+        const url = `${process.env.API_URL || 'http://localhost:3001'}/uploads/${fileName}`;
+
+        return c.json({ url });
+    } catch (error: any) {
+        return c.json({ error: error.message }, 500);
+    }
+});
 
 // --- AUTENTICAÇÃO REAL ---
 
@@ -527,6 +565,25 @@ app.put('/api/organizers/:id/complete-profile', async (c) => {
     } catch (error) {
         console.error('Erro ao concluir perfil:', error);
         return c.json({ error: 'Erro ao concluir perfil' }, 500);
+    }
+});
+
+app.get('/api/organizers/slug/:slug', async (c) => {
+    const slug = c.req.param('slug');
+    try {
+        const organizer = await db.query.organizers.findFirst({
+            where: eq(organizersTable.slug, slug),
+        });
+
+        if (!organizer) {
+            return c.json({ error: 'Organizador não encontrado' }, 404);
+        }
+
+        const { passwordHash, asaasApiKey, ...publicProfile } = organizer;
+        return c.json(publicProfile);
+    } catch (error) {
+        console.error('Erro ao buscar perfil por slug:', error);
+        return c.json({ error: 'Erro interno do servidor' }, 500);
     }
 });
 

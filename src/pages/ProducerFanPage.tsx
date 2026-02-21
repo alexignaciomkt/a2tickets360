@@ -26,7 +26,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
+import { organizerService } from '@/services/organizerService';
 import { events as mockEvents, Photo } from '@/data/mockData';
 import { Producer, Post } from '@/interfaces/a2types';
 
@@ -38,22 +39,74 @@ const ProducerFanPage = () => {
   const [hasLiked, setHasLiked] = useState(false);
   const { toast } = useToast();
 
-  // Mock producer data
-  const producer: Producer = {
-    id: '1',
-    name: 'Bomba Produções',
-    slug: slug || 'bombaproducoes',
-    description: 'Transformando noites em memórias inesquecíveis através da música e arte. Especializada em produção de eventos musicais e culturais de alto nível.',
-    location: 'São José dos Campos, SP',
-    phone: '(12) 99999-9999',
-    email: 'contato@bombaproducoes.com.br',
-    website: 'www.bombaproducoes.com.br',
-    coverImage: 'https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=1200&h=400&fit=crop',
-    profileImage: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=400&h=400&fit=crop',
-    verified: true,
-    followers: 2547,
+  const [producerData, setProducerData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (slug) {
+      loadProducer();
+    }
+  }, [slug]);
+
+  const loadProducer = async () => {
+    try {
+      setLoading(true);
+      const data = await organizerService.getProducerBySlug(slug!);
+      setProducerData(data);
+    } catch (err) {
+      console.error('Erro ao carregar produtor:', err);
+      toast({
+        variant: 'destructive',
+        title: 'Erro',
+        description: 'Produtor não encontrado ou erro de carregamento.'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
+
+  if (!producerData) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <Card className="max-w-md w-full p-8 text-center space-y-4">
+          <Info className="w-12 h-12 text-gray-400 mx-auto" />
+          <h2 className="text-xl font-bold">Página não encontrada</h2>
+          <p className="text-gray-500">O produtor que você procura não existe ou a URL está incorreta.</p>
+          <Button variant="outline" asChild>
+            <Link to="/">Voltar para Início</Link>
+          </Button>
+        </Card>
+      </div>
+    );
+  }
+
+  // Map backend fields to local view
+  const producer = {
+    id: producerData.id,
+    name: producerData.companyName || producerData.name,
+    slug: producerData.slug,
+    description: producerData.bio || 'Sem descrição disponível.',
+    location: producerData.city ? `${producerData.city}, ${producerData.state}` : 'Local não informado',
+    phone: producerData.phone || producerData.whatsappNumber,
+    email: producerData.email,
+    website: producerData.websiteUrl,
+    coverImage: producerData.bannerUrl || 'https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=1200&h=400&fit=crop',
+    profileImage: producerData.logoUrl || 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=400&h=400&fit=crop',
+    verified: producerData.profileComplete,
+    followers: 0,
     following: false,
-    category: 'Organização de eventos'
+    category: producerData.category || 'Produtor Independente',
+    instagramUrl: producerData.instagramUrl,
+    facebookUrl: producerData.facebookUrl,
+    whatsappNumber: producerData.whatsappNumber
   };
 
   const posts: Post[] = [
