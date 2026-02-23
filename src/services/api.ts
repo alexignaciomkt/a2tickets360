@@ -18,8 +18,8 @@ export async function request<T>(endpoint: string, options: RequestInit = {}): P
     });
 
     if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.message || 'Erro na requisição ao servidor');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || 'Erro na requisição ao servidor');
     }
 
     return response.json();
