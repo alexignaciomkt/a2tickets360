@@ -151,10 +151,10 @@ const Index = () => {
         <section className="max-w-7xl mx-auto px-4 -mt-16 relative z-30">
           <div className="bg-white rounded-[3rem] shadow-2xl p-8 grid grid-cols-2 lg:grid-cols-4 gap-8 border border-gray-100">
             {[
-              { label: 'Música', icon: Music, color: 'text-pink-600', bg: 'bg-pink-50', id: 'music' },
-              { label: 'Educação', icon: Laptop, color: 'text-blue-600', bg: 'bg-blue-50', id: 'workshop' },
-              { label: 'Humor', icon: Mic2, color: 'text-orange-600', bg: 'bg-orange-50', id: 'theater' },
-              { label: 'Festivais', icon: Heart, color: 'text-red-600', bg: 'bg-red-50', id: 'conference' },
+              { label: 'Música', icon: Music, color: 'text-pink-600', bg: 'bg-pink-50', id: 'Música' },
+              { label: 'Educação', icon: Laptop, color: 'text-blue-600', bg: 'bg-blue-50', id: 'Educação' },
+              { label: 'Humor', icon: Mic2, color: 'text-orange-600', bg: 'bg-orange-50', id: 'Humor' },
+              { label: 'Festivais', icon: Heart, color: 'text-red-600', bg: 'bg-red-50', id: 'Festivais' },
             ].map((cat, i) => (
               <Link
                 key={i}
@@ -172,9 +172,9 @@ const Index = () => {
 
         {/* Events Grid by Category */}
         {[
-          { title: 'Shows e Música', id: 'music' },
-          { title: 'Workshops e Cursos', id: 'workshop' },
-          { title: 'Teatro e Stand-up', id: 'theater' }
+          { title: 'Shows e Música', id: 'Música' },
+          { title: 'Workshops e Cursos', id: 'Educação' },
+          { title: 'Teatro e Stand-up', id: 'Humor' }
         ].map((cat) => (
           <section key={cat.id} className="max-w-7xl mx-auto px-4 py-20">
             <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">

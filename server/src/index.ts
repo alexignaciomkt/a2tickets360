@@ -720,6 +720,7 @@ const getEventsByOrganizer = async (c: Context) => {
         // Transform flat location fields into nested location object for the frontend
         const transformedResults = results.map((event: any) => ({
             ...event,
+            bannerUrl: event.imageUrl, // Map imageUrl to bannerUrl
             location: {
                 name: event.locationName,
                 address: event.locationAddress,
@@ -783,6 +784,7 @@ app.get('/api/public/events', async (c: Context) => {
 
         const transformedResults = results.map((event: any) => ({
             ...event,
+            bannerUrl: event.imageUrl,
             location: {
                 name: event.locationName,
                 address: event.locationAddress,
@@ -814,6 +816,7 @@ app.get('/api/public/featured-events', async (c: Context) => {
 
         const transformedResults = results.map((event: any) => ({
             ...event,
+            bannerUrl: event.imageUrl,
             location: {
                 name: event.locationName,
                 address: event.locationAddress,

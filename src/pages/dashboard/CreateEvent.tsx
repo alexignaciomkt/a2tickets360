@@ -86,12 +86,25 @@ const CreateEvent = () => {
     { id: `temp_${Date.now()}`, name: '', price: 0, quantity: 100, category: 'standard' }
   ]);
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // 1. Mostrar preview local imediato
       const url = URL.createObjectURL(file);
       setPreviewUrl(url);
-      setImageUrl(url);
+
+      // 2. Upload para o servidor
+      try {
+        const { url: remoteUrl } = await organizerService.uploadImage(file);
+        setImageUrl(remoteUrl);
+      } catch (err) {
+        console.error('Erro no upload da imagem:', err);
+        toast({
+          variant: 'destructive',
+          title: 'Erro no Upload',
+          description: 'Não foi possível salvar a imagem no servidor. Tente novamente.'
+        });
+      }
     }
   };
 
