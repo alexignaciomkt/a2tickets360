@@ -18,6 +18,7 @@ const MasterAdminPanel = () => {
   const { user } = useAuth();
   const [stats, setStats] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -25,8 +26,9 @@ const MasterAdminPanel = () => {
         setIsLoading(true);
         const data = await masterService.getStats();
         setStats(data);
-      } catch (error) {
-        console.error('Erro ao buscar estatísticas do master:', error);
+      } catch (err: any) {
+        console.error('Erro ao buscar estatísticas do master:', err);
+        setError(err.message || 'Erro ao carregar dados do painel.');
       } finally {
         setIsLoading(false);
       }
@@ -151,6 +153,24 @@ const MasterAdminPanel = () => {
     },
   ];
 
+  if (error && !stats) {
+    return (
+      <DashboardLayout userType="admin">
+        <div className="flex flex-col items-center justify-center py-20 space-y-4">
+          <AlertTriangle className="w-12 h-12 text-yellow-500" />
+          <h2 className="text-xl font-bold text-gray-800">Erro ao carregar painel</h2>
+          <p className="text-gray-500 text-center max-w-md">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
+          >
+            Tentar Novamente
+          </button>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout userType="admin">
       <div className="space-y-6">
@@ -221,11 +241,13 @@ const MasterAdminPanel = () => {
           ))}
 
           {/* Alerts Card */}
-          <AlertCard
-            alertCount={stats.alertsCount}
-            alerts={alerts}
-            onViewAllClick={() => navigate('/master/alerts')}
-          />
+          {!isLoading && stats && (
+            <AlertCard
+              alertCount={stats?.alertsCount ?? 0}
+              alerts={alerts}
+              onViewAllClick={() => navigate('/master/alerts')}
+            />
+          )}
         </div>
       </div>
     </DashboardLayout>

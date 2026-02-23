@@ -927,7 +927,7 @@ app.post('/api/candidates', async (c: Context) => {
     try {
         const [newCandidate] = await db.insert(candidates).values({
             ...data,
-            passwordHash: data.password, // TODO: Hash real
+            passwordHash: await Bun.password.hash(data.password),
             emailVerified: false,
             verificationToken: token
         }).returning();
@@ -1568,8 +1568,10 @@ app.get('/api/master/stats', async (c: Context) => {
             pendingEvents: Number(pendingEvents[0].count),
             totalRevenue: totalRevenue,
             totalCommissions: totalCommissions,
+            totalPayouts: 0,
             eventsThisMonth: Number(eventsThisMonth[0].count),
-            newOrganizersMonth: 0 // TODO: Add logic for new organizers this month if needed
+            alertsCount: Number(pendingEvents[0].count) + Number(pendingOrganizers[0].count),
+            newOrganizersMonth: 0
         });
     } catch (error: any) {
         return c.json({ error: error.message }, 400);
