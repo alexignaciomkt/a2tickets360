@@ -772,7 +772,7 @@ app.get('/api/events/:id', async (c: Context) => {
 app.get('/api/public/events', async (c: Context) => {
     try {
         const results = await db.query.events.findMany({
-            where: eq(events.status, 'published'),
+            where: or(eq(events.status, 'published'), eq(events.status, 'active')),
             with: {
                 tickets: true,
                 organizer: true
@@ -801,7 +801,7 @@ app.get('/api/public/featured-events', async (c: Context) => {
     try {
         const results = await db.query.events.findMany({
             where: and(
-                eq(events.status, 'published'),
+                or(eq(events.status, 'published'), eq(events.status, 'active')),
                 eq(events.isFeatured, true)
             ),
             with: {
