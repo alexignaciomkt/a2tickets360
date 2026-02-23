@@ -7,6 +7,7 @@ export interface Event {
     date: string;
     time: string;
     bannerUrl: string;
+    imageUrl: string;
     heroImageUrl?: string;
     category: string;
     status: 'draft' | 'published' | 'cancelled';

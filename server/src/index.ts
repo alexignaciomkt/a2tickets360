@@ -753,9 +753,10 @@ app.get('/api/events/:id', async (c: Context) => {
 
     if (!result) return c.json({ error: 'Evento não encontrado' }, 404);
 
-    // Transform location
+    // Transform location and image
     const transformed = {
         ...result,
+        bannerUrl: (result as any).imageUrl, // Added bannerUrl for frontend compatibility
         location: {
             name: (result as any).locationName,
             address: (result as any).locationAddress,

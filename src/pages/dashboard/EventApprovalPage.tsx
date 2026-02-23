@@ -174,7 +174,7 @@ const EventApprovalPage = () => {
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-3">
                               <div className="w-12 h-12 rounded-lg bg-gray-100 overflow-hidden border border-gray-200 shrink-0">
-                                <img src={event.imageUrl} alt="" className="w-full h-full object-cover" />
+                                <img src={event.bannerUrl || event.imageUrl} alt="" className="w-full h-full object-cover" />
                               </div>
                               <div>
                                 <div className="font-black text-gray-900 uppercase tracking-tight">{event.title}</div>

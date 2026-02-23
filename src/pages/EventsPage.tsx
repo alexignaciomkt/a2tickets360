@@ -10,6 +10,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { ChevronDown, Calendar, MapPin, Filter } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { organizerService, EventCategory } from '@/services/organizerService';
 
 const EventsPage = () => {
   /* 
@@ -32,16 +33,8 @@ const EventsPage = () => {
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedCity, setSelectedCity] = useState<string>('');
 
-  // Categories
-  const categories = [
-    { id: 'all', name: 'Todas Categorias' },
-    { id: 'music', name: 'Música' },
-    { id: 'business', name: 'Negócios' },
-    { id: 'comedy', name: 'Comédia' },
-    { id: 'theater', name: 'Teatro' },
-    { id: 'workshop', name: 'Workshop' },
-    { id: 'conference', name: 'Conferência' },
-  ];
+  // Categories (Dynamic)
+  const [categories, setCategories] = useState<EventCategory[]>([]);
 
   useEffect(() => {
     // Sync state with URL if it changes externally or on load
@@ -65,10 +58,17 @@ const EventsPage = () => {
     const fetchEvents = async () => {
       setIsLoading(true);
       try {
-        const data = await eventService.getPublicEvents();
-        setAllEvents(data);
+        const [eventsData, categoriesData] = await Promise.all([
+          eventService.getPublicEvents(),
+          organizerService.getEventCategories()
+        ]);
+        setAllEvents(eventsData);
+        setCategories([
+          { id: 'all', name: 'Todas Categorias' } as any,
+          ...categoriesData
+        ]);
       } catch (error) {
-        console.error('Erro ao buscar eventos:', error);
+        console.error('Erro ao buscar dados:', error);
       } finally {
         setIsLoading(false);
       }
@@ -184,7 +184,11 @@ const EventsPage = () => {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" className="w-full justify-between bg-gray-50 border-gray-200">
-                      <span className="truncate">{categories.find(c => c.id === selectedCategory)?.name || 'Categorias'}</span>
+                      <span className="truncate">
+                        {selectedCategory === 'all'
+                          ? 'Todas Categorias'
+                          : categories.find(c => c.name === selectedCategory)?.name || 'Categorias'}
+                      </span>
                       <ChevronDown size={16} />
                     </Button>
                   </DropdownMenuTrigger>
@@ -192,8 +196,8 @@ const EventsPage = () => {
                     {categories.map((category) => (
                       <DropdownMenuItem
                         key={category.id}
-                        onClick={() => handleCategoryChange(category.id)}
-                        className={selectedCategory === category.id ? "bg-indigo-50 text-indigo-600 font-medium" : ""}
+                        onClick={() => handleCategoryChange(category.id === 'all' ? 'all' : category.name)}
+                        className={selectedCategory === (category.id === 'all' ? 'all' : category.name) ? "bg-indigo-50 text-indigo-600 font-medium" : ""}
                       >
                         {category.name}
                       </DropdownMenuItem>
