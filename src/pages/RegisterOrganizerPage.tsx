@@ -24,9 +24,7 @@ const registerSchema = z.object({
   name: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres'),
   email: z.string().email('E-mail inválido'),
   password: z.string()
-    .min(8, 'A senha deve ter pelo menos 8 caracteres')
-    .regex(/[A-Z]/, 'A senha deve conter pelo menos uma letra maiúscula')
-    .regex(/[!@#$%^&*(),.?":{}|<>]/, 'A senha deve conter pelo menos um caractere especial'),
+    .min(8, 'A senha deve ter pelo menos 8 caracteres'),
   mobilePhone: z.string().min(10, 'Telefone inválido'),
   cpfCnpj: z.string().min(11, 'CPF ou CNPJ inválido'),
 });

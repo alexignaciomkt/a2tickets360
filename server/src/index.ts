@@ -144,6 +144,16 @@ const authMiddleware = jwt({
 
 app.get('/', (c: Context) => c.text('Ticketera API - High Performance Ready'));
 
+// Health Check for Version Verification
+app.get('/api/health', (c: Context) => {
+    return c.json({
+        status: 'ok',
+        version: '1.0.2',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime()
+    });
+});
+
 // --- DOWNLOAD/STORAGE ---
 const UPLOADS_DIR = join(process.cwd(), 'uploads');
 if (!existsSync(UPLOADS_DIR)) {
@@ -192,6 +202,7 @@ app.post('/api/login', async (c: Context) => {
 
         if (adminUser) {
             const isMatch = await Bun.password.verify(password, adminUser.passwordHash);
+            console.log(`[AUTH] Admin find: ${email}, Match: ${isMatch}`);
             if (isMatch) {
                 const token = await sign({
                     id: adminUser.id,
@@ -210,6 +221,7 @@ app.post('/api/login', async (c: Context) => {
 
         if (organizer) {
             const isMatch = await Bun.password.verify(password, organizer.passwordHash);
+            console.log(`[AUTH] Organizer find: ${email}, Match: ${isMatch}`);
             if (isMatch) {
                 const token = await sign({
                     id: organizer.id,
@@ -228,6 +240,7 @@ app.post('/api/login', async (c: Context) => {
 
         if (staffUser) {
             const isMatch = await Bun.password.verify(password, staffUser.passwordHash);
+            console.log(`[AUTH] Staff find: ${email}, Match: ${isMatch}`);
             if (isMatch) {
                 const token = await sign({
                     id: staffUser.id,

@@ -19,7 +19,9 @@ export async function request<T>(endpoint: string, options: RequestInit = {}): P
 
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || errorData.message || 'Erro na requisição ao servidor');
+        const errorMessage = errorData.error || errorData.message || 'Erro na requisição ao servidor';
+        console.error(`❌ API Error [${options.method || 'GET'}] ${endpoint}:`, errorMessage);
+        throw new Error(errorMessage);
     }
 
     return response.json();
