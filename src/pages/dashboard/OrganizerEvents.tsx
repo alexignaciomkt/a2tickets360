@@ -55,7 +55,7 @@ const OrganizerEvents = () => {
     const statusConfig = {
       draft: { label: 'Rascunho', variant: 'secondary' as const },
       published: { label: 'Publicado', variant: 'default' as const },
-      active: { label: 'Ativo', variant: 'default' as const },
+      active: { label: 'Publicado', variant: 'default' as const },
       completed: { label: 'Finalizado', variant: 'outline' as const },
       cancelled: { label: 'Cancelado', variant: 'destructive' as const },
     };

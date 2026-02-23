@@ -1159,7 +1159,7 @@ app.delete('/api/master/organizers/:id', async (c: Context) => {
 app.get('/api/master/events/pending', async (c: Context) => {
     try {
         const pendingEvents = await db.query.events.findMany({
-            where: or(eq(events.status, 'draft'), eq(events.status, 'published')),
+            where: eq(events.status, 'draft'),
             with: {
                 organizer: true
             },
@@ -1177,7 +1177,7 @@ app.put('/api/master/events/:id/approve', async (c: Context) => {
     try {
         const [updated] = await db.update(events)
             .set({
-                status: 'active',
+                status: 'published',
                 updatedAt: new Date()
             })
             .where(eq(events.id, id))
@@ -1544,20 +1544,6 @@ app.get('/api/master/events', async (c: Context) => {
     }
 });
 
-app.get('/api/master/events/pending', async (c: Context) => {
-    try {
-        const pending = await db.query.events.findMany({
-            where: eq(events.status, 'draft'), // Adjust status as needed
-            with: {
-                organizer: true
-            },
-            orderBy: (events, { desc }) => [desc(events.createdAt)]
-        });
-        return c.json(pending);
-    } catch (error: any) {
-        return c.json({ error: error.message }, 400);
-    }
-});
 
 app.get('/api/master/stats', async (c: Context) => {
     try {

@@ -52,8 +52,8 @@ const EventApprovalPage = () => {
       setIsModalOpen(false);
       loadEvents();
       toast({
-        title: 'Evento aprovado!',
-        description: 'O evento agora está ativo para vendas.',
+        title: 'Evento publicado!',
+        description: 'O evento agora está visível e ativo para vendas.',
       });
     } catch (error) {
       toast({
