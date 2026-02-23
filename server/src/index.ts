@@ -251,6 +251,14 @@ app.post('/api/organizers/register', async (c: Context) => {
     const token = uuidv4();
 
     try {
+        // 0. Verificar se já existe um organizador com este e-mail
+        const existing = await db.query.organizers.findFirst({
+            where: eq(organizersTable.email, email)
+        });
+        if (existing) {
+            return c.json({ error: 'Já existe um organizador cadastrado com este e-mail.' }, 409);
+        }
+
         // 1. Criar Subconta no Asaas (Opcional/Resiliente)
         let asaasAccount = null;
         if (cpfCnpj && mobilePhone) {
@@ -269,6 +277,8 @@ app.post('/api/organizers/register', async (c: Context) => {
             name,
             email,
             passwordHash,
+            phone: mobilePhone || null,
+            cpf: cpfCnpj || null,
             asaasId: asaasAccount?.id,
             walletId: asaasAccount?.walletId,
             asaasApiKey: asaasAccount?.apiKey,
@@ -305,7 +315,8 @@ app.post('/api/organizers/register', async (c: Context) => {
             warning: 'Asaas ou E-mail podem não ter sido processados em ambiente local.'
         });
     } catch (error: any) {
-        return c.json({ error: error.message }, 400);
+        console.error('❌ Erro no cadastro de organizador:', error);
+        return c.json({ error: error.message || 'Erro interno ao criar organizador.' }, 400);
     }
 });
 

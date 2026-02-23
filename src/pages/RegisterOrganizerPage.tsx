@@ -63,7 +63,7 @@ const RegisterOrganizerPage = () => {
       toast({
         variant: 'destructive',
         title: 'Erro no cadastro',
-        description: error.response?.data?.error || 'Tente novamente mais tarde.',
+        description: error.message || 'Tente novamente mais tarde.',
       });
     } finally {
       setIsSubmitting(false);
