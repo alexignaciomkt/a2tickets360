@@ -1,4 +1,5 @@
 import { api } from '@/services/api';
+import { setLocalStorageItem, getLocalStorageItem, removeLocalStorageItem } from '@/lib/localStorage';
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { users } from '@/data/mockData';
@@ -29,11 +30,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Check if user is already logged in from localStorage
   useEffect(() => {
-    const savedUser = localStorage.getItem('A2Tickets_user');
-    const savedToken = localStorage.getItem('A2Tickets_token');
+    const savedUser = getLocalStorageItem<User>('A2Tickets_user');
+    const savedToken = getLocalStorageItem<string>('A2Tickets_token');
 
     if (savedUser && savedToken) {
-      setUser(JSON.parse(savedUser));
+      setUser(savedUser);
       setToken(savedToken);
     }
   }, []);
@@ -54,8 +55,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setUser(userData);
       setToken(data.token);
 
-      localStorage.setItem('A2Tickets_user', JSON.stringify(userData));
-      localStorage.setItem('A2Tickets_token', data.token);
+      setLocalStorageItem('A2Tickets_user', userData);
+      setLocalStorageItem('A2Tickets_token', data.token);
 
       toast({
         title: 'Login realizado com sucesso',
@@ -76,8 +77,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const logout = () => {
     setUser(null);
     setToken(null);
-    localStorage.removeItem('A2Tickets_user');
-    localStorage.removeItem('A2Tickets_token');
+    removeLocalStorageItem('A2Tickets_user');
+    removeLocalStorageItem('A2Tickets_token');
     toast({
       title: 'Logout realizado',
       description: 'Você foi desconectado com sucesso.',
