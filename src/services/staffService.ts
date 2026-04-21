@@ -11,10 +11,11 @@ class StaffService {
         .from('purchased_tickets')
         .select(`
           id,
-          qr_code_data,
+          event_id,
           status,
           photo_url,
           ticket_id,
+          profiles:buyer_id(full_name),
           tickets(name)
         `)
         .eq('event_id', eventId)
@@ -25,7 +26,7 @@ class StaffService {
       const localTickets: LocalTicket[] = (data || []).map((pt: any) => ({
         id: pt.id,
         qr_code: pt.qr_code_data,
-        buyer_name: 'Participante',
+        buyer_name: pt.profiles?.full_name || 'Participante',
         buyer_cpf: '',
         selfie_url: pt.photo_url || '',
         ticket_name: pt.tickets?.name || 'Ingresso',
@@ -65,6 +66,9 @@ class StaffService {
 
   private async validateOnline(qrCode: string) {
     try {
+      const cleanCode = qrCode.trim().toUpperCase();
+      console.log('[STAFF_SERVICE] Validando:', cleanCode);
+
       // 1. Busca o ingresso no Supabase
       let ticketQuery = supabase
         .from('purchased_tickets')
@@ -73,27 +77,31 @@ class StaffService {
           event_id,
           status,
           photo_url,
+          profiles:buyer_id(full_name),
           tickets(name)
         `);
         
-      if (qrCode.startsWith('TICKET-')) {
-        const idMatch = qrCode.replace('TICKET-', '');
+      if (cleanCode.startsWith('TICKET-')) {
+        const idMatch = cleanCode.replace('TICKET-', '');
         // Verifica se é um UUID válido (ingressos antigos)
         const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idMatch);
         
         if (isUuid) {
-          ticketQuery = ticketQuery.eq('id', idMatch);
+          ticketQuery = ticketQuery.or(`id.eq.${idMatch},qr_code_data.eq.${cleanCode}`);
         } else {
-          // Se não for UUID, é o novo formato randomizado salvo no banco
-          ticketQuery = ticketQuery.eq('qr_code_data', qrCode);
+          ticketQuery = ticketQuery.eq('qr_code_data', cleanCode);
         }
       } else {
-        ticketQuery = ticketQuery.eq('qr_code_data', qrCode);
+        // Se não tem o prefixo, tenta buscar o código puro OU adicionar o prefixo automaticamente
+        ticketQuery = ticketQuery.or(`qr_code_data.eq.${cleanCode},qr_code_data.eq.TICKET-${cleanCode}`);
       }
 
       const { data: ticket, error } = await ticketQuery.single();
 
-      if (error || !ticket) return { success: false, message: 'Ingresso não encontrado ou inválido.' };
+      if (error || !ticket) {
+        console.warn('[STAFF_SERVICE] Ingresso não encontrado:', error);
+        return { success: false, message: 'Ingresso não encontrado ou inválido.' };
+      }
 
       if (ticket.status === 'used') {
         return { 
@@ -101,7 +109,7 @@ class StaffService {
           message: 'Este ingresso já foi utilizado!', 
           alreadyUsed: true,
           ticket: {
-            buyer_name: 'Participante',
+            buyer_name: ticket.profiles?.full_name || 'Participante',
             selfie_url: ticket.photo_url
           }
         };
@@ -122,7 +130,7 @@ class StaffService {
         success: true, 
         message: 'Check-in realizado com sucesso!',
         ticket: {
-          buyer_name: 'Participante',
+          buyer_name: ticket.profiles?.full_name || 'Participante',
           selfie_url: ticket.photo_url,
           ticket_name: ticket.tickets?.name
         }
