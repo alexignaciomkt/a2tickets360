@@ -35,6 +35,7 @@ const CheckInPage = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [manualCode, setManualCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showSelfieExpand, setShowSelfieExpand] = useState(false);
   const lastScannedRef = useRef<string>('');
   const scanCooldownRef = useRef<boolean>(false);
   
@@ -120,7 +121,13 @@ const CheckInPage = () => {
 
     const result = await staffService.validateTicket(decodedText);
     setScanResult(result);
+    setShowSelfieExpand(false);
     setIsLoading(false);
+    
+    // Auto-expand da selfie após 0.5s (2FA Visual)
+    if (result.success && result.ticket?.selfie_url) {
+      setTimeout(() => setShowSelfieExpand(true), 500);
+    }
     
     // Sons de Validação (Modo Polícia)
     if (result.success) {
@@ -258,58 +265,83 @@ const CheckInPage = () => {
           />
         </form>
 
-        {/* Scan Result Overlay/Modal */}
+        {/* Scan Result Overlay/Modal — 2FA Visual */}
         {scanResult && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm">
-            <div className={`w-full max-w-sm rounded-[2.5rem] overflow-hidden shadow-2xl transform transition-all animate-in zoom-in duration-300 ${
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
+            <div className={`w-full max-w-sm rounded-[2.5rem] overflow-hidden shadow-2xl transform transition-all duration-500 ${
               scanResult.success ? 'bg-green-600' : scanResult.alreadyUsed ? 'bg-amber-500' : 'bg-red-600'
             }`}>
-              <div className="p-8 text-center space-y-6">
-                 <div className="mx-auto w-20 h-20 bg-white/20 rounded-full flex items-center justify-center shadow-inner">
-                    {scanResult.success ? (
-                      <CheckCircle2 className="w-12 h-12 text-white" />
-                    ) : scanResult.alreadyUsed ? (
-                      <Clock className="w-12 h-12 text-white" />
-                    ) : (
-                      <XCircle className="w-12 h-12 text-white" />
-                    )}
-                 </div>
-                 
-                 <div>
-                    <h2 className="text-3xl font-black text-white uppercase tracking-tighter leading-none mb-2">
-                      {scanResult.success ? 'Liberado!' : scanResult.alreadyUsed ? 'Já Entrou!' : 'Negado!'}
-                    </h2>
-                    <p className="text-white/80 font-bold uppercase text-xs tracking-widest">{scanResult.message}</p>
+              <div className="p-6 text-center space-y-4">
+                 {/* Fase 1: Ícone + Status (encolhe quando selfie expande) */}
+                 <div className={`transition-all duration-500 ease-out ${
+                   showSelfieExpand && scanResult.success ? 'scale-75 opacity-80 -mb-2' : 'scale-100'
+                 }`}>
+                   <div className="mx-auto w-16 h-16 bg-white/20 rounded-full flex items-center justify-center shadow-inner mb-3">
+                      {scanResult.success ? (
+                        <CheckCircle2 className="w-10 h-10 text-white" />
+                      ) : scanResult.alreadyUsed ? (
+                        <Clock className="w-10 h-10 text-white" />
+                      ) : (
+                        <XCircle className="w-10 h-10 text-white" />
+                      )}
+                   </div>
+                   <h2 className="text-2xl font-black text-white uppercase tracking-tighter leading-none mb-1">
+                     {scanResult.success ? 'Liberado!' : scanResult.alreadyUsed ? 'Já Entrou!' : 'Negado!'}
+                   </h2>
+                   <p className="text-white/80 font-bold uppercase text-[10px] tracking-widest">{scanResult.message}</p>
                  </div>
 
+                 {/* Fase 2: Selfie Expandida (2FA Visual) */}
                  {scanResult.ticket && (
-                   <div className="bg-black/10 rounded-3xl p-6 backdrop-blur flex flex-col items-center">
-                      <div className="relative mb-4">
-                        {scanResult.ticket.selfie_url ? (
-                          <img 
-                            src={scanResult.ticket.selfie_url} 
-                            className="w-32 h-40 object-cover rounded-2xl border-4 border-white/30 shadow-xl" 
-                            alt="Selfie Comprador" 
-                          />
-                        ) : (
-                          <div className="w-32 h-40 bg-white/10 rounded-2xl flex items-center justify-center border-4 border-white/10">
-                            <User className="w-12 h-12 text-white/40" />
+                   <div className={`transition-all duration-700 ease-out overflow-hidden ${
+                     showSelfieExpand && scanResult.success 
+                       ? 'max-h-[500px] opacity-100 scale-100' 
+                       : scanResult.success 
+                         ? 'max-h-0 opacity-0 scale-95' 
+                         : 'max-h-[300px] opacity-100 scale-100'
+                   }`}>
+                     <div className="bg-black/15 rounded-3xl p-5 backdrop-blur flex flex-col items-center">
+                        {/* Selfie Grande para Verificação */}
+                        <div className={`relative transition-all duration-700 ease-out ${
+                          showSelfieExpand && scanResult.success ? 'w-full' : 'w-32'
+                        }`}>
+                          {scanResult.ticket.selfie_url ? (
+                            <img 
+                              src={scanResult.ticket.selfie_url} 
+                              className={`object-cover rounded-2xl border-4 shadow-2xl mx-auto transition-all duration-700 ease-out ${
+                                showSelfieExpand && scanResult.success 
+                                  ? 'w-full aspect-[3/4] max-h-[50vh] border-white/40' 
+                                  : 'w-32 h-40 border-white/30'
+                              }`}
+                              alt="Selfie Comprador" 
+                            />
+                          ) : (
+                            <div className="w-32 h-40 bg-white/10 rounded-2xl flex items-center justify-center border-4 border-white/10 mx-auto">
+                              <User className="w-12 h-12 text-white/40" />
+                            </div>
+                          )}
+                          <div className={`absolute -bottom-2 -right-2 bg-white text-green-600 rounded-full shadow-lg transition-all duration-500 ${
+                            showSelfieExpand ? 'p-2.5' : 'p-1.5'
+                          }`}>
+                            <ShieldCheck className={`transition-all duration-500 ${
+                              showSelfieExpand ? 'w-6 h-6' : 'w-4 h-4'
+                            }`} />
                           </div>
-                        )}
-                        <div className="absolute -bottom-2 -right-2 bg-white text-gray-900 p-1.5 rounded-full shadow-lg">
-                          <ShieldCheck className="w-4 h-4" />
                         </div>
-                      </div>
-                      <p className="text-xl font-black text-white uppercase tracking-tighter">{scanResult.ticket.buyer_name}</p>
-                      <p className="text-[10px] font-black text-white/60 uppercase tracking-widest mt-1">{scanResult.ticket.ticket_name}</p>
-                      <p className="text-xs font-mono text-white/40 mt-2">{scanResult.ticket.buyer_cpf}</p>
+                        {/* Nome + Ingresso */}
+                        <p className={`font-black text-white uppercase tracking-tighter mt-4 transition-all duration-500 ${
+                          showSelfieExpand && scanResult.success ? 'text-2xl' : 'text-xl'
+                        }`}>{scanResult.ticket.buyer_name}</p>
+                        <p className="text-[10px] font-black text-white/60 uppercase tracking-widest mt-1">{scanResult.ticket.ticket_name}</p>
+                     </div>
                    </div>
                  )}
 
                  <button 
                    onClick={() => {
                     setScanResult(null);
-                    lastScannedRef.current = ''; // Permite re-escanear após fechar
+                    setShowSelfieExpand(false);
+                    lastScannedRef.current = '';
                     scanCooldownRef.current = false;
                   }}
                    className="w-full bg-white text-gray-900 py-5 rounded-2xl font-black uppercase text-sm tracking-widest shadow-xl active:scale-95 transition-transform"
