@@ -54,6 +54,7 @@ const CheckoutPage = () => {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [hasTicket, setHasTicket] = useState(false);
 
   // Pre-fill form if user is logged in
   useEffect(() => {
@@ -110,6 +111,31 @@ const CheckoutPage = () => {
 
     loadEvent();
   }, [eventId, ticketId, toast]);
+
+  // Check if user already has a ticket for this event
+  useEffect(() => {
+    const checkExistingTicket = async () => {
+      if (!user || !eventId) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('purchased_tickets')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('event_id', eventId)
+          .in('status', ['active', 'used'])
+          .maybeSingle();
+
+        if (data) {
+          setHasTicket(true);
+        }
+      } catch (e) {
+        console.error('Erro ao verificar ingresso existente:', e);
+      }
+    };
+
+    checkExistingTicket();
+  }, [user, eventId]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -399,9 +425,34 @@ const CheckoutPage = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Form */}
             <div className="lg:col-span-2">
-              <div className="bg-white rounded-lg shadow-md p-6">
-                {/* Step 1: User Info */}
-                {currentStep === 0 && (
+              {hasTicket && currentStep < 2 ? (
+                <div className="bg-white rounded-3xl shadow-xl p-10 text-center border-2 border-amber-100">
+                  <div className="mx-auto w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mb-6">
+                    <ShieldCheck className="w-10 h-10 text-amber-600" />
+                  </div>
+                  <h2 className="text-2xl font-black uppercase tracking-tighter text-slate-900 mb-4">Você já garantiu seu lugar!</h2>
+                  <p className="text-slate-500 font-medium mb-8 max-w-md mx-auto">
+                    Identificamos que você já possui um ingresso ativo para este evento. Para garantir a segurança e o limite de público, é permitido apenas um ingresso por CPF.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                    <button 
+                      onClick={() => navigate('/dashboard/tickets')}
+                      className="bg-primary text-white px-8 py-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg shadow-primary/20 hover:scale-105 transition-transform"
+                    >
+                      Ver Meus Ingressos
+                    </button>
+                    <button 
+                      onClick={() => navigate('/events')}
+                      className="bg-slate-100 text-slate-600 px-8 py-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-slate-200 transition-colors"
+                    >
+                      Explorar outros eventos
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white rounded-lg shadow-md p-6">
+                  {/* Step 1: User Info */}
+                  {currentStep === 0 && (
                   <div className="space-y-4">
                     <h2 className="text-xl font-semibold mb-6">Informações pessoais</h2>
 
@@ -837,7 +888,8 @@ const CheckoutPage = () => {
                   </div>
                 )}
               </div>
-            </div>
+            )}
+          </div>
 
             {/* Order Summary */}
             <div className="lg:col-span-1">
