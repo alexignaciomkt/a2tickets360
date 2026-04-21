@@ -21,6 +21,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { organizerService } from '@/services/organizerService';
+import { supabase } from '@/lib/supabase';
 import { Event } from '@/interfaces/organizer';
 import { useAuth } from '@/contexts/AuthContext';
 
