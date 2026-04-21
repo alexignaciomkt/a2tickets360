@@ -110,10 +110,7 @@ class StaffService {
       // 2. Marca como utilizado no Supabase
       const { error: updateError } = await supabase
         .from('purchased_tickets')
-        .update({ 
-          status: 'used', 
-          validated_at: new Date().toISOString() 
-        })
+        .update({ status: 'used' })
         .eq('id', ticket.id);
 
       if (updateError) throw updateError;
@@ -176,10 +173,7 @@ class StaffService {
     for (const ticket of pending) {
       const { error } = await supabase
         .from('purchased_tickets')
-        .update({ 
-          status: 'used', 
-          validated_at: ticket.check_in_at || new Date().toISOString() 
-        })
+        .update({ status: 'used' })
         .eq('id', ticket.id);
 
       if (!error) {
