@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Users, CheckCircle, XCircle, MoreHorizontal, Plus, Edit, Trash2, ShieldAlert, AlertTriangle, MessageSquare } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { Users, CheckCircle, XCircle, MoreHorizontal, Plus, Edit, Trash2, ShieldAlert, AlertTriangle, MessageSquare, Eye, Phone, MapPin, ExternalLink, FileText } from 'lucide-react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,6 +19,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // Mock data removido pois estamos usando o backend real
 
@@ -33,9 +44,34 @@ const OrganizersManagement = () => {
   const [newOrg, setNewOrg] = useState({ name: '', email: '', password: '' });
   const [editForm, setEditForm] = useState({ name: '', email: '' });
   const [isApproving, setIsApproving] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [orgToDeleteId, setOrgToDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     loadOrganizers();
+
+    // Configuração do Realtime para a tabela profiles
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Escuta INSERT, UPDATE e DELETE
+          schema: 'public',
+          table: 'profiles',
+          filter: 'role=eq.organizer' // Apenas mudanças de organizadores
+        },
+        (payload) => {
+          console.log('⚡ [Realtime] Mudança detectada no banco:', payload.eventType);
+          // Recarregamos a lista completa para garantir que os Joins (details) venham corretos
+          loadOrganizers();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const loadOrganizers = async () => {
@@ -57,10 +93,14 @@ const OrganizersManagement = () => {
   const filteredOrganizers = activeTab === 'all'
     ? organizers
     : activeTab === 'active'
-      ? organizers.filter(org => org.emailVerified && org.profileComplete)
-      : organizers.filter(org => !org.emailVerified || !org.profileComplete);
+      ? organizers.filter(org => org.status === 'approved' && org.profileComplete === true)
+      : activeTab === 'pending'
+        ? organizers.filter(org => org.status === 'pending' && org.profileComplete === true)
+        : organizers.filter(org => org.profileComplete !== true);
 
-  const pendingCount = organizers.filter(org => !org.emailVerified || !org.profileComplete).length;
+  const pendingCount = organizers.filter(org => org.status === 'pending' && org.profileComplete === true).length;
+  const incompleteCount = organizers.filter(org => org.profileComplete !== true).length;
+  const activeCount = organizers.filter(org => org.status === 'approved' && org.profileComplete === true).length;
 
   const generateProfileReport = (org: Organizer) => {
     let report = "### 📋 Pendências de Cadastro\n\n";
@@ -78,6 +118,14 @@ const OrganizersManagement = () => {
 
     if (!org.documentFrontUrl || !org.documentBackUrl) {
       missing.push("- [ ] **Fotos do Documento**: Comprovação de identidade (Frente e Verso).");
+    }
+
+    if (!org.postalCode || !org.address || !org.city) {
+      missing.push("- [ ] **Endereço Completo**: CEP, Logradouro e Cidade são obrigatórios.");
+    }
+
+    if (!org.birthDate || !org.cpf) {
+      missing.push("- [ ] **Dados Sensíveis**: Data de Nascimento e CPF para faturamento.");
     }
 
     if (!org.asaasApiKey) {
@@ -101,7 +149,7 @@ const OrganizersManagement = () => {
 
   const handleApprove = async (id: string) => {
     try {
-      await masterService.updateOrganizer(id, { emailVerified: true });
+      await masterService.approveOrganizerManually(id);
       loadOrganizers();
       toast({
         title: 'Organizador aprovado',
@@ -148,7 +196,7 @@ const OrganizersManagement = () => {
   const handleUpdateOrganizer = async () => {
     if (!selectedOrg) return;
     try {
-      await masterService.updateOrganizer(selectedOrg.id, editForm);
+      await masterService.updateOrganizer(selectedOrg.id, editForm, selectedOrg.userId);
       setIsEditModalOpen(false);
       loadOrganizers();
       toast({
@@ -185,21 +233,29 @@ const OrganizersManagement = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir este organizador?')) return;
+  const handleDeleteClick = (id: string) => {
+    setOrgToDeleteId(id);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!orgToDeleteId) return;
     try {
-      await masterService.deleteOrganizer(id);
+      await masterService.deleteOrganizer(orgToDeleteId);
       loadOrganizers();
       toast({
         title: 'Organizador removido',
         description: 'O organizador foi removido com sucesso.',
       });
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: 'Erro ao remover',
-        description: 'Não foi possível remover o organizador.',
+        description: error.message || 'Não foi possível remover o organizador.',
         variant: 'destructive',
       });
+    } finally {
+      setIsDeleteDialogOpen(false);
+      setOrgToDeleteId(null);
     }
   };
 
@@ -227,12 +283,27 @@ const OrganizersManagement = () => {
             <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="mb-4">
                 <TabsTrigger value="all">Todos</TabsTrigger>
-                <TabsTrigger value="active">Ativos</TabsTrigger>
+                <TabsTrigger value="active" className="flex items-center gap-2">
+                  Ativos
+                  {activeCount > 0 && (
+                    <span className="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                      {activeCount}
+                    </span>
+                  )}
+                </TabsTrigger>
                 <TabsTrigger value="pending" className="flex items-center gap-2">
-                  Pendentes
+                  Prontos para Analisar
                   {pendingCount > 0 && (
-                    <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                    <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-[10px] font-bold">
                       {pendingCount}
+                    </span>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="incomplete" className="flex items-center gap-2">
+                  Em Onboarding
+                  {incompleteCount > 0 && (
+                    <span className="bg-zinc-100 text-zinc-500 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                      {incompleteCount}
                     </span>
                   )}
                 </TabsTrigger>
@@ -268,7 +339,7 @@ const OrganizersManagement = () => {
                           </tr>
                         ) : filteredOrganizers.map((org) => (
                           <tr key={org.id} className="hover:bg-gray-50 transition-colors">
-                            <td className="px-4 py-3 whitespace-nowrap cursor-pointer" onClick={() => !org.profileComplete && handleShowReport(org)}>
+                            <td className="px-4 py-3 whitespace-nowrap cursor-pointer" onClick={() => handleShowReport(org)}>
                               <div className="flex items-center">
                                 <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold mr-3">
                                   {org.name.charAt(0)}
@@ -285,9 +356,13 @@ const OrganizersManagement = () => {
                               R$ 0,00
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap">
-                              {org.emailVerified ? (
+                              {org.status === 'approved' ? (
                                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                  Ativo
+                                  Aprovado
+                                </span>
+                              ) : org.status === 'rejected' ? (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                  Rejeitado
                                 </span>
                               ) : (
                                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
@@ -297,8 +372,8 @@ const OrganizersManagement = () => {
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap">
                               <div
-                                className={`flex items-center gap-2 ${!org.profileComplete ? 'cursor-pointer hover:opacity-80' : ''}`}
-                                onClick={() => !org.profileComplete && handleShowReport(org)}
+                                className={`flex items-center gap-2 cursor-pointer hover:opacity-80`}
+                                onClick={() => handleShowReport(org)}
                               >
                                 {org.profileComplete ? (
                                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -325,14 +400,17 @@ const OrganizersManagement = () => {
                                   >
                                     <CheckCircle className="h-4 w-4" />
                                   </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleDelete(org.id)}
-                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
+                                  {org.status !== 'approved' && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleDeleteClick(org.id)}
+                                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                      title="Excluir (Onboarding/Pendente)"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  )}
                                 </div>
                               ) : (
                                 <DropdownMenu>
@@ -352,11 +430,23 @@ const OrganizersManagement = () => {
                                       <ShieldAlert className="mr-2 h-4 w-4" />
                                       Bloquear Acesso
                                     </DropdownMenuItem>
-                                    <DropdownMenuSeparator className="bg-gray-100" />
-                                    <DropdownMenuItem className="focus:bg-red-50 text-red-600 focus:text-red-600 cursor-pointer" onClick={() => handleDelete(org.id)}>
-                                      <Trash2 className="mr-2 h-4 w-4" />
-                                      Excluir
-                                    </DropdownMenuItem>
+                                    {org.status !== 'approved' ? (
+                                      <>
+                                        <DropdownMenuSeparator className="bg-gray-100" />
+                                        <DropdownMenuItem className="focus:bg-red-50 text-red-600 focus:text-red-600 cursor-pointer" onClick={() => handleDeleteClick(org.id)}>
+                                          <Trash2 className="mr-2 h-4 w-4" />
+                                          Excluir
+                                        </DropdownMenuItem>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <DropdownMenuSeparator className="bg-gray-100" />
+                                        <DropdownMenuItem disabled className="text-gray-400 cursor-not-allowed">
+                                          <ShieldAlert className="mr-2 h-4 w-4" />
+                                          Exclusão Bloqueada (Conta Ativa)
+                                        </DropdownMenuItem>
+                                      </>
+                                    )}
                                   </DropdownMenuContent>
                                 </DropdownMenu>
                               )}
@@ -454,50 +544,176 @@ const OrganizersManagement = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* Modal de Perfil Completo do Produtor */}
       <Dialog open={isReportModalOpen} onOpenChange={setIsReportModalOpen}>
-        <DialogContent className="bg-white border-gray-200 text-gray-900 max-w-lg">
+        <DialogContent className="bg-white border-gray-200 text-gray-900 max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-xl font-bold">
-              <ShieldAlert className="h-6 w-6 text-amber-500" />
-              Relatório de Validação
+              <Eye className="h-5 w-5 text-indigo-500" />
+              Perfil do Produtor
             </DialogTitle>
             <DialogDescription>
-              Confira os dados que faltam para o perfil de **{selectedOrg?.name}**.
+              Todos os dados enviados por <strong>{selectedOrg?.name}</strong> durante o onboarding.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="py-6 px-4 bg-gray-50 rounded-xl border border-gray-100 font-mono text-sm whitespace-pre-wrap leading-relaxed max-h-[60vh] overflow-y-auto custom-scrollbar">
-            {selectedOrg && generateProfileReport(selectedOrg)}
-          </div>
+          {selectedOrg && (
+            <div className="space-y-6 py-2">
 
-          <DialogFooter className="flex flex-col sm:flex-row gap-3">
-            <div className="flex-1 flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setIsReportModalOpen(false)}
-                className="flex-1"
-              >
-                Fechar
-              </Button>
-              <Button
-                variant="outline"
-                className="flex-1 border-amber-200 text-amber-700 hover:bg-amber-50"
-                onClick={() => selectedOrg && handleApproveManually(selectedOrg)}
-                disabled={isApproving}
-              >
-                {isApproving ? 'Aprovando...' : 'Aprovar Manualmente'}
-              </Button>
+              {/* Header com logo e banner */}
+              <div className="relative h-40 rounded-2xl bg-gradient-to-br from-indigo-100 to-indigo-50 overflow-hidden border border-gray-100">
+                {selectedOrg.banner_url ? (
+                  <img src={selectedOrg.banner_url} className="w-full h-full object-cover" alt="Banner" />
+                ) : (
+                  <div className="flex items-center justify-center h-full text-gray-300 font-bold text-sm">Sem banner</div>
+                )}
+                <div className="absolute bottom-4 left-4">
+                  {selectedOrg.logo_url ? (
+                    <img src={selectedOrg.logo_url} className="w-16 h-16 rounded-2xl border-4 border-white shadow-lg object-cover" alt="Logo" />
+                  ) : (
+                    <div className="w-16 h-16 rounded-2xl border-4 border-white shadow-lg bg-gray-100 flex items-center justify-center text-gray-400 text-xs font-bold">SEM<br/>LOGO</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Dados básicos */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Nome/Empresa</p>
+                  <p className="font-semibold text-gray-900">{selectedOrg.companyName || selectedOrg.name || '—'}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">E-mail</p>
+                  <p className="font-semibold text-gray-900">{selectedOrg.email || '—'}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Telefone</p>
+                  <p className="font-semibold text-gray-900 flex items-center gap-1"><Phone className="h-3 w-3" /> {selectedOrg.phone || '—'}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Slug / URL</p>
+                  <p className="font-semibold text-indigo-600">{selectedOrg.slug ? `.../ p/${selectedOrg.slug}` : '—'}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">CPF</p>
+                  <p className="font-semibold text-gray-900">{selectedOrg.cpf || '—'}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">CNPJ</p>
+                  <p className="font-semibold text-gray-900">{selectedOrg.cnpj || '—'}</p>
+                </div>
+                <div className="col-span-2 space-y-1">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Endereço</p>
+                  <p className="font-semibold text-gray-900 flex items-center gap-1"><MapPin className="h-3 w-3" /> {selectedOrg.address ? `${selectedOrg.address}, ${selectedOrg.city} - ${selectedOrg.state} | CEP: ${selectedOrg.postalCode}` : '—'}</p>
+                </div>
+                <div className="col-span-2 space-y-1">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Bio</p>
+                  <p className="text-sm text-gray-600">{selectedOrg.bio || '—'}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">API Asaas</p>
+                  <p className="font-semibold text-gray-900 font-mono text-xs break-all">{selectedOrg.asaas_key ? `${selectedOrg.asaas_key.slice(0, 12)}...` : '—'}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Status</p>
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                    selectedOrg.status === 'approved' ? 'bg-green-100 text-green-800' :
+                    selectedOrg.status === 'pending' ? 'bg-amber-100 text-amber-800' :
+                    'bg-red-100 text-red-800'
+                  }`}>{selectedOrg.status}</span>
+                </div>
+              </div>
+
+              {/* Documentos de identidade */}
+              <div className="border-t pt-4">
+                <p className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2"><FileText className="h-4 w-4 text-indigo-500"/> Documentos de Identidade</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase mb-2">Frente do Documento</p>
+                    {selectedOrg.documentFrontUrl || selectedOrg.document_front_url ? (
+                      <a href={selectedOrg.documentFrontUrl || selectedOrg.document_front_url} target="_blank" rel="noreferrer" className="block">
+                        <img src={selectedOrg.documentFrontUrl || selectedOrg.document_front_url} className="w-full h-36 object-cover rounded-xl border border-gray-200 hover:opacity-80 transition-opacity" alt="Documento Frente" />
+                        <p className="text-[10px] text-indigo-500 mt-1 flex items-center gap-1"><ExternalLink className="h-3 w-3"/>Abrir em nova aba</p>
+                      </a>
+                    ) : (
+                      <div className="w-full h-36 rounded-xl border-2 border-dashed border-gray-200 flex items-center justify-center text-gray-300 text-xs font-bold">NÃO ENVIADO</div>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase mb-2">Verso do Documento</p>
+                    {selectedOrg.documentBackUrl || selectedOrg.document_back_url ? (
+                      <a href={selectedOrg.documentBackUrl || selectedOrg.document_back_url} target="_blank" rel="noreferrer" className="block">
+                        <img src={selectedOrg.documentBackUrl || selectedOrg.document_back_url} className="w-full h-36 object-cover rounded-xl border border-gray-200 hover:opacity-80 transition-opacity" alt="Documento Verso" />
+                        <p className="text-[10px] text-indigo-500 mt-1 flex items-center gap-1"><ExternalLink className="h-3 w-3"/>Abrir em nova aba</p>
+                      </a>
+                    ) : (
+                      <div className="w-full h-36 rounded-xl border-2 border-dashed border-gray-200 flex items-center justify-center text-gray-300 text-xs font-bold">NÃO ENVIADO</div>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
+          )}
+
+          <DialogFooter className="flex flex-col sm:flex-row gap-3 pt-4 border-t">
             <Button
-              className="bg-green-600 hover:bg-green-700 text-white flex-1 font-bold"
-              onClick={() => window.open(`https://wa.me/${selectedOrg?.mobilePhone?.replace(/\D/g, '')}`, '_blank')}
+              variant="outline"
+              onClick={() => setIsReportModalOpen(false)}
+              className="flex-1"
+            >
+              Fechar
+            </Button>
+            <Button
+              variant="outline"
+              className="flex-1 border-amber-200 text-amber-700 hover:bg-amber-50"
+              onClick={() => selectedOrg && window.open(`https://wa.me/${selectedOrg?.mobilePhone?.replace(/\D/g, '')}`, '_blank')}
             >
               <MessageSquare className="mr-2 h-4 w-4" />
-              Notificar via WhatsApp
+              Notificar WhatsApp
+            </Button>
+            <Button
+              className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold"
+              onClick={() => selectedOrg && handleApproveManually(selectedOrg)}
+              disabled={isApproving || selectedOrg?.status === 'approved'}
+            >
+              <CheckCircle className="mr-2 h-4 w-4" />
+              {isApproving ? 'Aprovando...' : selectedOrg?.status === 'approved' ? 'Já Aprovado' : 'Aprovar Produtor'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Alerta de Confirmação de Exclusão (Premium) */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent className="bg-white border-2 border-red-50 rounded-[2.5rem] shadow-2xl p-0 overflow-hidden max-w-md">
+          <AlertDialogHeader className="p-8 pb-4">
+            <div className="flex flex-col items-center text-center gap-4">
+              <div className="w-16 h-16 rounded-[1.5rem] bg-red-50 flex items-center justify-center animate-in zoom-in duration-500">
+                <Trash2 className="h-8 w-8 text-red-500" />
+              </div>
+              <div>
+                <AlertDialogTitle className="text-2xl font-black text-gray-900 uppercase tracking-tighter">
+                  Confirmar Exclusão?
+                </AlertDialogTitle>
+                <AlertDialogDescription className="text-gray-500 font-medium mt-2 leading-relaxed">
+                  Esta ação é **irreversível**. Todos os dados do onboarding, documentos e rascunhos de eventos serão eliminados permanentemente.
+                </AlertDialogDescription>
+              </div>
+            </div>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="p-8 pt-4 flex-col sm:flex-row gap-3">
+            <AlertDialogCancel className="flex-1 h-14 rounded-2xl border-gray-100 text-gray-400 font-bold uppercase tracking-widest text-[10px] hover:bg-gray-50 m-0">
+              Manter Cadastro
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="flex-1 h-14 rounded-2xl bg-red-500 hover:bg-red-600 text-white font-black uppercase tracking-tighter shadow-lg shadow-red-100 m-0"
+            >
+              Sim, Excluir Tudo
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 };

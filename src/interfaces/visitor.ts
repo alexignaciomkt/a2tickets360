@@ -7,6 +7,10 @@ export interface Visitor {
     email: string;
     phone?: string;
     document?: string;
+    city?: string;
+    state?: string;
+    address?: string;
+    birthDate?: string;
     company?: string;
     role?: string;
     qrCodeData: string;
@@ -20,6 +24,10 @@ export interface VisitorFormData {
     email: string;
     phone?: string;
     document?: string;
+    city?: string;
+    state?: string;
+    address?: string;
+    birthDate?: string;
     company?: string;
     role?: string;
 }

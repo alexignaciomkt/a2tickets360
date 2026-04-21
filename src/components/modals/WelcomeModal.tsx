@@ -31,7 +31,7 @@ const WelcomeModal = ({ isOpen, onClose }: WelcomeModalProps) => {
                             <Sparkles className="text-white h-8 w-8" />
                         </div>
                         <DialogTitle className="text-3xl font-black uppercase tracking-tighter mb-2 text-white">
-                            Seja bem-vindo à Elite!
+                            Seja bem-vindo(a)!
                         </DialogTitle>
                         <DialogDescription className="text-indigo-100 text-lg font-medium leading-tight">
                             Sua produtora agora faz parte do ecossistema de gestão mais avançado do mercado.

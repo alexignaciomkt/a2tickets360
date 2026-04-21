@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Search, Filter, MoreHorizontal, Eye, Edit, Trash2, Users, DollarSign, Calendar } from 'lucide-react';
+import { Plus, Search, Filter, MoreHorizontal, Eye, Edit, Trash2, Users, DollarSign, Calendar, Activity } from 'lucide-react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,17 +32,54 @@ const OrganizerEvents = () => {
 
   useEffect(() => {
     loadEvents();
-  }, []);
+  }, [user?.id]);
 
   const loadEvents = async () => {
     try {
       if (!user?.id) return;
       const eventsData = await organizerService.getEvents(user.id);
-      setEvents(eventsData);
+      
+      // Fetch real sales count for each event
+      const eventIds = eventsData.map(e => e.id);
+      const { data: sales } = await supabase
+        .from('purchased_tickets')
+        .select('event_id, tickets(price)')
+        .in('event_id', eventIds)
+        .in('status', ['active', 'used']);
+
+      const updatedEvents = eventsData.map(event => {
+        const eventSales = sales?.filter(s => s.event_id === event.id) || [];
+        return {
+          ...event,
+          real_sold_count: eventSales.length,
+          real_revenue: eventSales.reduce((acc, s: any) => acc + (s.tickets?.price || 0), 0)
+        };
+      });
+
+      setEvents(updatedEvents);
     } catch (error) {
       console.error('Erro ao carregar eventos:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRefresh = () => {
+    loadEvents();
+  };
+
+  const handleDeleteEvent = async (eventId: string) => {
+    if (!window.confirm('Tem certeza que deseja excluir este evento? Esta ação não pode ser desfeita.')) {
+      return;
+    }
+
+    try {
+      await organizerService.deleteEvent(eventId);
+      setEvents(prev => prev.filter(e => e.id !== eventId));
+      console.log('Evento excluído com sucesso');
+    } catch (error) {
+      console.error('Erro ao excluir evento:', error);
+      alert('Não foi possível excluir o evento. Verifique se existem vendas vinculadas.');
     }
   };
 
@@ -68,19 +105,16 @@ const OrganizerEvents = () => {
     return new Date(dateString).toLocaleDateString('pt-BR');
   };
 
-  const calculateTicketsSold = (event: Event) => {
-    return event.tickets.reduce((sum, ticket) => sum + (ticket.quantity - ticket.remaining), 0);
+  const calculateTicketsSold = (event: any) => {
+    return event.real_sold_count || 0;
   };
 
   const calculateTotalCapacity = (event: Event) => {
     return event.tickets.reduce((sum, ticket) => sum + ticket.quantity, 0);
   };
 
-  const calculateRevenue = (event: Event) => {
-    return event.tickets.reduce((sum, ticket) => {
-      const sold = ticket.quantity - ticket.remaining;
-      return sum + (sold * ticket.price);
-    }, 0);
+  const calculateRevenue = (event: any) => {
+    return event.real_revenue || 0;
   };
 
   if (loading) {
@@ -154,20 +188,31 @@ const OrganizerEvents = () => {
 
         {/* Filters */}
         <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <div className="flex flex-col md:flex-row gap-4 items-center">
+            <div className="relative flex-1 w-full">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
-                placeholder="Buscar eventos..."
+                placeholder="Buscar por título ou categoria..."
+                className="pl-10 h-12 bg-white border-gray-100 rounded-xl focus-visible:ring-primary shadow-sm"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
               />
             </div>
-            <Button variant="outline">
-              <Filter className="h-4 w-4 mr-2" />
-              Filtros
-            </Button>
+            <div className="flex gap-2 w-full md:w-auto">
+              <Button 
+                variant="outline" 
+                onClick={handleRefresh}
+                disabled={loading}
+                className="h-12 px-6 rounded-xl border-gray-100 font-bold gap-2 text-xs uppercase tracking-widest hover:bg-gray-50"
+              >
+                <Activity className={loading ? "w-4 h-4 animate-spin" : "w-4 h-4"} />
+                Atualizar Lista
+              </Button>
+              <Button variant="outline" className="h-12 px-6 rounded-xl border-gray-100 font-bold gap-2 text-xs uppercase tracking-widest hover:bg-gray-50">
+                <Filter className="h-4 w-4" />
+                Filtros
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -231,31 +276,38 @@ const OrganizerEvents = () => {
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem asChild>
-                            <Link to={`/organizer/events/${event.id}`}>
-                              <Eye className="h-4 w-4 mr-2" />
-                              Ver Detalhes
-                            </Link>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem asChild>
-                            <Link to={`/organizer/events/${event.id}/edit`}>
-                              <Edit className="h-4 w-4 mr-2" />
-                              Editar
-                            </Link>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="text-red-600">
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Excluir
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <div className="flex items-center justify-end gap-2">
+                        <Button asChild variant="outline" size="sm" className="hidden sm:flex border-gray-100 text-[10px] font-black uppercase tracking-widest h-9 px-4 rounded-xl">
+                          <Link to={`/organizer/event/${event.id}/manage`}>
+                            Painel do Evento
+                          </Link>
+                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-9 w-9 p-0 rounded-xl">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="rounded-2xl border-gray-100 shadow-xl p-2">
+                            <DropdownMenuItem asChild className="rounded-xl py-2 cursor-pointer">
+                              <Link to={`/organizer/event/${event.id}/manage`} className="flex items-center">
+                                <Eye className="h-4 w-4 mr-2 text-primary" />
+                                <span className="text-xs font-bold">Ver Hub do Evento</span>
+                              </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem asChild className="rounded-xl py-2 cursor-pointer">
+                              <Link to={`/organizer/events/edit/${event.id}`} className="flex items-center">
+                                <Edit className="h-4 w-4 mr-2 text-indigo-500" />
+                                <span className="text-xs font-bold">Editar Cadastro</span>
+                              </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleDeleteEvent(event.id)} className="rounded-xl py-2 text-red-600 cursor-pointer">
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              <span className="text-xs font-bold">Excluir Evento</span>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );

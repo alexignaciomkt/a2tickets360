@@ -1,0 +1,32 @@
+{
+    "mcpServers": {
+        "context7": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "@upstash/context7-mcp",
+                "--api-key",
+                "YOUR_API_KEY"
+            ]
+        },
+        "shadcn": {
+            "command": "npx",
+            "args": [
+                "shadcn@latest",
+                "mcp"
+            ]
+        },
+        "supabase": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "@supabase/mcp-server-supabase@latest"
+            ],
+            "env": {
+                "SUPABASE_URL": "https://osfnqpehvhznrecljjjf.supabase.co",
+                "SUPABASE_API_KEY": "sb_secret_K-rLyPMRkuWLfIsvJ9oolQ_aTnBECiy",
+                "SUPABASE_ACCESS_TOKEN": "sbp_52d810cbb81b34c3bdf31b34092c4babcdf545f5"
+            }
+        }
+    }
+}

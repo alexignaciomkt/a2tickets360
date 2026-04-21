@@ -27,8 +27,20 @@ const EditEvent = () => {
   const [loading, setLoading] = useState(true);
   const [ticketModalOpen, setTicketModalOpen] = useState(false);
   const [salesChannelModalOpen, setSalesChannelModalOpen] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
   const [editingTicket, setEditingTicket] = useState<Ticket | undefined>();
   const [editingChannel, setEditingChannel] = useState<SalesChannel | undefined>();
+  const [eventForm, setEventForm] = useState({
+    title: '',
+    description: '',
+    category: '',
+    date: '',
+    time: '',
+    locationName: '',
+    locationAddress: '',
+    capacity: 0,
+    status: 'draft' as any,
+  });
 
   useEffect(() => {
     if (eventId) {
@@ -40,6 +52,19 @@ const EditEvent = () => {
     try {
       const eventData = await organizerService.getEvent(eventId!);
       setEvent(eventData);
+      if (eventData) {
+        setEventForm({
+          title: eventData.title,
+          description: eventData.description,
+          category: eventData.category,
+          date: eventData.date,
+          time: eventData.time,
+          locationName: eventData.location?.name || eventData.locationName || '',
+          locationAddress: eventData.location?.address || eventData.locationAddress || '',
+          capacity: eventData.capacity,
+          status: eventData.status,
+        });
+      }
     } catch (error) {
       toast({
         variant: 'destructive',
@@ -93,6 +118,27 @@ const EditEvent = () => {
         title: 'Ponto de venda removido',
         description: 'O ponto de venda foi removido com sucesso.',
       });
+    }
+  };
+
+  const handleUpdateEvent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsUpdating(true);
+    try {
+      await organizerService.updateEvent(eventId!, eventForm);
+      toast({
+        title: 'Sucesso!',
+        description: 'As informações do evento foram atualizadas.',
+      });
+      loadEvent();
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao atualizar',
+        description: 'Não foi possível salvar as alterações.',
+      });
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -223,12 +269,112 @@ const EditEvent = () => {
 
           {/* Tabs */}
           <Tabs defaultValue="tickets" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="tickets">Ingressos</TabsTrigger>
-              <TabsTrigger value="sales-channels">Pontos de Venda</TabsTrigger>
-              <TabsTrigger value="sales">Vendas</TabsTrigger>
-              <TabsTrigger value="analytics">Relatórios</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-5 bg-gray-100/50 p-1 rounded-2xl border border-gray-100">
+              <TabsTrigger value="general" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm">Geral</TabsTrigger>
+              <TabsTrigger value="tickets" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm">Ingressos</TabsTrigger>
+              <TabsTrigger value="sales-channels" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm">Pontos de Venda</TabsTrigger>
+              <TabsTrigger value="sales" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm">Vendas</TabsTrigger>
+              <TabsTrigger value="analytics" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm">Relatórios</TabsTrigger>
             </TabsList>
+
+            {/* General Info Tab */}
+            <TabsContent value="general">
+              <div className="bg-white rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden">
+                <div className="p-8 border-b border-gray-50 bg-gray-50/30">
+                  <h2 className="text-xl font-black uppercase tracking-tighter text-gray-900">Informações Básicas</h2>
+                  <p className="text-sm text-gray-500 font-medium">Atualize os detalhes principais do seu evento.</p>
+                </div>
+                
+                <form onSubmit={handleUpdateEvent} className="p-8 space-y-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Título do Evento</label>
+                      <input 
+                        className="w-full h-14 px-6 rounded-2xl border-2 border-gray-100 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 transition-all outline-none font-bold text-gray-900"
+                        value={eventForm.title}
+                        onChange={e => setEventForm({...eventForm, title: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Categoria</label>
+                      <input 
+                        className="w-full h-14 px-6 rounded-2xl border-2 border-gray-100 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 transition-all outline-none font-bold text-gray-900"
+                        value={eventForm.category}
+                        onChange={e => setEventForm({...eventForm, category: e.target.value})}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Descrição Detalhada</label>
+                    <textarea 
+                      className="w-full min-h-[150px] p-6 rounded-2xl border-2 border-gray-100 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 transition-all outline-none font-medium text-gray-700 leading-relaxed"
+                      value={eventForm.description}
+                      onChange={e => setEventForm({...eventForm, description: e.target.value})}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Data</label>
+                      <input 
+                        type="date"
+                        className="w-full h-14 px-6 rounded-2xl border-2 border-gray-100 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 transition-all outline-none font-bold text-gray-900"
+                        value={eventForm.date}
+                        onChange={e => setEventForm({...eventForm, date: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Hora</label>
+                      <input 
+                        type="time"
+                        className="w-full h-14 px-6 rounded-2xl border-2 border-gray-100 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 transition-all outline-none font-bold text-gray-900"
+                        value={eventForm.time}
+                        onChange={e => setEventForm({...eventForm, time: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Capacidade Total</label>
+                      <input 
+                        type="number"
+                        className="w-full h-14 px-6 rounded-2xl border-2 border-gray-100 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 transition-all outline-none font-bold text-gray-900"
+                        value={eventForm.capacity}
+                        onChange={e => setEventForm({...eventForm, capacity: parseInt(e.target.value) || 0})}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Nome do Local</label>
+                      <input 
+                        className="w-full h-14 px-6 rounded-2xl border-2 border-gray-100 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 transition-all outline-none font-bold text-gray-900"
+                        value={eventForm.locationName}
+                        onChange={e => setEventForm({...eventForm, locationName: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Endereço Completo</label>
+                      <input 
+                        className="w-full h-14 px-6 rounded-2xl border-2 border-gray-100 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 transition-all outline-none font-bold text-gray-900"
+                        value={eventForm.locationAddress}
+                        onChange={e => setEventForm({...eventForm, locationAddress: e.target.value})}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end pt-4">
+                    <Button 
+                      type="submit" 
+                      disabled={isUpdating}
+                      className="h-14 px-12 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-indigo-200 transition-all active:scale-95"
+                    >
+                      {isUpdating ? 'Salvando...' : 'Salvar Alterações'}
+                    </Button>
+                  </div>
+                </form>
+              </div>
+            </TabsContent>
 
             {/* Tickets Tab */}
             <TabsContent value="tickets">

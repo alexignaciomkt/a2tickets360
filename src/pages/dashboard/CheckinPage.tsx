@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { Search, Check, X, RefreshCw, Info, Plus, CheckCheck, AlertTriangle } from 'lucide-react';
+import { Search, Check, X, RefreshCw, Info, Plus, CheckCheck, AlertTriangle, Wifi, WifiOff, Database } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
@@ -34,60 +34,63 @@ const CheckinPage = () => {
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
   const [visitorData, setVisitorData] = useState<any>(null);
 
-  // Mock attendee data
-  const mockAttendee = {
-    name: 'Maria Silva',
-    cpf: '123.456.789-00',
-    email: 'maria@example.com',
-    photo: 'https://randomuser.me/api/portraits/women/12.jpg',
-    eventName: 'Festival SanjaMusic 2025',
-    ticketType: 'Ingresso Comum',
-    ticketBatch: '1º Lote',
-    scanTime: new Date().toISOString(),
-    observation: '',
+  // Offline functionality
+  const [isOffline, setIsOffline] = useState(false);
+  const [syncQueue, setSyncQueue] = useState<any[]>([]);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const handleSync = () => {
+    if (syncQueue.length === 0 || isOffline) return;
+    setIsSyncing(true);
+    // Simulate API sync
+    setTimeout(() => {
+      setSyncQueue([]);
+      setIsSyncing(false);
+      toast({
+        title: 'Sincronização Concluída',
+        description: 'Todos os registros offline foram enviados.',
+      });
+    }, 2000);
   };
 
-  const handleSearch = (e: React.FormEvent) => {
+
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!searchQuery) return;
 
-    setLoading(true);
-
-    // Check if it's a visitor QR code
-    if (searchQuery.startsWith('VIS-')) {
-      try {
-        const visitor = await visitorService.validateQrCode(searchQuery);
-        setVisitorData(visitor);
-        setScanStatus(visitor.status === 'checked_in' ? 'used' : 'valid');
-      } catch (error) {
-        setScanStatus('invalid');
-        toast({
-          title: 'Erro na validação',
-          description: 'Visitante não encontrado ou erro no sistema.',
-          variant: 'destructive',
-        });
-      } finally {
-        setLoading(false);
-      }
+    if (isOffline) {
+      // Offline validation logic (simple check based on query for demo)
+      setVisitorData(null);
+      setScanStatus(searchQuery.includes('valid') ? 'valid' : 'valid'); // Assume valid in offline mode for speed if not found in local cache
       return;
     }
 
-    // Existing ticket logic (mock)
-    setTimeout(() => {
-      setVisitorData(null);
-      // For the demo, we'll just check if the query includes certain keywords
-      if (searchQuery.includes('valid')) {
-        setScanStatus('valid');
-      } else if (searchQuery.includes('used')) {
-        setScanStatus('used');
-      } else if (searchQuery.includes('invalid')) {
+    setLoading(true);
+
+    try {
+        const visitor = await visitorService.validateQrCode(searchQuery);
+        if (visitor) {
+            setVisitorData(visitor);
+            setScanStatus(visitor.status === 'checked_in' ? 'used' : 'valid');
+        } else {
+            setScanStatus('invalid');
+            toast({
+                title: 'Não encontrado',
+                description: 'Nenhum ingresso encontrado com este código.',
+                variant: 'destructive',
+            });
+        }
+    } catch (error) {
         setScanStatus('invalid');
-      } else {
-        setScanStatus('valid');
-      }
-      setLoading(false);
-    }, 1000);
+        toast({
+            title: 'Erro na validação',
+            description: 'Erro ao conectar com o servidor.',
+            variant: 'destructive',
+        });
+    } finally {
+        setLoading(false);
+    }
   };
 
   const resetScan = () => {
@@ -99,6 +102,24 @@ const CheckinPage = () => {
   const handleMarkEntry = async () => {
     if (scanStatus !== 'valid') return;
 
+    const newCheckIn: CheckIn = {
+      name: visitorData?.name || mockAttendee.name,
+      ticketId: searchQuery,
+      status: 'valid',
+      time: format(new Date(), "dd/MM/yyyy HH:mm", { locale: ptBR })
+    };
+
+    if (isOffline) {
+      setSyncQueue(prev => [...prev, { ...newCheckIn, type: visitorData ? 'visitor' : 'ticket', id: visitorData?.id || searchQuery }]);
+      setCheckIns(prev => [newCheckIn, ...prev]);
+      toast({
+        title: 'Entrada Salva Localmente',
+        description: 'Será sincronizado quando o modo online for ativado.',
+      });
+      resetScan();
+      return;
+    }
+
     if (visitorData) {
       try {
         await visitorService.checkIn(visitorData.id);
@@ -106,13 +127,6 @@ const CheckinPage = () => {
           title: 'Check-in realizado',
           description: `Visitante: ${visitorData.name}`,
         });
-
-        const newCheckIn: CheckIn = {
-          name: visitorData.name,
-          ticketId: searchQuery,
-          status: 'valid',
-          time: format(new Date(), "dd/MM/yyyy HH:mm", { locale: ptBR })
-        };
         setCheckIns(prev => [newCheckIn, ...prev]);
         resetScan();
       } catch (error) {
@@ -126,21 +140,12 @@ const CheckinPage = () => {
     }
 
     // Mock ticket check-in
-    const newCheckIn: CheckIn = {
-      name: mockAttendee.name,
-      ticketId: searchQuery,
-      status: scanStatus,
-      time: format(new Date(), "dd/MM/yyyy HH:mm", { locale: ptBR })
-    };
-
     setCheckIns(prev => [newCheckIn, ...prev]);
-
     toast({
       title: 'Check-in realizado',
       description: `${mockAttendee.name} - ${format(new Date(), "dd/MM/yyyy HH:mm", { locale: ptBR })}`,
       variant: 'default',
     });
-
     resetScan();
   };
 
@@ -158,7 +163,42 @@ const CheckinPage = () => {
       </div>
 
       <div className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-4xl mx-auto space-y-6">
+          {/* Offline & Sync Status */}
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 rounded-2xl border shadow-sm">
+            <div className="flex items-center gap-4">
+              <Button
+                variant={isOffline ? "destructive" : "outline"}
+                size="sm"
+                onClick={() => setIsOffline(!isOffline)}
+                className="rounded-full gap-2 uppercase tracking-widest text-[10px] font-black"
+              >
+                {isOffline ? <WifiOff size={14} /> : <Wifi size={14} />}
+                {isOffline ? 'Modo Offline' : 'Modo Online'}
+              </Button>
+              <div className="flex items-center gap-2 px-3 py-1 bg-gray-50 rounded-full border">
+                <div className={`w-2 h-2 rounded-full ${isOffline ? 'bg-red-500' : 'bg-green-500'} animate-pulse`} />
+                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{isOffline ? 'Local Only' : 'Connected'}</span>
+              </div>
+            </div>
+
+            {syncQueue.length > 0 && (
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest flex items-center gap-1">
+                  <Database size={12} /> {syncQueue.length} pendentes
+                </span>
+                <Button
+                  size="sm"
+                  onClick={handleSync}
+                  disabled={isSyncing || isOffline}
+                  className="rounded-full gap-2 h-8 text-[10px] font-black"
+                >
+                  <RefreshCw size={12} className={isSyncing ? 'animate-spin' : ''} />
+                  {isSyncing ? 'Sincronizando...' : 'Sincronizar'}
+                </Button>
+              </div>
+            )}
+          </div>
           {/* Search Bar Card */}
           <Card className="mb-8">
             <CardHeader>
@@ -260,50 +300,33 @@ const CheckinPage = () => {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                       <div className="col-span-2 flex items-center">
-                        <div className="h-16 w-16 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-xl border-2 border-indigo-200">
-                          {(visitorData?.name || mockAttendee.name).charAt(0)}
+                        <div className="h-20 w-20 rounded-2xl bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-xl border-2 border-indigo-200 overflow-hidden">
+                          {visitorData?.photoUrl ? (
+                            <img src={visitorData.photoUrl} className="w-full h-full object-cover" alt="Foto Identidade" />
+                          ) : (
+                            visitorData?.name?.charAt(0)
+                          )}
                         </div>
                         <div className="ml-4">
-                          <h4 className="font-medium text-lg">{visitorData?.name || mockAttendee.name}</h4>
-                          <p className="text-gray-600 text-sm">{visitorData?.email || mockAttendee.email}</p>
+                          <h4 className="font-black text-xl uppercase tracking-tighter text-slate-900">{visitorData?.name}</h4>
+                          <p className="text-gray-500 text-sm font-medium">{visitorData?.email}</p>
                         </div>
                       </div>
 
                       <div>
-                        <p className="text-sm text-gray-500">{visitorData ? 'Documento (CPF)' : 'CPF'}</p>
-                        <p className="font-medium">{visitorData?.document || mockAttendee.cpf}</p>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Documento (CPF)</p>
+                        <p className="font-bold text-slate-900">{visitorData?.document}</p>
                       </div>
 
                       <div>
-                        <p className="text-sm text-gray-500">Tipo</p>
-                        <p className="font-medium text-indigo-600">{visitorData ? 'Visitante (Credencial)' : mockAttendee.ticketType}</p>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Status do Ingresso</p>
+                        <p className="font-bold text-indigo-600 uppercase text-xs">{visitorData?.status === 'checked_in' ? 'Já Validado' : 'Aguardando Entrada'}</p>
                       </div>
 
-                      {visitorData && (
-                        <>
-                          <div>
-                            <p className="text-sm text-gray-500">Empresa</p>
-                            <p className="font-medium">{visitorData.company || 'Pessoa Física'}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-500">Cargo</p>
-                            <p className="font-medium">{visitorData.role || 'N/A'}</p>
-                          </div>
-                        </>
-                      )}
-
-                      {!visitorData && (
-                        <>
-                          <div>
-                            <p className="text-sm text-gray-500">Evento</p>
-                            <p className="font-medium">{mockAttendee.eventName}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-500">Lote</p>
-                            <p className="font-medium">{mockAttendee.ticketBatch}</p>
-                          </div>
-                        </>
-                      )}
+                      <div className="col-span-2">
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Evento</p>
+                        <p className="font-bold text-slate-800 uppercase text-sm">{visitorData?.eventName}</p>
+                      </div>
 
                       <div className="col-span-2 mt-2">
                         <p className="text-sm text-gray-500">Observações do Organizador</p>

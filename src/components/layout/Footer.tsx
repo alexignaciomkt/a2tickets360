@@ -8,9 +8,9 @@ const Footer = () => {
       <div className="max-w-7xl mx-auto px-4">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-16 mb-20">
           <div className="md:col-span-5 space-y-8">
-            <Link to="/" className="flex items-center gap-2 text-indigo-500 font-black text-4xl tracking-tighter">
-              <Ticket className="w-10 h-10" />
-              <span>A2 Tickets 360</span>
+            <Link to="/" className="flex items-center gap-2 text-white font-black text-4xl tracking-tighter">
+              <img src="/assets/logo.png" alt="A2 Tickets 360º" className="w-12 h-12 object-contain" />
+              <span>A2 Tickets 360º</span>
             </Link>
             <p className="text-gray-400 text-xl font-medium leading-relaxed max-w-md">
               A revolução na gestão de eventos. Criamos tecnologia para que produtores foquem no que importa: a experiência do público.
@@ -32,6 +32,7 @@ const Footer = () => {
               <li><Link to="/validador" className="text-indigo-400 hover:text-indigo-300 font-black flex items-center gap-2">
                 Validador Pro <span className="text-[8px] bg-indigo-500/20 px-1 rounded">WEB</span>
               </Link></li>
+              <li><Link to="/login" className="hover:text-white transition text-[10px] opacity-70 uppercase tracking-widest">Acesso Administrativo</Link></li>
               <li><a href="#" className="hover:text-white transition">Taxas e Repasses</a></li>
               <li><a href="#" className="hover:text-white transition">Central de Suporte</a></li>
             </ul>
@@ -74,7 +75,7 @@ const Footer = () => {
 
         <div className="pt-10 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-8 text-[10px] font-black uppercase tracking-widest text-gray-500">
           <p>
-            &copy; {new Date().getFullYear()} A2 Tickets 360. Todos os direitos reservados.
+            &copy; {new Date().getFullYear()} A2 Tickets 360º. Todos os direitos reservados a A2 Marketing e Business Intelligence.
           </p>
           <div className="flex gap-8">
             <a href="#" className="hover:text-white transition">Status do Sistema</a>

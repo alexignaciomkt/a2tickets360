@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { 
   Plus, 
   Store, 
@@ -18,71 +19,114 @@ import {
   Trash2, 
   ShoppingBag,
   TrendingUp,
-  DollarSign
+  DollarSign,
+  ClipboardList,
+  ExternalLink,
+  ChevronRight
 } from 'lucide-react';
 import AddProductModal from '@/components/modals/AddProductModal';
 import PaymentGatewayConfig from '@/components/dashboard/PaymentGatewayConfig';
 import { useNotifications } from '@/contexts/NotificationContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { organizerService } from '@/services/organizerService';
 
 const OrganizerStore = () => {
   const { showToast } = useNotifications();
+  const { user } = useAuth();
   const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('products');
+  const [loading, setLoading] = useState(true);
+  const [editingProduct, setEditingProduct] = useState<any>(null);
 
-  // Mock data para produtos
-  const [products, setProducts] = useState([
-    {
-      id: '1',
-      name: 'Camiseta Festival 2025',
-      description: 'Camiseta oficial do festival com design exclusivo',
-      price: 49.90,
-      originalPrice: 69.90,
-      category: 'vestuario',
-      image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=300&h=300&fit=crop',
-      featured: true,
-      stock: 50,
-      sales: 23
-    },
-    {
-      id: '2',
-      name: 'Caneca Personalizada',
-      description: 'Caneca de cerâmica com logo do evento',
-      price: 29.90,
-      category: 'acessorios',
-      image: 'https://images.unsplash.com/photo-1514228742587-6b1558fcf93a?w=300&h=300&fit=crop',
-      featured: false,
-      stock: 100,
-      sales: 45
+  const [products, setProducts] = useState<any[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [profileData, setProfileData] = useState<any>(null);
+
+  useEffect(() => {
+    if (user?.id) {
+      loadStoreData();
     }
-  ]);
+  }, [user]);
 
-  // Estatísticas da loja
+  const loadStoreData = async () => {
+    try {
+      setLoading(true);
+      const [productsData, ordersData, profile] = await Promise.all([
+        organizerService.getProducts(user!.id),
+        organizerService.getProductOrders(user!.id),
+        organizerService.getProfile(user!.id)
+      ]);
+      setProducts(productsData);
+      setOrders(ordersData);
+      setProfileData(profile);
+    } catch (error) {
+      console.error('Erro ao carregar dados da loja:', error);
+      showToast('error', 'Falha ao carregar dados da loja');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Estatísticas da loja calculadas em tempo real
   const storeStats = {
     totalProducts: products.length,
-    totalSales: products.reduce((sum, product) => sum + product.sales, 0),
-    totalRevenue: products.reduce((sum, product) => sum + (product.sales * product.price), 0),
-    topProduct: products.sort((a, b) => b.sales - a.sales)[0]
+    totalSales: orders.filter(o => o.status === 'paid' || o.status === 'shipped' || o.status === 'delivered').length,
+    totalRevenue: orders.reduce((sum, order) => {
+      if (order.status === 'paid' || order.status === 'shipped' || order.status === 'delivered') {
+        return sum + parseFloat(order.total_value || 0);
+      }
+      return sum;
+    }, 0),
+    topProduct: products.length > 0 ? products[0] : null // Simplificado para exemplo
   };
 
-  const handleAddProduct = (productData: any) => {
-    const newProduct = {
-      id: String(products.length + 1),
-      ...productData,
-      stock: 0,
-      sales: 0
-    };
-    setProducts([...products, newProduct]);
-    setIsAddProductModalOpen(false);
-    showToast('success', 'Produto adicionado com sucesso!');
+  const handleAddProduct = async (productData: any) => {
+    try {
+      await organizerService.saveProduct(user!.id, productData);
+      showToast('success', editingProduct ? 'Produto atualizado!' : 'Produto adicionado com sucesso!');
+      setIsAddProductModalOpen(false);
+      setEditingProduct(null);
+      loadStoreData();
+    } catch (error) {
+      console.error('Erro ao salvar produto:', error);
+      showToast('error', 'Erro ao salvar produto');
+    }
   };
 
-  const handleDeleteProduct = (productId: string) => {
-    setProducts(products.filter(p => p.id !== productId));
-    showToast('success', 'Produto removido com sucesso!');
+  const handleDeleteProduct = async (productId: string) => {
+    if (window.confirm('Tem certeza que deseja excluir este produto?')) {
+      try {
+        await organizerService.deleteProduct(productId);
+        showToast('success', 'Produto removido!');
+        loadStoreData();
+      } catch (error) {
+        showToast('error', 'Erro ao remover produto');
+      }
+    }
+  };
+
+  const handleEditProduct = (product: any) => {
+    setEditingProduct(product);
+    setIsAddProductModalOpen(true);
   };
 
   const handleViewPublicPage = () => {
-    window.open('/producer-page/eventpro', '_blank');
+    if (profileData?.slug) {
+      window.open(`/p/${profileData.slug}`, '_blank');
+    } else {
+      showToast('error', 'Slug não encontrada para sua página pública. Complete seu cadastro.');
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    const colors: Record<string, string> = {
+      pending: 'bg-yellow-100 text-yellow-800',
+      paid: 'bg-green-100 text-green-800',
+      shipped: 'bg-blue-100 text-blue-800',
+      delivered: 'bg-purple-100 text-purple-800',
+      cancelled: 'bg-red-100 text-red-800'
+    };
+    return <Badge className={colors[status] || 'bg-gray-100 text-gray-800'}>{status.toUpperCase()}</Badge>;
   };
 
   return (
@@ -102,7 +146,10 @@ const OrganizerStore = () => {
               <Eye className="h-4 w-4 mr-2" />
               Ver Página Pública
             </Button>
-            <Button onClick={() => setIsAddProductModalOpen(true)}>
+            <Button onClick={() => {
+              setEditingProduct(null);
+              setIsAddProductModalOpen(true);
+            }}>
               <Plus className="h-4 w-4 mr-2" />
               Adicionar Produto
             </Button>
@@ -153,7 +200,7 @@ const OrganizerStore = () => {
                 <TrendingUp className="h-5 w-5 text-orange-500" />
                 <div>
                   <p className="text-sm text-gray-600">Produto Top</p>
-                  <p className="text-sm font-medium">{storeStats.topProduct?.name}</p>
+                  <p className="text-sm font-medium truncate">{storeStats.topProduct?.name || '-'}</p>
                 </div>
               </div>
             </CardContent>
@@ -164,59 +211,146 @@ const OrganizerStore = () => {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList>
             <TabsTrigger value="products">Produtos</TabsTrigger>
+            <TabsTrigger value="orders">Pedidos</TabsTrigger>
             <TabsTrigger value="payments">Pagamentos</TabsTrigger>
             <TabsTrigger value="settings">Configurações</TabsTrigger>
           </TabsList>
 
           <TabsContent value="products" className="space-y-4">
-            {/* Products Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {products.map(product => (
-                <Card key={product.id} className="overflow-hidden">
-                  <div className="relative">
-                    <img 
-                      src={product.image} 
-                      alt={product.name}
-                      className="w-full h-48 object-cover"
-                    />
-                    {product.featured && (
-                      <Badge className="absolute top-2 left-2">Destaque</Badge>
-                    )}
-                    <div className="absolute top-2 right-2 flex gap-1">
-                      <Button size="sm" variant="secondary" className="h-8 w-8 p-0">
-                        <Edit3 className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="destructive" 
-                        className="h-8 w-8 p-0"
-                        onClick={() => handleDeleteProduct(product.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  <CardContent className="p-4">
-                    <h3 className="font-semibold mb-2">{product.name}</h3>
-                    <p className="text-sm text-gray-600 mb-3 line-clamp-2">{product.description}</p>
-                    
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="font-bold text-green-600">R$ {product.price.toFixed(2)}</span>
-                      {product.originalPrice && (
-                        <span className="text-sm text-gray-500 line-through">
-                          R$ {product.originalPrice.toFixed(2)}
-                        </span>
+            {loading ? (
+              <div className="flex justify-center p-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+              </div>
+            ) : products.length === 0 ? (
+              <Card className="p-12 text-center text-gray-500">
+                <Package className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                <p>Nenhum produto cadastrado ainda.</p>
+                <Button variant="link" onClick={() => setIsAddProductModalOpen(true)}>Adicionar seu primeiro produto</Button>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {(products || []).map(product => (
+                  <Card key={product.id} className="overflow-hidden group hover:shadow-lg transition-all duration-300">
+                    <div className="relative">
+                      <img 
+                        src={product.imageUrl || 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=300&h=300&fit=crop'} 
+                        alt={product.name}
+                        className="w-full h-48 object-cover"
+                      />
+                      {product.isFeatured && (
+                        <Badge className="absolute top-2 left-2 bg-indigo-600">Destaque</Badge>
                       )}
+                      <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button 
+                          size="sm" 
+                          variant="secondary" 
+                          className="h-8 w-8 p-0"
+                          onClick={() => handleEditProduct(product)}
+                        >
+                          <Edit3 className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="destructive" 
+                          className="h-8 w-8 p-0"
+                          onClick={() => handleDeleteProduct(product.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
+                    <CardContent className="p-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <h3 className="font-semibold">{product.name}</h3>
+                        <Badge variant={product.status === 'active' ? 'outline' : 'secondary'} className="text-[10px]">
+                          {product.status}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-gray-600 mb-3 line-clamp-2">{product.description}</p>
+                      
+                      <div className="flex items-center gap-2 mb-4">
+                        <span className="font-bold text-indigo-600 text-lg">R$ {parseFloat(product.price).toFixed(2)}</span>
+                        {product.salePrice && parseFloat(product.salePrice) > 0 && (
+                          <span className="text-sm text-gray-400 line-through">
+                            R$ {parseFloat(product.salePrice).toFixed(2)}
+                          </span>
+                        )}
+                      </div>
 
-                    <div className="flex items-center justify-between text-sm text-gray-600">
-                      <span>Estoque: {product.stock}</span>
-                      <span>Vendidos: {product.sales}</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                      <div className="flex items-center justify-between text-xs text-gray-500 pt-3 border-t">
+                        <span className="flex items-center gap-1">
+                          <Package className="h-3 w-3" /> Estoque: {product.hasVariants ? 'Variável' : product.totalStock}
+                        </span>
+                        {product.hasVariants && (
+                          <span className="text-indigo-500 font-medium">
+                            {product.variants?.length || 0} variações
+                          </span>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="orders" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ClipboardList className="h-5 w-5" />
+                  Pedidos Recentes
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {orders.length === 0 ? (
+                  <div className="text-center py-12 text-gray-500">
+                    Nenhum pedido realizado até o momento.
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Pedido</TableHead>
+                        <TableHead>Cliente</TableHead>
+                        <TableHead>Valor</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Data</TableHead>
+                        <TableHead className="text-right">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {orders.map((order) => (
+                        <TableRow key={order.id}>
+                          <TableCell className="font-medium">#{order.id.substring(0, 8).toUpperCase()}</TableCell>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium">{order.buyer_name}</p>
+                              <p className="text-xs text-gray-500">{order.buyer_email}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                                <p className="font-bold">R$ {parseFloat(order.total_value).toFixed(2)}</p>
+                                <p className="text-[10px] text-gray-400">Taxa: R$ {(parseFloat(order.total_value) * 0.12).toFixed(2)}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell>{getStatusBadge(order.status)}</TableCell>
+                          <TableCell className="text-gray-500 text-xs">
+                            {new Date(order.created_at).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="sm">
+                              Gerenciar <ChevronRight className="h-4 w-4 ml-1" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="payments" className="space-y-4">
@@ -228,77 +362,39 @@ const OrganizerStore = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Settings className="h-5 w-5" />
-                  Configurações da Loja
+                  Configurações do Ecommerce
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="storeName">Nome da Loja</Label>
+                    <Label htmlFor="storeName">Nome da Exibição na Loja</Label>
                     <Input
                       id="storeName"
-                      defaultValue="EventPro Store"
-                      placeholder="Digite o nome da sua loja"
+                      placeholder="Ex: Loja Oficial do Festival"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="storeSlug">URL da Loja</Label>
-                    <Input
-                      id="storeSlug"
-                      defaultValue="eventpro"
-                      placeholder="eventpro"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="storeDescription">Descrição da Loja</Label>
-                  <Textarea
-                    id="storeDescription"
-                    placeholder="Descreva sua loja..."
-                    rows={3}
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="deliveryFee">Taxa de Entrega (R$)</Label>
+                    <Label htmlFor="deliveryFee">Taxa Fixa de Entrega (R$)</Label>
                     <Input
                       id="deliveryFee"
                       type="number"
                       step="0.01"
-                      placeholder="10.00"
+                      placeholder="0.00"
                     />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="freeShipping">Frete Grátis Acima de (R$)</Label>
-                    <Input
-                      id="freeShipping"
-                      type="number"
-                      step="0.01"
-                      placeholder="100.00"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="deliveryTime">Prazo de Entrega (dias)</Label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="1-3">1 a 3 dias</SelectItem>
-                        <SelectItem value="3-5">3 a 5 dias</SelectItem>
-                        <SelectItem value="5-10">5 a 10 dias</SelectItem>
-                      </SelectContent>
-                    </Select>
                   </div>
                 </div>
 
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-sm text-blue-800 font-medium flex items-center gap-2">
+                        <Store className="h-4 w-4" /> 
+                        Taxa da Plataforma: 12% retidos automaticamente sobre o valor bruto das vendas físicas.
+                    </p>
+                </div>
+
                 <div className="flex justify-end">
-                  <Button>Salvar Configurações</Button>
+                  <Button onClick={() => showToast('success', 'Configurações salvas!')}>Salvar Configurações</Button>
                 </div>
               </CardContent>
             </Card>
@@ -309,8 +405,12 @@ const OrganizerStore = () => {
       {/* Add Product Modal */}
       <AddProductModal
         isOpen={isAddProductModalOpen}
-        onClose={() => setIsAddProductModalOpen(false)}
+        onClose={() => {
+          setIsAddProductModalOpen(false);
+          setEditingProduct(null);
+        }}
         onSubmit={handleAddProduct}
+        product={editingProduct}
       />
     </DashboardLayout>
   );

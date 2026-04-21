@@ -1,0 +1,38 @@
+version: "3.8"
+
+services:
+  app:
+    # A imagem será baixada diretamente do GitHub Container Registry
+    image: ghcr.io/alexignaciomkt/a2tickets360:latest
+    networks:
+      - network_swarm_public
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == worker # Ou manager, dependendo da sua preferência de onde o front roda
+      labels:
+        # Habilita o Traefik para este container
+        - "traefik.enable=true"
+        
+        # Roteamento HTTP (redirecionamento será feito globalmente pelo Traefik)
+        - "traefik.http.routers.ticketera.rule=Host(`a2tickets360.com.br`)"
+        - "traefik.http.routers.ticketera.entrypoints=web"
+        
+        # Roteamento HTTPS Segura
+        - "traefik.http.routers.ticketera-secure.rule=Host(`a2tickets360.com.br`)"
+        - "traefik.http.routers.ticketera-secure.entrypoints=websecure"
+        - "traefik.http.routers.ticketera-secure.tls=true"
+        - "traefik.http.routers.ticketera-secure.tls.certresolver=letsencryptresolver"
+        
+        # Indica para qual porta interna o Traefik deve enviar o tráfego (porta do Nginx)
+        - "traefik.http.services.ticketera.loadbalancer.server.port=80"
+        
+        # Configuração específica para Swarm (a qual rede o Traefik deve olhar)
+        - "traefik.docker.network=network_swarm_public"
+
+networks:
+  network_swarm_public:
+    external: true
+    name: network_swarm_public

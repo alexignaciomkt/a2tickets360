@@ -1,9 +1,11 @@
 
 import React from 'react';
-import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, Navigate, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { AuthProvider } from '@/contexts/AuthContext';
+import { AuthProvider } from '@/contexts/AuthProvider';
 import { NotificationProvider } from '@/contexts/NotificationContext';
+import { Toaster } from '@/components/ui/toaster';
+import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import Index from '@/pages/Index';
 import LoginPage from '@/pages/LoginPage';
 import RegisterPage from '@/pages/RegisterPage';
@@ -23,6 +25,7 @@ import OrganizerFinancial from '@/pages/dashboard/OrganizerFinancial';
 import OrganizerReports from '@/pages/dashboard/OrganizerReports';
 import OrganizerSettings from '@/pages/dashboard/OrganizerSettings';
 import OrganizerOnboarding from '@/pages/dashboard/OrganizerOnboarding';
+import OrganizerPostManager from '@/pages/dashboard/OrganizerPostManager';
 import OrganizerStaff from '@/pages/dashboard/OrganizerStaff';
 import OrganizerSuppliers from '@/pages/dashboard/OrganizerSuppliers';
 import OrganizerStands from '@/pages/dashboard/OrganizerStands';
@@ -32,6 +35,7 @@ import StaffRolesPage from '@/pages/dashboard/StaffRolesPage';
 import StaffFinancialPage from '@/pages/dashboard/StaffFinancialPage';
 import TalentPoolPage from '@/pages/dashboard/TalentPoolPage';
 import CreateEvent from '@/pages/dashboard/CreateEvent';
+import EventSuccessPage from '@/pages/dashboard/EventSuccessPage';
 import TicketValidation from '@/pages/dashboard/TicketValidation';
 import TicketDesigner from '@/pages/dashboard/TicketDesigner';
 import SalesPoints from '@/pages/dashboard/SalesPoints';
@@ -49,6 +53,11 @@ import ProposalsPage from '@/pages/staff/ProposalsPage';
 import AgendaPage from '@/pages/staff/AgendaPage';
 import VisitorRegistrationPage from '@/pages/VisitorRegistrationPage';
 import OrganizerVisitors from '@/pages/dashboard/OrganizerVisitors';
+import OrganizerEventHub from '@/pages/dashboard/OrganizerEventHub';
+import MesaRedeemPage from '@/pages/MesaRedeemPage';
+import ExhibitorDashboard from '@/pages/dashboard/ExhibitorDashboard';
+import ProductCheckoutPage from '@/pages/ProductCheckoutPage';
+import CheckInPage from '@/pages/staff/CheckInPage';
 
 import BuyerProfilePage from '@/pages/BuyerProfilePage';
 import MasterAdminPanel from '@/pages/dashboard/MasterAdminPanel';
@@ -61,6 +70,11 @@ import PayoutManagement from '@/pages/dashboard/PayoutManagement';
 import FinancialTransactions from '@/pages/dashboard/FinancialTransactions';
 import CommissionsPage from '@/pages/dashboard/CommissionsPage';
 import MasterSettings from '@/pages/dashboard/MasterSettings';
+import MasterWebhooks from '@/pages/dashboard/MasterWebhooks';
+import MasterGlobalMailing from '@/pages/dashboard/MasterGlobalMailing';
+import MasterFinancialBI from '@/pages/dashboard/MasterFinancialBI';
+
+import { AnimatePresence } from 'framer-motion';
 
 const queryClient = new QueryClient();
 
@@ -70,99 +84,311 @@ function App() {
       <AuthProvider>
         <NotificationProvider>
           <Router>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/register" element={<RegisterChoicePage />} />
-              <Route path="/register/staff" element={<RegisterPage />} />
-              <Route path="/register-organizer" element={<RegisterOrganizerPage />} />
-              <Route path="/terms" element={<LegalPage slug="terms" />} />
-              <Route path="/privacy" element={<LegalPage slug="privacy" />} />
-              <Route path="/para-produtores" element={<ParaProdutores />} />
-              <Route path="/work-with-us" element={<WorkWithUs />} />
-              <Route path="/validador" element={<StaffReaderPage />} />
-              <Route path="/auth/verify" element={<VerifyEmailPage />} />
-
-              {/* User Dashboard */}
-              <Route path="/dashboard" element={<CustomerDashboard />} />
-              <Route path="/dashboard/tickets" element={<CustomerTickets />} />
-              <Route path="/dashboard/tickets/:ticketId" element={<CustomerTickets />} />
-              <Route path="/dashboard/settings" element={<Settings />} />
-
-              {/* Checkout */}
-              <Route path="/checkout/:eventId/:ticketId" element={<CheckoutPage />} />
-
-              {/* Organizer Routes */}
-              <Route path="/organizer" element={<Navigate to="/organizer/dashboard" replace />} />
-              <Route path="/organizer/dashboard" element={<OrganizerDashboard />} />
-              <Route path="/organizer/events" element={<OrganizerEvents />} />
-              <Route path="/organizer/events/create" element={<CreateEvent />} />
-              <Route path="/organizer/attendees" element={<OrganizerAttendees />} />
-              <Route path="/organizer/events/:eventId/attendees" element={<OrganizerAttendees />} />
-              <Route path="/organizer/staff" element={<OrganizerStaff />} />
-              <Route path="/organizer/suppliers" element={<OrganizerSuppliers />} />
-              <Route path="/organizer/suppliers/:id" element={<SupplierDetails />} />
-              <Route path="/organizer/staff/roles" element={<StaffRolesPage />} />
-              <Route path="/organizer/staff/financial" element={<StaffFinancialPage />} />
-              <Route path="/organizer/staff/talent-pool" element={<TalentPoolPage />} />
-              <Route path="/organizer/store" element={<OrganizerStore />} />
-              <Route path="/organizer/financial" element={<OrganizerFinancial />} />
-              <Route path="/organizer/reports" element={<OrganizerReports />} />
-              <Route path="/organizer/settings" element={<OrganizerSettings />} />
-              <Route path="/organizer/onboarding" element={<OrganizerOnboarding />} />
-              <Route path="/organizer/ticket-validation" element={<TicketValidation />} />
-              <Route path="/organizer/ticket-designer" element={<TicketDesigner />} />
-              <Route path="/organizer/sales-points" element={<SalesPoints />} />
-              <Route path="/organizer/stands" element={<OrganizerStands />} />
-              <Route path="/organizer/events/:eventId/stands" element={<OrganizerStands />} />
-              <Route path="/organizer/sponsors" element={<OrganizerSponsors />} />
-              <Route path="/organizer/events/:eventId/sponsors" element={<OrganizerSponsors />} />
-
-              {/* Producer Fan Page (Facebook Replica) */}
-              <Route path="/producer-fan/:slug" element={<ProducerFanPage />} />
-              <Route path="/producer-page/:slug" element={<ProducerFanPage />} />
-
-              {/* Profile area with History */}
-              <Route path="/profile" element={<BuyerProfilePage />} />
-
-              {/* Events */}
-              <Route path="/events" element={<EventsPage />} />
-              <Route path="/events/:id" element={<EventDetailPage />} />
-
-              {/* Producer Individual Page */}
-              <Route path="/producer/:slug" element={<ProducerFanPage />} />
-              <Route path="/producer/:slug/careers" element={<ProducerCareersPage />} />
-
-              {/* Master Admin Routes */}
-              <Route path="/master" element={<MasterAdminPanel />} />
-              <Route path="/master/organizers" element={<OrganizersManagement />} />
-              <Route path="/master/financial" element={<FinancialDashboard />} />
-              <Route path="/master/approve" element={<EventApprovalPage />} />
-              <Route path="/master/reports" element={<ReportsPage />} />
-              <Route path="/master/alerts" element={<AlertsPage />} />
-              <Route path="/master/payouts" element={<PayoutManagement />} />
-              <Route path="/master/transactions" element={<FinancialTransactions />} />
-              <Route path="/master/commissions" element={<CommissionsPage />} />
-              <Route path="/master/settings" element={<MasterSettings />} />
-              <Route path="/organizer/events/edit/:eventId" element={<CreateEvent />} />
-              <Route path="/organizer/events/:eventId" element={<Navigate to="/organizer/events/edit/:eventId" replace />} />
-
-              {/* Visitor & Credentialing */}
-              <Route path="/events/:eventId/register" element={<VisitorRegistrationPage />} />
-              <Route path="/organizer/visitors" element={<OrganizerVisitors />} />
-              <Route path="/organizer/events/:eventId/visitors" element={<OrganizerVisitors />} />
-
-              {/* Staff Experience Portal (Phase 6) */}
-              <Route path="/staff/portal" element={<StaffPortalDashboard />} />
-              <Route path="/staff/portal/proposals" element={<ProposalsPage />} />
-              <Route path="/staff/portal/agenda" element={<AgendaPage />} />
-              <Route path="/staff/portal/financial" element={<StaffPortalDashboard />} />
-              <Route path="/staff/portal/profile" element={<WorkerProfilePage />} />
-            </Routes>
+            <AppRoutes />
+            <Toaster />
           </Router>
         </NotificationProvider>
       </AuthProvider>
     </QueryClientProvider>
+  );
+}
+
+function AppRoutes() {
+  const location = useLocation();
+
+  return (
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
+        {/* ═══ PUBLIC ROUTES ═══ */}
+        <Route path="/" element={<Index />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterChoicePage />} />
+        <Route path="/register/staff" element={<RegisterPage />} />
+        <Route path="/register-organizer" element={<RegisterOrganizerPage />} />
+        <Route path="/terms" element={<LegalPage slug="terms" />} />
+        <Route path="/privacy" element={<LegalPage slug="privacy" />} />
+        <Route path="/para-produtores" element={<ParaProdutores />} />
+        <Route path="/work-with-us" element={<WorkWithUs />} />
+        <Route path="/validador" element={<CheckInPage />} />
+        <Route path="/staff/check-in/:eventId" element={<CheckInPage />} />
+        <Route path="/auth/verify" element={<VerifyEmailPage />} />
+        <Route path="/events" element={<EventsPage />} />
+        <Route path="/events/:id" element={<EventDetailPage />} />
+        <Route path="/p/:slug" element={<ProducerFanPage />} />
+        <Route path="/producer-fan/:slug" element={<ProducerFanPage />} />
+        <Route path="/producer-page/:slug" element={<ProducerFanPage />} />
+        <Route path="/producer/:slug" element={<ProducerFanPage />} />
+        <Route path="/producer/:slug/careers" element={<ProducerCareersPage />} />
+        <Route path="/events/:eventId/register" element={<VisitorRegistrationPage />} />
+
+        {/* ═══ CUSTOMER ROUTES ═══ */}
+        <Route path="/dashboard" element={
+          <ProtectedRoute allowedRoles={['customer', 'organizer', 'master']}>
+            <CustomerDashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/dashboard/tickets" element={
+          <ProtectedRoute allowedRoles={['customer']}>
+            <CustomerTickets />
+          </ProtectedRoute>
+        } />
+        <Route path="/dashboard/tickets/:ticketId" element={
+          <ProtectedRoute allowedRoles={['customer']}>
+            <CustomerTickets />
+          </ProtectedRoute>
+        } />
+        <Route path="/dashboard/settings" element={
+          <ProtectedRoute allowedRoles={['customer', 'organizer', 'master']}>
+            <Settings />
+          </ProtectedRoute>
+        } />
+        <Route path="/checkout/:eventId/:ticketId" element={<CheckoutPage />} />
+        <Route path="/checkout/product/:productId" element={<ProductCheckoutPage />} />
+        <Route path="/profile" element={<BuyerProfilePage />} />
+
+        {/* ═══ ORGANIZER ROUTES (requires approved status) ═══ */}
+        <Route path="/organizer" element={<Navigate to="/organizer/dashboard" replace />} />
+        <Route path="/organizer/dashboard" element={
+          <ProtectedRoute allowedRoles={['organizer']}>
+            <OrganizerDashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/organizer/events" element={
+          <ProtectedRoute allowedRoles={['organizer']}>
+            <OrganizerEvents />
+          </ProtectedRoute>
+        } />
+        <Route path="/organizer/events/create" element={
+          <ProtectedRoute allowedRoles={['organizer']}>
+            <CreateEvent />
+          </ProtectedRoute>
+        } />
+        <Route path="/organizer/events/edit/:eventId" element={
+          <ProtectedRoute allowedRoles={['organizer']}>
+            <CreateEvent />
+          </ProtectedRoute>
+        } />
+        <Route path="/organizer/events/success/:id" element={
+          <ProtectedRoute allowedRoles={['organizer']}>
+            <EventSuccessPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/organizer/attendees" element={
+          <ProtectedRoute allowedRoles={['organizer']}>
+            <OrganizerAttendees />
+          </ProtectedRoute>
+        } />
+        <Route path="/organizer/events/:eventId/attendees" element={
+          <ProtectedRoute allowedRoles={['organizer']}>
+            <OrganizerAttendees />
+          </ProtectedRoute>
+        } />
+        <Route path="/organizer/event/:eventId/manage" element={
+          <ProtectedRoute allowedRoles={['organizer']}>
+            <OrganizerEventHub />
+          </ProtectedRoute>
+        } />
+        <Route path="/organizer/staff" element={
+          <ProtectedRoute allowedRoles={['organizer']}>
+            <OrganizerStaff />
+          </ProtectedRoute>
+        } />
+        <Route path="/organizer/suppliers" element={
+          <ProtectedRoute allowedRoles={['organizer']}>
+            <OrganizerSuppliers />
+          </ProtectedRoute>
+        } />
+        <Route path="/organizer/suppliers/:id" element={
+          <ProtectedRoute allowedRoles={['organizer']}>
+            <SupplierDetails />
+          </ProtectedRoute>
+        } />
+        <Route path="/organizer/staff/roles" element={
+          <ProtectedRoute allowedRoles={['organizer']}>
+            <StaffRolesPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/organizer/staff/financial" element={
+          <ProtectedRoute allowedRoles={['organizer']}>
+            <StaffFinancialPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/organizer/staff/talent-pool" element={
+          <ProtectedRoute allowedRoles={['organizer']}>
+            <TalentPoolPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/organizer/store" element={
+          <ProtectedRoute allowedRoles={['organizer']}>
+            <OrganizerStore />
+          </ProtectedRoute>
+        } />
+        <Route path="/organizer/financial" element={
+          <ProtectedRoute allowedRoles={['organizer']}>
+            <OrganizerFinancial />
+          </ProtectedRoute>
+        } />
+        <Route path="/organizer/reports" element={
+          <ProtectedRoute allowedRoles={['organizer']}>
+            <OrganizerReports />
+          </ProtectedRoute>
+        } />
+        <Route path="/organizer/settings" element={
+          <ProtectedRoute allowedRoles={['organizer']}>
+            <OrganizerSettings />
+          </ProtectedRoute>
+        } />
+        <Route path="/organizer/onboarding" element={
+          <ProtectedRoute allowedRoles={['organizer']} requireApproved={false}>
+            <OrganizerOnboarding />
+          </ProtectedRoute>
+        } />
+        <Route path="/organizer/ticket-validation" element={
+          <ProtectedRoute allowedRoles={['organizer']}>
+            <TicketValidation />
+          </ProtectedRoute>
+        } />
+        <Route path="/organizer/ticket-designer" element={
+          <ProtectedRoute allowedRoles={['organizer']}>
+            <TicketDesigner />
+          </ProtectedRoute>
+        } />
+        <Route path="/organizer/sales-points" element={
+          <ProtectedRoute allowedRoles={['organizer']}>
+            <SalesPoints />
+          </ProtectedRoute>
+        } />
+        <Route path="/organizer/stands" element={
+          <ProtectedRoute allowedRoles={['organizer']}>
+            <OrganizerStands />
+          </ProtectedRoute>
+        } />
+        <Route path="/organizer/events/:eventId/stands" element={
+          <ProtectedRoute allowedRoles={['organizer']}>
+            <OrganizerStands />
+          </ProtectedRoute>
+        } />
+        <Route path="/organizer/sponsors" element={
+          <ProtectedRoute allowedRoles={['organizer']}>
+            <OrganizerSponsors />
+          </ProtectedRoute>
+        } />
+        <Route path="/organizer/events/:eventId/sponsors" element={
+          <ProtectedRoute allowedRoles={['organizer']}>
+            <OrganizerSponsors />
+          </ProtectedRoute>
+        } />
+        <Route path="/organizer/visitors" element={
+          <ProtectedRoute allowedRoles={['organizer']}>
+            <OrganizerVisitors />
+          </ProtectedRoute>
+        } />
+        <Route path="/organizer/events/:eventId/visitors" element={
+          <ProtectedRoute allowedRoles={['organizer']}>
+            <OrganizerVisitors />
+          </ProtectedRoute>
+        } />
+        <Route path="/organizer/exhibitor" element={
+          <ProtectedRoute allowedRoles={['organizer', 'exhibitor']}>
+            <ExhibitorDashboard />
+          </ProtectedRoute>
+        } />
+
+        {/* ═══ MASTER ADMIN ROUTES ═══ */}
+        <Route path="/master" element={
+          <ProtectedRoute allowedRoles={['master']}>
+            <MasterAdminPanel />
+          </ProtectedRoute>
+        } />
+        <Route path="/master/organizers" element={
+          <ProtectedRoute allowedRoles={['master']}>
+            <OrganizersManagement />
+          </ProtectedRoute>
+        } />
+        <Route path="/master/financial" element={
+          <ProtectedRoute allowedRoles={['master']}>
+            <MasterFinancialBI />
+          </ProtectedRoute>
+        } />
+        <Route path="/master/mailing" element={
+          <ProtectedRoute allowedRoles={['master']}>
+            <MasterGlobalMailing />
+          </ProtectedRoute>
+        } />
+        <Route path="/master/approve" element={
+          <ProtectedRoute allowedRoles={['master']}>
+            <EventApprovalPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/master/webhooks" element={
+          <ProtectedRoute allowedRoles={['master']}>
+            <MasterWebhooks />
+          </ProtectedRoute>
+        } />
+        <Route path="/master/reports" element={
+          <ProtectedRoute allowedRoles={['master']}>
+            <ReportsPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/master/alerts" element={
+          <ProtectedRoute allowedRoles={['master']}>
+            <AlertsPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/master/payouts" element={
+          <ProtectedRoute allowedRoles={['master']}>
+            <PayoutManagement />
+          </ProtectedRoute>
+        } />
+        <Route path="/master/transactions" element={
+          <ProtectedRoute allowedRoles={['master']}>
+            <FinancialTransactions />
+          </ProtectedRoute>
+        } />
+        <Route path="/master/commissions" element={
+          <ProtectedRoute allowedRoles={['master']}>
+            <CommissionsPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/master/settings" element={
+          <ProtectedRoute allowedRoles={['master']}>
+            <MasterSettings />
+          </ProtectedRoute>
+        } />
+
+        {/* ═══ STAFF PORTAL ROUTES ═══ */}
+        <Route path="/staff/portal" element={
+          <ProtectedRoute allowedRoles={['staff']}>
+            <StaffPortalDashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/staff/portal/proposals" element={
+          <ProtectedRoute allowedRoles={['staff']}>
+            <ProposalsPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/staff/portal/agenda" element={
+          <ProtectedRoute allowedRoles={['staff']}>
+            <AgendaPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/staff/portal/financial" element={
+          <ProtectedRoute allowedRoles={['staff']}>
+            <StaffPortalDashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/staff/portal/profile" element={
+          <ProtectedRoute allowedRoles={['staff']}>
+            <WorkerProfilePage />
+          </ProtectedRoute>
+        } />
+        <Route path="/organizer/feed" element={
+          <ProtectedRoute allowedRoles={['organizer']}>
+            <OrganizerPostManager />
+          </ProtectedRoute>
+        } />
+      </Routes>
+    </AnimatePresence>
   );
 }
 

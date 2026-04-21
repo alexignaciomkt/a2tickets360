@@ -85,7 +85,7 @@ export const events = pgTable('events', {
     locationState: text('location_state'),
     locationPostalCode: text('location_postal_code'),
     capacity: integer('capacity').notNull(),
-    status: text('status', { enum: ['draft', 'published', 'active', 'completed', 'cancelled'] }).default('draft'),
+    status: text('status', { enum: ['draft', 'pending', 'published', 'active', 'completed', 'cancelled'] }).default('draft'),
     imageUrl: text('image_url'),
     floorPlanUrl: text('floor_plan_url'),
     isFeatured: boolean('is_featured').default(false),
@@ -349,6 +349,68 @@ export const visitors = pgTable('visitors', {
     checkedInAt: timestamp('checked_in_at'),
 });
 
+// --- NOVAS TABELAS PARA A2 TICKETS 360 (EXPOSITORES E IA) ---
+
+// Equipe de Expositores (Contratados pelo Expositor que comprou o Stand)
+export const exhibitorStaff = pgTable('exhibitor_staff', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    standId: uuid('stand_id').references(() => stands.id).notNull(),
+    name: text('name').notNull(),
+    email: text('email').unique().notNull(),
+    passwordHash: text('password_hash').notNull(),
+    role: text('role', { enum: ['manager', 'staff'] }).default('staff'),
+    isActive: boolean('is_active').default(true),
+    createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Logística de Expositores (Carga/Descarga)
+export const exhibitorLogistics = pgTable('exhibitor_logistics', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    standId: uuid('stand_id').references(() => stands.id).notNull(),
+    type: text('type', { enum: ['load', 'unload'] }).notNull(),
+    scheduledAt: timestamp('scheduled_at').notNull(),
+    description: text('description'),
+    status: text('status', { enum: ['pending', 'approved', 'rejected', 'completed'] }).default('pending'),
+    createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Leads Capturados pelos Expositores
+export const exhibitorLeads = pgTable('exhibitor_leads', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    standId: uuid('stand_id').references(() => stands.id).notNull(),
+    capturedByStaffId: uuid('captured_by_staff_id').references(() => exhibitorStaff.id),
+    visitorId: uuid('visitor_id').references(() => visitors.id),
+    // Dados manuais se não for via QR Code
+    name: text('name'),
+    email: text('email'),
+    phone: text('phone'),
+    company: text('company'),
+    notes: text('notes'),
+    createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Logs de Chat e Interação com IA (SupportBot)
+export const aiChatLogs = pgTable('ai_chat_logs', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id'), // Referência opcional ao usuário logado
+    sessionToken: text('session_token'),
+    message: text('message').notNull(),
+    response: text('response'),
+    context: text('context'), // 'organizer', 'visitor', 'exhibitor'
+    createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Fila de Sincronização Offline (Para auditoria no servidor)
+export const syncQueue = pgTable('sync_queue', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    sourceDeviceId: text('device_id'),
+    payload: jsonb('payload').notNull(),
+    status: text('status', { enum: ['pending', 'processed', 'failed'] }).default('pending'),
+    error: text('error'),
+    processedAt: timestamp('processed_at'),
+    createdAt: timestamp('created_at').defaultNow(),
+});
+
 // Páginas Legais (Privacidade, Termos, etc)
 export const legalPages = pgTable('legal_pages', {
     id: uuid('id').primaryKey().defaultRandom(),
@@ -358,12 +420,76 @@ export const legalPages = pgTable('legal_pages', {
     updatedAt: timestamp('updated_at').defaultNow(),
 });
 
-// Posts dos Organizadores (Feed/Instagram-like)
+// --- NOVAS TABELAS PARA ECOMMERCE DE PRODUTOS ---
+
+// Categorias de Produtos
+export const productCategories = pgTable('product_categories', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizerId: uuid('organizer_id').references(() => organizers.id).notNull(),
+    name: text('name').notNull(),
+    slug: text('slug').notNull(),
+    createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Produtos
+export const products = pgTable('products', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizerId: uuid('organizer_id').references(() => organizers.id).notNull(),
+    categoryId: uuid('category_id').references(() => productCategories.id),
+    name: text('name').notNull(),
+    description: text('description'),
+    price: decimal('price', { precision: 10, scale: 2 }).notNull(),
+    salePrice: decimal('sale_price', { precision: 10, scale: 2 }),
+    imageUrl: text('image_url'), // Imagem principal
+    images: jsonb('images').default([]), // Galeria
+    status: text('status', { enum: ['active', 'inactive', 'draft'] }).default('active'),
+    hasVariants: boolean('has_variants').default(false),
+    deliveryOptions: jsonb('delivery_options').default({ pickup: true, shipping: false }),
+    stockStrategy: text('stock_strategy', { enum: ['total', 'by_variant'] }).default('total'),
+    totalStock: integer('total_stock').default(0),
+    isFeatured: boolean('is_featured').default(false),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// Variantes de Produtos (Tamanho/Cor/etc)
+export const productVariants = pgTable('product_variants', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    productId: uuid('product_id').references(() => products.id, { onDelete: 'cascade' }).notNull(),
+    sku: text('sku'),
+    name: text('name').notNull(), // Ex: 'Azul / P'
+    attributes: jsonb('attributes').notNull(), // Ex: { color: 'Blue', size: 'P' }
+    price: decimal('price', { precision: 10, scale: 2 }), // Sobrescreve o preço base se preenchido
+    stock: integer('stock').default(0),
+    isActive: boolean('is_active').default(true),
+});
+
+// Pedidos de Produtos
+export const productOrders = pgTable('product_orders', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizerId: uuid('organizer_id').references(() => organizers.id).notNull(),
+    buyerId: uuid('buyer_id'), // ID do usuário se logado
+    buyerName: text('buyer_name').notNull(),
+    buyerEmail: text('buyer_email').notNull(),
+    buyerPhone: text('buyer_phone'),
+    totalValue: decimal('total_value', { precision: 10, scale: 2 }).notNull(),
+    platformFee: decimal('platform_fee', { precision: 10, scale: 2 }).notNull(), // 12%
+    producerNet: decimal('producer_net', { precision: 10, scale: 2 }).notNull(), // 88%
+    status: text('status', { enum: ['pending', 'paid', 'shipped', 'delivered', 'cancelled'] }).default('pending'),
+    paymentMethod: text('payment_method'),
+    asaasPaymentId: text('asaas_payment_id'),
+    shippingAddress: jsonb('shipping_address'),
+    items: jsonb('items').notNull(), // Detalhes dos produtos comprados
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// Posts de Redes Sociais / Portfólio do Organizador
 export const organizerPosts = pgTable('organizer_posts', {
     id: uuid('id').primaryKey().defaultRandom(),
     organizerId: uuid('organizer_id').references(() => organizers.id).notNull(),
-    imageUrl: text('image_url').notNull(),
     caption: text('caption'),
+    imageUrl: text('image_url').notNull(),
     createdAt: timestamp('created_at').defaultNow(),
 });
 
@@ -374,6 +500,42 @@ export const organizersRelations = relations(organizers, ({ many }) => ({
     suppliers: many(suppliers),
     staff: many(staff),
     posts: many(organizerPosts),
+    products: many(products),
+    productOrders: many(productOrders),
+}));
+
+export const productCategoriesRelations = relations(productCategories, ({ one, many }) => ({
+    organizer: one(organizers, {
+        fields: [productCategories.organizerId],
+        references: [organizers.id],
+    }),
+    products: many(products),
+}));
+
+export const productsRelations = relations(products, ({ one, many }) => ({
+    organizer: one(organizers, {
+        fields: [products.organizerId],
+        references: [organizers.id],
+    }),
+    category: one(productCategories, {
+        fields: [products.categoryId],
+        references: [productCategories.id],
+    }),
+    variants: many(productVariants),
+}));
+
+export const productVariantsRelations = relations(productVariants, ({ one }) => ({
+    product: one(products, {
+        fields: [productVariants.productId],
+        references: [products.id],
+    }),
+}));
+
+export const productOrdersRelations = relations(productOrders, ({ one }) => ({
+    organizer: one(organizers, {
+        fields: [productOrders.organizerId],
+        references: [organizers.id],
+    }),
 }));
 
 export const eventsRelations = relations(events, ({ one, many }) => ({
@@ -487,7 +649,7 @@ export const sponsorDeliverablesRelations = relations(sponsorDeliverables, ({ on
     }),
 }));
 
-export const standsRelations = relations(stands, ({ one }) => ({
+export const standsRelations = relations(stands, ({ one, many }) => ({
     event: one(events, {
         fields: [stands.eventId],
         references: [events.id],
@@ -504,6 +666,39 @@ export const standsRelations = relations(stands, ({ one }) => ({
         fields: [stands.soldByStaffId],
         references: [staff.id],
     }),
+    exhibitorStaff: many(exhibitorStaff),
+    logistics: many(exhibitorLogistics),
+    leads: many(exhibitorLeads),
+}));
+
+export const exhibitorStaffRelations = relations(exhibitorStaff, ({ one, many }) => ({
+    stand: one(stands, {
+        fields: [exhibitorStaff.standId],
+        references: [stands.id],
+    }),
+    leads: many(exhibitorLeads),
+}));
+
+export const exhibitorLogisticsRelations = relations(exhibitorLogistics, ({ one }) => ({
+    stand: one(stands, {
+        fields: [exhibitorLogistics.standId],
+        references: [stands.id],
+    }),
+}));
+
+export const exhibitorLeadsRelations = relations(exhibitorLeads, ({ one }) => ({
+    stand: one(stands, {
+        fields: [exhibitorLeads.standId],
+        references: [stands.id],
+    }),
+    capturedBy: one(exhibitorStaff, {
+        fields: [exhibitorLeads.capturedByStaffId],
+        references: [exhibitorStaff.id],
+    }),
+    visitor: one(visitors, {
+        fields: [exhibitorLeads.visitorId],
+        references: [visitors.id],
+    }),
 }));
 
 export const standCategoriesRelations = relations(standCategories, ({ one, many }) => ({
@@ -514,11 +709,12 @@ export const standCategoriesRelations = relations(standCategories, ({ one, many 
     stands: many(stands),
 }));
 
-export const visitorsRelations = relations(visitors, ({ one }) => ({
+export const visitorsRelations = relations(visitors, ({ one, many }) => ({
     event: one(events, {
         fields: [visitors.eventId],
         references: [events.id],
     }),
+    leads: many(exhibitorLeads),
 }));
 
 export const organizerPostsRelations = relations(organizerPosts, ({ one }) => ({
@@ -527,3 +723,4 @@ export const organizerPostsRelations = relations(organizerPosts, ({ one }) => ({
         references: [organizers.id],
     }),
 }));
+

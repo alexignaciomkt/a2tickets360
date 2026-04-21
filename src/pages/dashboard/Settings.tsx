@@ -1,27 +1,113 @@
 
-import { useState } from 'react';
-import { User, Bell, Shield, CreditCard, LogOut } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { User as UserIcon, Bell, Shield, CreditCard, LogOut, Upload, Loader2 } from 'lucide-react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import { organizerService } from '@/services/organizerService';
 
 const Settings = () => {
   const { toast } = useToast();
+  const { user, refreshUser } = useAuth();
+  
+  const [loading, setLoading] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    cpf: '',
+    birthDate: '',
+    gender: '',
+  });
+  
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [emailNotificationsEnabled, setEmailNotificationsEnabled] = useState(true);
-  
-  const handleSaveSettings = () => {
-    toast({
-      title: "Configurações salvas",
-      description: "Suas preferências foram atualizadas com sucesso.",
-    });
+
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        name: user.name || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        cpf: user.cpf || '',
+        birthDate: user.birthDate || '',
+        gender: user.gender || '',
+      });
+    }
+  }, [user]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSaveSettings = async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      await organizerService.updateProfile(user.profileDocId || '', {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        cpf: formData.cpf,
+        birthDate: formData.birthDate,
+        gender: formData.gender,
+      }, user.id);
+      
+      await refreshUser();
+      
+      toast({
+        title: "Configurações salvas",
+        description: "Suas informações foram atualizadas com sucesso.",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao salvar",
+        description: "Não foi possível atualizar suas informações.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!user || !e.target.files?.[0]) return;
+    
+    setUploadingPhoto(true);
+    try {
+      const file = e.target.files[0];
+      const { url } = await organizerService.uploadImage(file, user.id, user.name, undefined, user.role);
+      
+      await organizerService.updateProfile(user.profileDocId || '', {
+        logoUrl: url,
+        photo_url: url
+      }, user.id);
+      
+      await refreshUser();
+      
+      toast({
+        title: "Foto atualizada",
+        description: "Sua foto de perfil foi alterada com sucesso.",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Erro no upload",
+        description: "Não foi possível carregar sua foto.",
+      });
+    } finally {
+      setUploadingPhoto(false);
+    }
   };
 
   return (
-    <DashboardLayout userType="customer">
+    <DashboardLayout userType={user?.role === 'organizer' ? 'organizer' : 'customer'}>
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold">Configurações</h1>
@@ -31,7 +117,7 @@ const Settings = () => {
         <Tabs defaultValue="profile" className="space-y-4">
           <TabsList>
             <TabsTrigger value="profile" className="flex items-center gap-2">
-              <User className="h-4 w-4" />
+              <UserIcon className="h-4 w-4" />
               Perfil
             </TabsTrigger>
             <TabsTrigger value="notifications" className="flex items-center gap-2">
@@ -61,51 +147,106 @@ const Settings = () => {
                   <div>
                     <label className="text-sm font-medium block mb-1">Nome</label>
                     <input 
+                      name="name"
                       type="text" 
                       className="w-full p-2 border border-gray-300 rounded-md" 
-                      defaultValue="João da Silva"
+                      value={formData.name}
+                      onChange={handleInputChange}
                     />
                   </div>
                   <div>
                     <label className="text-sm font-medium block mb-1">Email</label>
                     <input 
+                      name="email"
                       type="email" 
-                      className="w-full p-2 border border-gray-300 rounded-md" 
-                      defaultValue="joao.silva@exemplo.com" 
+                      className="w-full p-2 border border-gray-300 rounded-md bg-gray-50" 
+                      value={formData.email}
+                      disabled
                     />
                   </div>
                   <div>
-                    <label className="text-sm font-medium block mb-1">Telefone</label>
+                    <label className="text-sm font-medium block mb-1">Telefone / WhatsApp</label>
                     <input 
+                      name="phone"
                       type="tel" 
                       className="w-full p-2 border border-gray-300 rounded-md" 
-                      defaultValue="(11) 99999-9999" 
+                      value={formData.phone}
+                      onChange={handleInputChange}
+                      placeholder="(00) 00000-0000"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium block mb-1">CPF</label>
+                    <input 
+                      name="cpf"
+                      type="text" 
+                      className="w-full p-2 border border-gray-300 rounded-md" 
+                      value={formData.cpf}
+                      onChange={handleInputChange}
+                      placeholder="000.000.000-00"
                     />
                   </div>
                   <div>
                     <label className="text-sm font-medium block mb-1">Data de Nascimento</label>
                     <input 
+                      name="birthDate"
                       type="date" 
                       className="w-full p-2 border border-gray-300 rounded-md" 
-                      defaultValue="1990-01-01" 
+                      value={formData.birthDate}
+                      onChange={handleInputChange}
                     />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium block mb-1">Gênero</label>
+                    <select 
+                      name="gender"
+                      className="w-full p-2 border border-gray-300 rounded-md" 
+                      value={formData.gender}
+                      onChange={(e) => setFormData(prev => ({ ...prev, gender: e.target.value }))}
+                    >
+                      <option value="">Selecione</option>
+                      <option value="Masculino">Masculino</option>
+                      <option value="Feminino">Feminino</option>
+                      <option value="Outro">Outro</option>
+                      <option value="Prefiro não dizer">Prefiro não dizer</option>
+                    </select>
                   </div>
                 </div>
                 <div>
                   <label className="text-sm font-medium block mb-1">Foto de Perfil</label>
                   <div className="flex items-center gap-4">
-                    <div className="h-20 w-20 rounded-full bg-gray-200 overflow-hidden">
-                      <img 
-                        src="https://randomuser.me/api/portraits/men/32.jpg" 
-                        alt="Foto de perfil" 
-                        className="h-full w-full object-cover"
+                    <div className="h-20 w-20 rounded-2xl bg-gray-100 overflow-hidden border-2 border-indigo-100 flex items-center justify-center">
+                      {uploadingPhoto ? (
+                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                      ) : user?.photoUrl ? (
+                        <img 
+                          src={user.photoUrl} 
+                          alt="Foto de perfil" 
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <UserIcon className="h-8 w-8 text-gray-300" />
+                      )}
+                    </div>
+                    <div className="relative">
+                      <Button variant="outline" disabled={uploadingPhoto} onClick={() => document.getElementById('avatar-upload')?.click()}>
+                        {uploadingPhoto ? 'Enviando...' : 'Alterar foto'}
+                      </Button>
+                      <input 
+                        id="avatar-upload"
+                        type="file"
+                        className="hidden"
+                        accept="image/*"
+                        onChange={handlePhotoUpload}
                       />
                     </div>
-                    <Button variant="outline">Alterar foto</Button>
                   </div>
                 </div>
                 <div className="flex justify-end">
-                  <Button onClick={handleSaveSettings}>Salvar alterações</Button>
+                  <Button onClick={handleSaveSettings} disabled={loading}>
+                    {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    Salvar alterações
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -142,14 +283,6 @@ const Settings = () => {
                       onCheckedChange={setEmailNotificationsEnabled}
                     />
                   </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Lembretes de eventos</p>
-                      <p className="text-sm text-gray-500">Seja lembrado antes dos eventos</p>
-                    </div>
-                    <Switch defaultChecked />
-                  </div>
                 </div>
                 <div className="flex justify-end">
                   <Button onClick={handleSaveSettings}>Salvar preferências</Button>
@@ -184,58 +317,9 @@ const Settings = () => {
                       placeholder="••••••••" 
                     />
                   </div>
-                  <div>
-                    <label className="text-sm font-medium block mb-1">Confirmar nova senha</label>
-                    <input 
-                      type="password" 
-                      className="w-full p-2 border border-gray-300 rounded-md" 
-                      placeholder="••••••••" 
-                    />
-                  </div>
                 </div>
                 <div className="pt-4 flex justify-end">
                   <Button onClick={handleSaveSettings}>Alterar senha</Button>
-                </div>
-                
-                <div className="my-6 border-t pt-6">
-                  <h3 className="text-lg font-medium mb-4">Ações da conta</h3>
-                  <div className="flex flex-col space-y-3">
-                    <Button variant="destructive" className="flex items-center gap-2 w-full sm:w-auto">
-                      <LogOut className="h-4 w-4" />
-                      Sair de todos os dispositivos
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          <TabsContent value="payment" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Métodos de Pagamento</CardTitle>
-                <CardDescription>
-                  Gerencie seus cartões e métodos de pagamento
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="bg-gray-50 border rounded-lg p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="bg-blue-500 text-white p-2 rounded-md">
-                        <CreditCard className="h-6 w-6" />
-                      </div>
-                      <div>
-                        <p className="font-medium">Cartão Mastercard</p>
-                        <p className="text-sm text-gray-500">Termina em 4242 • Expira em 03/25</p>
-                      </div>
-                    </div>
-                    <Button variant="outline" size="sm">Remover</Button>
-                  </div>
-                  
-                  <div className="pt-4">
-                    <Button variant="outline" className="w-full">+ Adicionar novo método de pagamento</Button>
-                  </div>
                 </div>
               </CardContent>
             </Card>

@@ -28,6 +28,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { ticketService, PurchasedTicket as Ticket } from '@/services/ticketService';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Ticket {
   id: string;
@@ -45,45 +47,22 @@ interface Ticket {
 
 const TicketValidation = () => {
   const { toast } = useToast();
-  const [tickets, setTickets] = useState<Ticket[]>([
-    {
-      id: '1',
-      ticketNumber: 'TKT-001',
-      eventName: 'Festival de Música 2024',
-      customerName: 'João Silva',
-      customerEmail: 'joao@email.com',
-      ticketType: 'VIP',
-      status: 'valid',
-      purchaseDate: '2024-01-15',
-      price: 150,
-      qrCode: 'QR123456789'
-    },
-    {
-      id: '2',
-      ticketNumber: 'TKT-002',
-      eventName: 'Festival de Música 2024',
-      customerName: 'Maria Santos',
-      customerEmail: 'maria@email.com',
-      ticketType: 'Pista',
-      status: 'used',
-      purchaseDate: '2024-01-16',
-      validationDate: '2024-01-20',
-      price: 80,
-      qrCode: 'QR987654321'
-    },
-    {
-      id: '3',
-      ticketNumber: 'TKT-003',
-      eventName: 'Conference Tech 2024',
-      customerName: 'Pedro Costa',
-      customerEmail: 'pedro@email.com',
-      ticketType: 'Standard',
-      status: 'invalid',
-      purchaseDate: '2024-01-17',
-      price: 100,
-      qrCode: 'QR456789123'
+  const { user } = useAuth();
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user?.id) {
+      loadTickets();
     }
-  ]);
+  }, [user]);
+
+  const loadTickets = async () => {
+    setLoading(true);
+    const data = await ticketService.getOrganizerTickets(user?.id || '');
+    setTickets(data);
+    setLoading(false);
+  };
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -119,30 +98,21 @@ const TicketValidation = () => {
     );
   };
 
-  const handleValidateTicket = (ticketId: string) => {
-    setTickets(tickets.map(ticket =>
-      ticket.id === ticketId
-        ? { ...ticket, status: 'used' as const, validationDate: new Date().toISOString().split('T')[0] }
-        : ticket
-    ));
-
-    toast({
-      title: 'Ingresso validado',
-      description: 'O ingresso foi marcado como utilizado.',
-    });
+  const handleValidateTicket = async (ticketId: string) => {
+    const success = await ticketService.validateTicket(ticketId);
+    if (success) {
+      loadTickets();
+      toast({
+        title: 'Ingresso validado',
+        description: 'O ingresso foi marcado como utilizado.',
+      });
+    }
   };
 
   const handleInvalidateTicket = (ticketId: string) => {
-    setTickets(tickets.map(ticket =>
-      ticket.id === ticketId
-        ? { ...ticket, status: 'invalid' as const }
-        : ticket
-    ));
-
     toast({
-      title: 'Ingresso invalidado',
-      description: 'O ingresso foi marcado como inválido.',
-      variant: 'destructive',
+      title: 'Ação indisponível',
+      description: 'A invalidadação manual será implementada em breve.',
     });
   };
 
@@ -364,10 +334,9 @@ const TicketValidation = () => {
                 <TableRow>
                   <TableHead>Número</TableHead>
                   <TableHead>Cliente</TableHead>
+                  <TableHead>WhatsApp / CPF</TableHead>
                   <TableHead>Evento</TableHead>
-                  <TableHead>Tipo</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Valor</TableHead>
                   <TableHead>Data Compra</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
@@ -385,28 +354,21 @@ const TicketValidation = () => {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="text-sm">{ticket.eventName}</div>
+                      <div>
+                        <div className="text-xs font-bold text-indigo-600">{ticket.customerPhone}</div>
+                        <div className="text-xs text-gray-400">{ticket.customerCpf}</div>
+                      </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline">{ticket.ticketType}</Badge>
+                      <div className="text-sm truncate max-w-[150px]">{ticket.eventName}</div>
                     </TableCell>
                     <TableCell>
                       {getStatusBadge(ticket.status)}
                     </TableCell>
                     <TableCell>
-                      <div className="font-medium">
-                        R$ {ticket.price.toFixed(2)}
-                      </div>
-                    </TableCell>
-                    <TableCell>
                       <div className="text-sm">
                         {new Date(ticket.purchaseDate).toLocaleDateString('pt-BR')}
                       </div>
-                      {ticket.validationDate && (
-                        <div className="text-xs text-gray-500">
-                          Validado: {new Date(ticket.validationDate).toLocaleDateString('pt-BR')}
-                        </div>
-                      )}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end space-x-1">

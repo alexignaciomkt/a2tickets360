@@ -6,7 +6,13 @@ export interface Event {
   category: string;
   date: string;
   time: string;
-  duration: string;
+  duration?: string;
+  ticket_design?: {
+    template: string;
+    primaryColor: string;
+    secondaryColor: string;
+    textColor: string;
+  };
   location: {
     name: string;
     address: string;
@@ -19,7 +25,7 @@ export interface Event {
     };
   };
   capacity: number;
-  status: 'draft' | 'published' | 'active' | 'completed' | 'cancelled';
+  status: 'draft' | 'pending' | 'published' | 'active' | 'completed' | 'cancelled';
   imageUrl: string;
   floorPlanUrl?: string;
   isFeatured?: boolean;
@@ -111,6 +117,7 @@ export interface Sale {
 
 export interface Organizer {
   id: string;
+  userId: string;
   name: string;
   email: string;
   passwordHash?: string;
@@ -135,8 +142,13 @@ export interface Organizer {
   bio?: string;
   documentFrontUrl?: string;
   documentBackUrl?: string;
+  document_front_url?: string;
+  document_back_url?: string;
+  logo_url?: string;
+  banner_url?: string;
 
   // Status
+  status: 'pending' | 'approved' | 'rejected' | 'suspended';
   profileComplete: boolean;
   isActive: boolean;
   emailVerified: boolean;

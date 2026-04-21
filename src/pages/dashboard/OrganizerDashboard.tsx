@@ -1,39 +1,92 @@
 
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, Users, DollarSign, LineChart, Clock, Plus, Globe, Loader2 } from 'lucide-react';
+import { 
+  Calendar, 
+  Users, 
+  DollarSign, 
+  TrendingUp, 
+  Clock, 
+  Plus, 
+  Globe, 
+  Loader2, 
+  AlertCircle, 
+  Filter,
+  ChevronRight,
+  Target,
+  PieChart as PieIcon,
+  BarChart3,
+  Download,
+  Info,
+  Activity
+} from 'lucide-react';
+import { 
+  AreaChart, 
+  Area, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer, 
+  PieChart, 
+  Pie, 
+  Cell, 
+  BarChart, 
+  Bar 
+} from 'recharts';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { organizerService } from '@/services/organizerService';
 import { Event } from '@/interfaces/organizer';
 import { useAuth } from '@/contexts/AuthContext';
 import WelcomeModal from '@/components/modals/WelcomeModal';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '@/components/ui/select';
+
+const COLORS = ['#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
 
 const OrganizerDashboard = () => {
   const { user } = useAuth();
-  const [eventsList, setEventsList] = useState<Event[]>([]);
-  const [stats, setStats] = useState<any>(null);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [selectedEvent, setSelectedEvent] = useState<string>('all');
+  const [selectedPeriod, setSelectedPeriod] = useState<string>('30');
+  const [biData, setBiData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showWelcome, setShowWelcome] = useState(false);
+  const [hasPostsWithoutCaption, setHasPostsWithoutCaption] = useState(false);
+
   const organizerId = user?.id || '';
 
   useEffect(() => {
     if (!organizerId) return;
 
-    const fetchData = async () => {
+    const loadInitialData = async () => {
       try {
-        const [events, statsData] = await Promise.all([
+        const [eventsData, posts] = await Promise.all([
           organizerService.getEvents(organizerId),
-          organizerService.getStats(organizerId)
+          organizerService.getPosts(organizerId)
         ]);
-        setEventsList(events);
-        setStats(statsData);
+        setEvents(eventsData);
+        
+        // Check for missing captions
+        const missing = posts.some(p => !p.caption || p.caption.trim() === '');
+        setHasPostsWithoutCaption(missing);
+
+        await refreshStats('all', '30');
       } catch (error) {
-        console.error('Error fetching dashboard data:', error);
+        console.error('Error loading initial data:', error);
       } finally {
         setIsLoading(false);
       }
     };
-    fetchData();
+
+    loadInitialData();
 
     // Check for welcome flag
     const welcomeFlag = localStorage.getItem('A2Tickets_showWelcome');
@@ -41,250 +94,380 @@ const OrganizerDashboard = () => {
       setShowWelcome(true);
       localStorage.removeItem('A2Tickets_showWelcome');
     }
-  }, [organizerId]);
+    // Auto-refresh every 5 minutes
+    const interval = setInterval(() => {
+      refreshStats(selectedEvent, selectedPeriod);
+    }, 5 * 60 * 1000);
 
-  const totalEvents = eventsList.length;
-  const totalTicketsSold = eventsList.reduce(
-    (acc, event) => acc + (Array.isArray(event.tickets) ? event.tickets.reduce((sum, ticket) => sum + (ticket.quantity - ticket.remaining), 0) : 0),
-    0
-  );
-  const totalRevenue = eventsList.reduce(
-    (acc, event) => acc + (Array.isArray(event.tickets) ? event.tickets.reduce((sum, ticket) => sum + ((ticket.quantity - ticket.remaining) * (Number(ticket.price) || 0)), 0) : 0),
-    0
-  );
+    return () => clearInterval(interval);
+  }, [organizerId, selectedEvent, selectedPeriod]);
+
+  const refreshStats = async (evtId: string, period: string) => {
+    setIsLoading(true);
+    try {
+      const stats = await organizerService.getBIStats(organizerId, evtId);
+      setBiData(stats);
+    } catch (error) {
+      console.error('Error refreshing BI stats:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleEventChange = (val: string) => {
+    setSelectedEvent(val);
+    refreshStats(val, selectedPeriod);
+  };
+
+  const formatCurrency = (value: number) => {
+    const safeValue = typeof value === 'number' ? value : 0;
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(safeValue);
+  };
+
+  if (!biData && isLoading) {
+    return (
+      <DashboardLayout userType="organizer">
+        <div className="flex flex-col items-center justify-center h-[60vh]">
+          <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
+          <p className="text-gray-500 font-medium animate-pulse">Construindo seu centro de inteligência...</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  const { kpis, charts } = biData || { 
+    kpis: { 
+      totalEvents: 0, 
+      ticketsGenerated: 0, 
+      ticketsSold: 0, 
+      currentRevenue: 0, 
+      estimatedRevenue: 0, 
+      occupancyRate: 0 
+    }, 
+    charts: { 
+      salesByPeriod: [], 
+      salesByGender: [], 
+      salesByAge: [] 
+    } 
+  };
+
+  const revenueProgress = kpis.estimatedRevenue > 0 ? Math.min(100, (kpis.currentRevenue / kpis.estimatedRevenue) * 100) : 0;
+  const occupancyRate = kpis.occupancyRate || 0;
 
   return (
     <DashboardLayout userType="organizer">
-      <div className="space-y-6">
-        {/* Welcome Section */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h1 className="text-2xl font-bold mb-2">Painel do Organizador</h1>
-          <p className="text-gray-800 font-medium">
-            Gerencie seus eventos, acompanhe vendas e administre ingressos.
-          </p>
-        </div>
+      <div className="flex flex-col lg:flex-row gap-6">
+        
+        {/* SIDEBAR FILTERS */}
+        <aside className="w-full lg:w-72 space-y-6">
+          <Card className="border-none shadow-xl bg-slate-900 text-white overflow-hidden">
+            <CardHeader className="pb-4 border-b border-white/10">
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-indigo-400" />
+                <CardTitle className="text-sm font-black uppercase tracking-widest">Filtros de BI</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Selecionar Evento</label>
+                <Select value={selectedEvent} onValueChange={handleEventChange}>
+                  <SelectTrigger className="bg-slate-800 border-none text-white focus:ring-indigo-500">
+                    <SelectValue placeholder="Todos os eventos" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-slate-800 border-slate-700 text-white">
+                    <SelectItem value="all">Todos os Eventos</SelectItem>
+                    {events.map(e => (
+                      <SelectItem key={e.id} value={e.id}>{e.title}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-500 text-sm">Total de Eventos</p>
-                <h3 className="text-3xl font-bold">{totalEvents}</h3>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Período de Análise</label>
+                <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
+                  <SelectTrigger className="bg-slate-800 border-none text-white focus:ring-indigo-500">
+                    <SelectValue placeholder="Últimos 30 dias" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-slate-800 border-slate-700 text-white">
+                    <SelectItem value="7">Últimos 7 dias</SelectItem>
+                    <SelectItem value="30">Últimos 30 dias</SelectItem>
+                    <SelectItem value="90">Últimos 3 meses</SelectItem>
+                    <SelectItem value="all">Todo o histórico</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <div className="bg-primary/10 p-3 rounded-full">
-                <Calendar className="h-7 w-7 text-primary" />
-              </div>
-            </div>
-          </div>
 
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-500 text-sm">Ingressos Vendidos</p>
-                <h3 className="text-3xl font-bold">{totalTicketsSold}</h3>
+              <div className="pt-4 border-t border-white/10">
+                <Button 
+                  onClick={() => refreshStats(selectedEvent, selectedPeriod)}
+                  disabled={isLoading}
+                  className="w-full bg-slate-800 hover:bg-slate-700 text-white font-black uppercase tracking-widest text-[10px] py-6 border border-white/5"
+                >
+                  {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Activity className="h-4 w-4 mr-2" />}
+                  Atualizar BI
+                </Button>
+                <Button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-[10px] py-6 shadow-lg shadow-indigo-500/20 mt-3">
+                  <Download className="h-4 w-4 mr-2" /> Exportar Dados
+                </Button>
               </div>
-              <div className="bg-secondary/10 p-3 rounded-full">
-                <Users className="h-7 w-7 text-secondary" />
-              </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-500 text-sm">Receita Total</p>
-                <h3 className="text-3xl font-bold">
-                  {totalRevenue > 0 ? `R$ ${totalRevenue.toFixed(2).replace('.', ',')}` : 'Grátis'}
-                </h3>
+          {/* Quick Actions */}
+          <div className="space-y-3">
+            <Link to="/organizer/events/create" className="flex items-center justify-between p-4 bg-white rounded-2xl shadow-sm border border-slate-100 hover:border-indigo-200 transition-all group">
+              <div className="flex items-center gap-3">
+                <div className="bg-indigo-50 p-2 rounded-xl group-hover:bg-indigo-600 transition-colors">
+                  <Plus className="h-4 w-4 text-indigo-600 group-hover:text-white" />
+                </div>
+                <span className="text-xs font-black uppercase tracking-tight text-slate-700">Novo Evento</span>
               </div>
-              <div className="bg-green-100 p-3 rounded-full">
-                <DollarSign className="h-7 w-7 text-green-600" />
+              <ChevronRight className="h-4 w-4 text-slate-300" />
+            </Link>
+            <Link to="/organizer/visitors" className="flex items-center justify-between p-4 bg-white rounded-2xl shadow-sm border border-slate-100 hover:border-emerald-200 transition-all group">
+              <div className="flex items-center gap-3">
+                <div className="bg-emerald-50 p-2 rounded-xl group-hover:bg-emerald-600 transition-colors">
+                  <Users className="h-4 w-4 text-emerald-600 group-hover:text-white" />
+                </div>
+                <span className="text-xs font-black uppercase tracking-tight text-slate-700">Mailing Gold</span>
               </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-700 font-bold text-sm">Próximo Evento</p>
-                <h3 className="text-lg font-black text-gray-900 truncate">
-                  {stats?.nextEvent?.title || 'Nenhum evento'}
-                </h3>
-              </div>
-              <div className="bg-orange-100 p-3 rounded-full">
-                <Clock className="h-7 w-7 text-orange-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-indigo-500">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-500 text-sm">Visitantes (Credenciamento)</p>
-                <h3 className="text-3xl font-bold">{stats?.visitorCount || 0}</h3>
-              </div>
-              <div className="bg-indigo-100 p-3 rounded-full">
-                <Users className="h-7 w-7 text-indigo-600" />
-              </div>
-            </div>
-            <Link to="/organizer/visitors" className="text-indigo-600 text-xs font-bold mt-4 block hover:underline">
-              Gerenciar visitantes →
+              <ChevronRight className="h-4 w-4 text-slate-300" />
             </Link>
           </div>
-        </div>
+        </aside>
 
-        {/* Sales Chart */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold">Vendas de Ingressos</h2>
-            <div>
-              <select className="input-field text-sm">
-                <option value="7d">Últimos 7 dias</option>
-                <option value="30d">Últimos 30 dias</option>
-                <option value="90d">Últimos 90 dias</option>
-              </select>
-            </div>
+        {/* MAIN DASHBOARD AREA */}
+        <main className="flex-1 space-y-6">
+          
+          {/* TOP KPIs */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <Card className="border-none shadow-sm overflow-hidden relative group">
+              <div className="absolute top-0 right-0 p-4 opacity-10">
+                <TrendingUp className="h-12 w-12 text-indigo-600" />
+              </div>
+              <CardContent className="p-6">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Receita Atual</p>
+                <div className="flex items-baseline gap-2">
+                  <h3 className="text-3xl font-black tracking-tighter text-slate-900">{formatCurrency(kpis.currentRevenue)}</h3>
+                </div>
+                <div className="mt-4 flex items-center gap-2">
+                  <div className="h-1.5 flex-1 bg-slate-100 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-indigo-600 rounded-full transition-all duration-1000" 
+                      style={{ width: `${revenueProgress}%` }}
+                    />
+                  </div>
+                  <span className="text-[10px] font-black text-indigo-600">{revenueProgress.toFixed(1)}% da meta</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-none shadow-sm overflow-hidden relative group">
+              <div className="absolute top-0 right-0 p-4 opacity-10">
+                <Target className="h-12 w-12 text-emerald-600" />
+              </div>
+              <CardContent className="p-6">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Receita Estimada</p>
+                <h3 className="text-3xl font-black tracking-tighter text-slate-900">
+                  {kpis.estimatedRevenue > 0 ? formatCurrency(kpis.estimatedRevenue) : 'Grátis / --'}
+                </h3>
+                <p className="text-[10px] font-bold text-slate-500 mt-2 uppercase tracking-tight">Potencial total de vendas</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-none shadow-sm overflow-hidden relative group">
+              <div className="absolute top-0 right-0 p-4 opacity-10">
+                <Users className="h-12 w-12 text-amber-600" />
+              </div>
+              <CardContent className="p-6">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Ingressos Vendidos</p>
+                <h3 className="text-3xl font-black tracking-tighter text-slate-900">{kpis.ticketsSold}</h3>
+                <p className="text-[10px] font-bold text-slate-500 mt-2 uppercase tracking-tight">De {kpis.ticketsGenerated} gerados ({occupancyRate.toFixed(1)}% ocupação)</p>
+              </CardContent>
+            </Card>
           </div>
 
-          <div className="h-64 flex items-center justify-center bg-gray-50 rounded-lg">
-            <div className="text-center">
-              <LineChart className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500 font-medium">
-                Sua produção ainda não possui dados de vendas suficientes para gerar gráficos.
-              </p>
-              <p className="text-xs text-gray-400 mt-1">Dados atualizados em tempo real.</p>
-            </div>
-          </div>
-        </div>
+          {/* MAIN SALES CHART */}
+          <Card className="border-none shadow-sm overflow-hidden">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <div>
+                <CardTitle className="text-lg font-black uppercase tracking-tighter">Performance de Vendas</CardTitle>
+                <CardDescription>Volume de ingressos e receita por período</CardDescription>
+              </div>
+              <div className="flex gap-2">
+                <div className="flex items-center gap-1">
+                  <div className="h-2 w-2 rounded-full bg-indigo-600" />
+                  <span className="text-[10px] font-black uppercase text-slate-400">Receita</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="h-2 w-2 rounded-full bg-emerald-500" />
+                  <span className="text-[10px] font-black uppercase text-slate-400">Vendas</span>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-4">
+              <div className="h-80 w-full">
+                {charts?.salesByPeriod?.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={charts.salesByPeriod}>
+                      <defs>
+                        <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#4F46E5" stopOpacity={0.1}/>
+                          <stop offset="95%" stopColor="#4F46E5" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis 
+                        dataKey="date" 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 700}}
+                        tickFormatter={(val) => new Date(val).toLocaleDateString('pt-BR', {day: '2-digit', month: 'short'})}
+                      />
+                      <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 700}} />
+                      <Tooltip 
+                        contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}}
+                        labelStyle={{fontWeight: 900, textTransform: 'uppercase', color: '#1e293b'}}
+                      />
+                      <Area 
+                        type="monotone" 
+                        dataKey="revenue" 
+                        stroke="#4F46E5" 
+                        strokeWidth={3}
+                        fillOpacity={1} 
+                        fill="url(#colorRevenue)" 
+                        name="Receita (R$)"
+                      />
+                      <Area 
+                        type="monotone" 
+                        dataKey="sales" 
+                        stroke="#10B981" 
+                        strokeWidth={3}
+                        fill="transparent" 
+                        name="Qtd. Vendas"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex flex-col items-center justify-center bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
+                    <BarChart3 className="h-10 w-10 text-slate-300 mb-2" />
+                    <p className="text-sm font-bold text-slate-400 uppercase tracking-tighter">Nenhum dado de venda no período</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
-        {/* Events Table */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-bold">Meus Eventos</h2>
-            <div className="flex gap-3">
-              <Link to="/producer/me" target="_blank" className="btn-secondary py-2 px-4 flex items-center gap-2">
-                <Globe className="w-4 h-4" />
-                Ver Página Pública
-              </Link>
-              <Link to="/organizer/events/create" className="btn-primary py-2 px-4 flex items-center gap-2">
-                <Plus className="w-4 h-4" />
-                Novo Evento
-              </Link>
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="min-w-full">
-              <thead className="bg-gray-100 border-b border-gray-200">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-black text-gray-900 uppercase tracking-wider">
-                    Evento
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-black text-gray-900 uppercase tracking-wider">
-                    Data
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-black text-gray-900 uppercase tracking-wider">
-                    Vendas
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-black text-gray-900 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-black text-gray-900 uppercase tracking-wider">
-                    Ações
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {isLoading ? (
-                  <tr>
-                    <td colSpan={5} className="py-10 text-center">
-                      <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
-                    </td>
-                  </tr>
-                ) : eventsList.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="py-20 text-center">
-                      <div className="flex flex-col items-center justify-center">
-                        <div className="bg-gray-50 p-6 rounded-full mb-4">
-                          <Calendar className="h-12 w-12 text-gray-300" />
+          {/* DEMOGRAPHICS */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* GENDER CHART */}
+            <Card className="border-none shadow-sm overflow-hidden">
+              <CardHeader className="pb-2">
+                <div className="flex items-center gap-2">
+                  <PieIcon className="h-4 w-4 text-indigo-600" />
+                  <CardTitle className="text-sm font-black uppercase tracking-widest">Público por Sexo</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="h-64 flex items-center">
+                  <div className="w-1/2 h-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={charts?.salesByGender || []}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={80}
+                          paddingAngle={5}
+                          dataKey="value"
+                        >
+                          {(charts?.salesByGender || []).map((entry: any, index: number) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="w-1/2 space-y-3">
+                    {(charts?.salesByGender || []).map((item: any, index: number) => (
+                      <div key={item.name} className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="h-2 w-2 rounded-full" style={{backgroundColor: COLORS[index % COLORS.length]}} />
+                          <span className="text-[10px] font-black uppercase text-slate-500">{item.name}</span>
                         </div>
-                        <h3 className="text-xl font-black text-gray-900 mb-2 uppercase tracking-tighter">Nenhum evento encontrado</h3>
-                        <p className="text-gray-500 max-w-sm mx-auto mb-8 font-medium">
-                          Você ainda não criou nenhum evento. Comece agora mesmo e leve sua produção para o próximo nível!
-                        </p>
-                        <Link to="/organizer/events/create" className="btn-primary py-3 px-8 rounded-xl font-black text-sm uppercase tracking-widest shadow-lg shadow-indigo-100 flex items-center gap-2">
-                          <Plus className="w-4 h-4" /> Criar Primeiro Evento
-                        </Link>
+                        <span className="text-xs font-black text-slate-900">{item.value}</span>
                       </div>
-                    </td>
-                  </tr>
-                ) : eventsList.map((event) => {
-                  const ticketsSold = Array.isArray(event.tickets) ? event.tickets.reduce(
-                    (sum, ticket) => sum + (ticket.quantity - ticket.remaining),
-                    0
-                  ) : 0;
-                  const totalTickets = Array.isArray(event.tickets) ? event.tickets.reduce(
-                    (sum, ticket) => sum + ticket.quantity,
-                    0
-                  ) : 0;
-                  const eventDate = new Date(event.date);
-                  const today = new Date();
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-                  let status;
-                  let statusClass;
-
-                  if (eventDate < today) {
-                    status = 'Concluído';
-                    statusClass = 'bg-gray-100 text-gray-800';
-                  } else if (ticketsSold >= totalTickets) {
-                    status = 'Esgotado';
-                    statusClass = 'bg-red-100 text-red-800';
-                  } else {
-                    status = 'Ativo';
-                    statusClass = 'bg-green-100 text-green-800';
-                  }
-
-                  return (
-                    <tr key={event.id}>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="font-medium text-gray-900">{event.title}</div>
-                        <div className="text-sm text-gray-500">{event.location?.city}, {event.location?.state}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {event.date}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm">
-                          {ticketsSold} / {totalTickets} ingressos
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
-                          <div
-                            className="bg-primary h-1.5 rounded-full"
-                            style={{ width: `${(ticketsSold / totalTickets) * 100}%` }}
-                          ></div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClass}`}>
-                          {status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <Link to={`/organizer/events/edit/${event.id}`} className="text-primary hover:text-primary/80 mr-4">
-                          Editar
-                        </Link>
-                        <Link to={`/organizer/attendees?eventId=${event.id}`} className="text-secondary hover:text-secondary/80">
-                          Participantes
-                        </Link>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            {/* AGE CHART */}
+            <Card className="border-none shadow-sm overflow-hidden">
+              <CardHeader className="pb-2">
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-indigo-600" />
+                  <CardTitle className="text-sm font-black uppercase tracking-widest">Faixa Etária</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="h-64 w-full pt-4">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={charts?.salesByAge || []}>
+                      <XAxis 
+                        dataKey="name" 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 700}}
+                      />
+                      <YAxis hide />
+                      <Tooltip 
+                        cursor={{fill: '#f8fafc'}}
+                        contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}}
+                      />
+                      <Bar 
+                        dataKey="value" 
+                        fill="#4F46E5" 
+                        radius={[4, 4, 0, 0]} 
+                        barSize={30}
+                        name="Compradores"
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
           </div>
-        </div>
+
+          {/* INSIGHTS / ALERT */}
+          {hasPostsWithoutCaption && (
+            <Card className="border-none bg-amber-50 shadow-sm border-l-4 border-amber-400">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Info className="h-5 w-5 text-amber-600" />
+                  <div>
+                    <h4 className="text-xs font-black uppercase tracking-widest text-amber-900">Insight de Engajamento</h4>
+                    <p className="text-[10px] text-amber-800 font-bold uppercase opacity-70">Você tem fotos sem legenda no feed. Isso reduz sua conversão!</p>
+                  </div>
+                </div>
+                <Link 
+                  to="/organizer/feed" 
+                  className="bg-amber-600 text-white px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-amber-700 transition-all"
+                >
+                  Corrigir Agora
+                </Link>
+              </CardContent>
+            </Card>
+          )}
+
+        </main>
       </div>
       <WelcomeModal isOpen={showWelcome} onClose={() => setShowWelcome(false)} />
     </DashboardLayout>

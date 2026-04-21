@@ -21,6 +21,13 @@ server/dist
 .env.production.local
 server/.env
 
+# Docker e Deploy
+logs/
+.agent/scratch/
+.agent/logs/
+mcp_config.json
+scratch/
+
 # IDEs
 .vscode
 .idea

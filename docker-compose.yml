@@ -7,8 +7,8 @@ services:
     restart: always
     environment:
       POSTGRES_USER: ticketera_user
-      POSTGRES_PASSWORD: ticketera_pass_2025
-      POSTGRES_DB: ticketera_prod
+      POSTGRES_PASSWORD: ticketera_pass_dev
+      POSTGRES_DB: ticketera_dev
     ports:
       - "127.0.0.1:5432:5432"
     volumes:
@@ -22,24 +22,6 @@ services:
     restart: always
     ports:
       - "127.0.0.1:6379:6379"
-    networks:
-      - ticketera_net
-
-  api:
-    build:
-      context: ./server
-      dockerfile: Dockerfile
-    container_name: ticketera_api
-    restart: always
-    environment:
-      DATABASE_URL: postgres://ticketera_user:ticketera_pass_2025@db:5432/ticketera_prod
-      REDIS_URL: redis://redis:6379
-      JWT_SECRET: super_secret_event_key_2025_ticketera
-    ports:
-      - "3000:3000"
-    depends_on:
-      - db
-      - redis
     networks:
       - ticketera_net
 

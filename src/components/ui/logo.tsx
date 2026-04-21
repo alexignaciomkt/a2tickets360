@@ -1,6 +1,4 @@
-
 import React from 'react';
-import { Link } from 'react-router-dom';
 import { Ticket } from 'lucide-react';
 
 interface LogoProps {
@@ -33,14 +31,13 @@ const Logo = ({
   };
 
   const isCompact = variant === 'compact';
-  // If variant is footer, we might want different colors or handle it via className prop
 
   return (
-    <Link to="/" className={`flex items-center gap-2 font-bold tracking-tighter text-primary ${getTextSize()} ${className}`}>
-      <Ticket className={`${getIconSize()}`} />
-      {showText && !isCompact && <span>A2 Tickets 360</span>}
+    <div className={`flex items-center gap-2 font-bold tracking-tighter text-primary ${getTextSize()} ${className}`}>
+      <img src="/assets/logo.png" alt="A2 Tickets 360º" className={`${getIconSize()} object-contain`} />
+      {showText && !isCompact && <span>A2 Tickets 360º</span>}
       {isCompact && <span>A2</span>}
-    </Link>
+    </div>
   );
 };
 

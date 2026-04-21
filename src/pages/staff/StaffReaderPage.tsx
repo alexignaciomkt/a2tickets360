@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Shield, QrCode, LogOut, Check, X, Camera, Share2, Info, Calendar } from "lucide-react";
+import { Shield, QrCode, LogOut, Check, X, Camera, Info, User } from "lucide-react";
 import Logo from "@/components/ui/logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { events as MOCK_EVENTS } from "@/data/mockData";
+import { supabase } from "@/lib/supabase";
+import { Badge } from "@/components/ui/badge";
+import { Html5QrcodeScanner } from "html5-qrcode";
 
 const StaffReaderPage = () => {
     const [step, setStep] = useState<"login" | "reader">("login");
@@ -16,151 +18,195 @@ const StaffReaderPage = () => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [selectedEventId, setSelectedEventId] = useState("");
-    const [scanResult, setScanResult] = useState<any>(null);
+    const [scanResult, setScanResult] = useState<"success" | "error" | null>(null);
+    const [ticketData, setTicketData] = useState<any>(null);
+    const [activeEvents, setActiveEvents] = useState<any[]>([]);
     const { toast } = useToast();
     const navigate = useNavigate();
+    const scannerRef = useRef<Html5QrcodeScanner | null>(null);
 
-    // Simulating event filtering for the staff
-    const activeEvents = MOCK_EVENTS.filter(e => {
-        const eventDate = new Date(e.date);
-        const now = new Date();
-        const diffHours = (now.getTime() - eventDate.getTime()) / (1000 * 60 * 60);
-        // Practicing the "12h after start" logic
-        return diffHours < 12;
-    });
+    // Load real events for the staff
+    useEffect(() => {
+        const loadEvents = async () => {
+            const { data } = await supabase
+                .from('events')
+                .select('id, title')
+                .in('status', ['published', 'pending', 'finished']);
+            if (data) setActiveEvents(data);
+        };
+        loadEvents();
+    }, []);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedEventId) {
-            toast({
-                title: "Selecione um evento",
-                description: "Você precisa selecionar o evento para o qual está trabalhando.",
-                variant: "destructive"
-            });
+            toast({ title: "Selecione um evento", variant: "destructive" });
             return;
         }
 
         setLoading(true);
-        // Simulate authentication
+        // Simulação de login de staff
         setTimeout(() => {
             setLoading(false);
             setStep("reader");
-            toast({
-                title: "Bem-vindo!",
-                description: "Leitor autorizado para o evento selecionado.",
-            });
-        }, 1500);
+            toast({ title: "Modo Validação Ativo" });
+        }, 800);
     };
 
-    const handleScan = () => {
-        setLoading(true);
-        // Simulate QR Code scanning result
+    const startScanner = () => {
+        // Aguardar o DOM renderizar o elemento qr-reader
         setTimeout(() => {
-            setLoading(false);
-            const isSuccess = Math.random() > 0.3;
-            setScanResult(isSuccess ? "success" : "error");
-
-            if (isSuccess) {
-                toast({
-                    title: "Acesso Liberado!",
-                    description: "Ingresso validado com sucesso.",
-                });
-            } else {
-                toast({
-                    title: "Acesso Negado",
-                    description: "Ingresso inválido ou já utilizado.",
-                    variant: "destructive"
-                });
+            const element = document.getElementById("qr-reader");
+            if (element && !scannerRef.current) {
+                scannerRef.current = new Html5QrcodeScanner(
+                    "qr-reader",
+                    { fps: 10, qrbox: { width: 250, height: 250 } },
+                    /* verbose= */ false
+                );
+                scannerRef.current.render(onScanSuccess, onScanFailure);
             }
-        }, 1000);
+        }, 300);
+    };
+
+    const onScanSuccess = async (decodedText: string) => {
+        if (loading || scanResult) return;
+        
+        console.log(`[SCAN] Código lido: ${decodedText}`);
+        setLoading(true);
+        try {
+            // 1. Buscar Ingresso Real no Supabase
+            const { data: ticket, error } = await supabase
+                .from('purchased_tickets')
+                .select(`
+                    *,
+                    profiles:user_id (name, email),
+                    tickets:ticket_id (name)
+                `)
+                .eq('qr_code_data', decodedText)
+                .maybeSingle();
+
+            if (error || !ticket) {
+                console.error("Erro ou ingresso não encontrado:", error);
+                setScanResult("error");
+                setLoading(false);
+                return;
+            }
+
+            // 2. Validar se o ingresso é para ESTE evento
+            if (ticket.event_id !== selectedEventId) {
+                toast({ 
+                    title: "Evento Incorreto", 
+                    description: "Este ingresso pertence a outro evento.", 
+                    variant: "destructive" 
+                });
+                setScanResult("error");
+                setLoading(false);
+                return;
+            }
+
+            // 3. Validar se já foi usado
+            if (ticket.status === 'used') {
+                setScanResult("error");
+                setLoading(false);
+                toast({ title: "Ingresso já utilizado!", variant: "destructive" });
+                return;
+            }
+
+            // 4. Marcar como USADO e mostrar sucesso
+            const { error: updateError } = await supabase
+                .from('purchased_tickets')
+                .update({ status: 'used' })
+                .eq('id', ticket.id);
+
+            if (updateError) throw updateError;
+
+            setTicketData(ticket);
+            setScanResult("success");
+            
+            // Vibrar dispositivo se disponível
+            if (navigator.vibrate) navigator.vibrate(200);
+
+        } catch (err) {
+            console.error("Erro fatal na validação:", err);
+            setScanResult("error");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const onScanFailure = (error: any) => {
+        // Silencioso para não travar a UI
     };
 
     const resetScan = () => {
         setScanResult(null);
+        setTicketData(null);
     };
+
+    useEffect(() => {
+        if (step === "reader") {
+            startScanner();
+        }
+        return () => {
+            if (scannerRef.current) {
+                scannerRef.current.clear().catch(err => console.error("Erro ao limpar scanner:", err));
+                scannerRef.current = null;
+            }
+        };
+    }, [step]);
 
     if (step === "login") {
         return (
             <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-center p-6 text-white font-sans">
-                <div className="mb-10 text-center animate-fade-in">
+                <div className="mb-10 text-center">
                     <Logo variant="default" showText={true} />
                     <p className="text-indigo-400 text-xs font-black uppercase tracking-[0.2em] mt-2">Staff Portal v2.0</p>
                 </div>
 
                 <Card className="w-full max-w-md bg-white/5 border-white/10 backdrop-blur-xl rounded-[2.5rem] overflow-hidden shadow-2xl">
                     <CardHeader className="text-center pb-2">
-                        <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-500/20">
+                        <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
                             <Shield className="w-8 h-8 text-white" />
                         </div>
-                        <CardTitle className="text-2xl font-black text-white uppercase tracking-tight">Boas-vindas!</CardTitle>
+                        <CardTitle className="text-2xl font-black text-white uppercase tracking-tight">Portaria Digital</CardTitle>
                         <CardDescription className="text-gray-400 font-medium italic">
-                            Identifique-se para iniciar a validação de portaria.
+                            Selecione o evento para iniciar as validações.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="p-8">
                         <form onSubmit={handleLogin} className="space-y-6">
                             <div className="space-y-2">
-                                <Label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1">E-mail do Staff</Label>
-                                <Input
-                                    type="email"
-                                    placeholder="ex: joao@staff.com"
-                                    className="bg-white/5 border-white/10 text-white rounded-2xl h-12 focus:border-indigo-500 transition-all"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    required
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1">Senha Temporária</Label>
-                                <Input
-                                    type="password"
-                                    placeholder="••••••••"
-                                    className="bg-white/5 border-white/10 text-white rounded-2xl h-12 focus:border-indigo-500 transition-all font-mono"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    required
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1">Evento de Atuação</Label>
+                                <Label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1">Evento Ativo</Label>
                                 <Select value={selectedEventId} onValueChange={setSelectedEventId}>
-                                    <SelectTrigger className="bg-white/5 border-white/10 text-white rounded-2xl h-12">
+                                    <SelectTrigger className="bg-white/5 border-white/10 text-white rounded-2xl h-12 focus:ring-indigo-500">
                                         <SelectValue placeholder="Selecione o evento..." />
                                     </SelectTrigger>
-                                    <SelectContent className="bg-gray-900 border-white/10 text-white rounded-xl">
+                                    <SelectContent className="bg-gray-900 border-white/10 text-white">
                                         {activeEvents.map(event => (
-                                            <SelectItem key={event.id} value={event.id} className="focus:bg-indigo-600 focus:text-white">
+                                            <SelectItem key={event.id} value={event.id}>
                                                 {event.title}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
-                                <p className="text-[9px] text-gray-500 italic mt-1 flex items-center gap-1">
-                                    <Info className="w-3 h-3" /> Apenas eventos ativos aparecem aqui.
-                                </p>
                             </div>
 
                             <Button
                                 type="submit"
-                                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white h-14 rounded-full font-black uppercase tracking-widest shadow-xl shadow-indigo-500/20 mt-4"
+                                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white h-14 rounded-full font-black uppercase tracking-widest shadow-xl shadow-indigo-500/20 mt-4 transition-all active:scale-95"
                                 disabled={loading}
                             >
-                                {loading ? "Autenticando..." : "Acessar Leitor"}
+                                {loading ? "Carregando..." : "Acessar Leitor"}
                             </Button>
                         </form>
                     </CardContent>
                 </Card>
-
-                <div className="mt-8 text-center">
-                    <p className="text-gray-600 text-[10px] font-bold uppercase tracking-widest">Tecnologia Segura Ticketera © 2024</p>
-                </div>
             </div>
         );
     }
 
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
-            {/* Header Mini Header */}
             <div className="bg-indigo-600 p-6 text-white flex items-center justify-between shadow-lg">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-white/20 rounded-xl">
@@ -169,100 +215,87 @@ const StaffReaderPage = () => {
                     <div>
                         <p className="text-[10px] font-black uppercase tracking-widest opacity-80 leading-none mb-1">Validador Pro</p>
                         <h2 className="text-sm font-black uppercase tracking-tight truncate max-w-[180px]">
-                            {MOCK_EVENTS.find(e => e.id === selectedEventId)?.title || "Evento"}
+                            {activeEvents.find(e => e.id === selectedEventId)?.title || "Evento"}
                         </h2>
                     </div>
                 </div>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className="rounded-full hover:bg-white/20"
-                    onClick={() => setStep("login")}
-                >
+                <Button variant="ghost" size="icon" className="rounded-full hover:bg-white/20" onClick={() => setStep("login")}>
                     <LogOut className="w-5 h-5" />
                 </Button>
             </div>
 
-            <div className="flex-1 p-6 flex flex-col items-center justify-center space-y-8">
+            <div className="flex-1 flex flex-col items-center justify-center relative bg-black">
                 {!scanResult ? (
-                    <div className="w-full max-w-sm space-y-10 text-center">
-                        <div className="relative mx-auto">
-                            {/* Animated Scanner Frame */}
-                            <div className="w-64 h-64 border-4 border-indigo-600 rounded-[3rem] mx-auto relative overflow-hidden bg-white shadow-2xl flex items-center justify-center group flex-col">
-                                <div className="absolute top-0 left-0 w-full h-1 bg-indigo-600/50 animate-bounce opacity-20"></div>
-                                <Camera className="w-16 h-16 text-indigo-600 mb-2 opacity-20" />
-                                <p className="text-indigo-600 font-black text-[10px] uppercase tracking-widest">Aguardando QR</p>
-                            </div>
-
-                            {/* Scan Line Animation */}
-                            <div className="absolute top-0 left-0 w-full h-[2px] bg-red-500 shadow-[0_0_15px_rgba(239,68,68,1)] animate-scroll-v pointer-events-none"></div>
+                    <div className="w-full max-w-sm p-4 space-y-6 text-center">
+                        <div id="qr-reader" className="overflow-hidden rounded-[2.5rem] border-4 border-indigo-600 shadow-2xl bg-black"></div>
+                        <div className="space-y-2">
+                            <h3 className="text-xl font-black text-white uppercase tracking-tighter">Pronto para Validar</h3>
+                            <p className="text-indigo-300 text-[10px] font-black uppercase tracking-widest opacity-70">Aponte para o QR Code do ingresso</p>
                         </div>
-
-                        <div className="space-y-4">
-                            <h3 className="text-2xl font-black text-gray-900 uppercase tracking-tighter">Pronto para Validar</h3>
-                            <p className="text-gray-500 font-medium px-8 text-sm leading-relaxed">
-                                Centralize o QR Code do ingresso no quadro acima para realizar a leitura automática.
-                            </p>
-                        </div>
-
-                        <Button
-                            onClick={handleScan}
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white px-10 h-14 rounded-full font-black uppercase tracking-widest shadow-xl shadow-indigo-100 flex items-center gap-3"
-                            disabled={loading}
-                        >
-                            {loading ? "Processando..." : (
-                                <>
-                                    <Camera className="w-5 h-5" /> Iniciar Leitura
-                                </>
-                            )}
-                        </Button>
                     </div>
                 ) : (
-                    <div className="w-full max-w-sm animate-fade-in text-center space-y-8">
-                        {scanResult === "success" ? (
-                            <>
-                                <div className="w-32 h-32 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
-                                    <Check className="w-16 h-16" strokeWidth={3} />
-                                </div>
-                                <div className="space-y-2">
-                                    <h2 className="text-4xl font-black text-green-600 uppercase tracking-tighter italic">Válido</h2>
-                                    <p className="text-gray-900 font-black uppercase tracking-widest text-sm">João Pedro da Silva</p>
-                                    <p className="text-gray-500 font-bold text-xs uppercase">Ingresso VIP • Lote 2</p>
-                                </div>
-                            </>
-                        ) : (
-                            <>
-                                <div className="w-32 h-32 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
-                                    <X className="w-16 h-16" strokeWidth={3} />
-                                </div>
-                                <div className="space-y-2">
-                                    <h1 className="text-2xl font-black text-white uppercase tracking-tighter">A2 Tickets 360</h1>
-                                    <p className="text-gray-900 font-black uppercase tracking-widest text-sm">Ingresso Inválido</p>
-                                    <p className="text-gray-500 font-bold text-xs uppercase">Verifique a origem do documento</p>
-                                </div>
-                            </>
-                        )}
+                    <div className={`fixed inset-0 z-50 flex flex-col items-center justify-center p-6 text-white animate-in zoom-in duration-300 ${scanResult === "success" ? "bg-emerald-600" : "bg-red-600"}`}>
+                        <div className="w-full max-w-sm space-y-8 text-center">
+                            {scanResult === "success" ? (
+                                <>
+                                    <div className="space-y-4">
+                                        <div className="relative mx-auto w-48 h-48 md:w-56 md:h-56">
+                                            <div className="absolute -inset-4 bg-white/20 rounded-full animate-pulse"></div>
+                                            <div className="relative w-full h-full rounded-full border-4 border-white overflow-hidden shadow-2xl bg-emerald-800 flex items-center justify-center">
+                                                {ticketData?.photo_url ? (
+                                                    <img src={ticketData.photo_url} className="w-full h-full object-cover" alt="Titular" />
+                                                ) : (
+                                                    <User className="w-24 h-24 text-white/40" />
+                                                )}
+                                            </div>
+                                            <div className="absolute -bottom-2 -right-2 bg-white text-emerald-600 p-3 rounded-full shadow-xl">
+                                                <Check className="w-8 h-8" strokeWidth={4} />
+                                            </div>
+                                        </div>
 
-                        <div className="pt-8">
-                            <Button
-                                onClick={resetScan}
-                                variant="outline"
-                                className="border-2 border-gray-200 text-gray-900 px-10 h-14 rounded-full font-black uppercase tracking-widest hover:bg-gray-50 transition-all"
-                            >
-                                Nova Leitura
-                            </Button>
+                                        <div className="pt-4">
+                                            <h2 className="text-4xl font-black uppercase tracking-tighter leading-none mb-1 italic">Acesso Liberado</h2>
+                                            <p className="text-emerald-100 font-bold uppercase tracking-widest text-xs opacity-80">Conferência Visual Obrigatória</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-white/10 backdrop-blur-md rounded-[2.5rem] p-8 border border-white/20 space-y-4">
+                                        <div className="text-left">
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-emerald-200 opacity-70">Nome do Titular</p>
+                                            <p className="text-2xl font-black uppercase tracking-tight truncate">{ticketData?.profiles?.name || 'Visitante'}</p>
+                                        </div>
+                                        <div className="flex justify-between items-end border-t border-white/10 pt-4">
+                                            <div className="text-left">
+                                                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-200 opacity-70">Ingresso</p>
+                                                <p className="text-lg font-bold">{ticketData?.tickets?.name || 'Padrão'}</p>
+                                            </div>
+                                            <Badge className="bg-white text-emerald-600 font-black border-none uppercase px-3 py-1">Check-in OK</Badge>
+                                        </div>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="w-32 h-32 bg-white/20 text-white rounded-full flex items-center justify-center mx-auto shadow-inner border-4 border-white/30">
+                                        <X className="w-16 h-16" strokeWidth={4} />
+                                    </div>
+                                    <div className="space-y-4 text-center">
+                                        <h1 className="text-4xl font-black uppercase tracking-tighter leading-none">Acesso Negado</h1>
+                                        <p className="text-red-100 font-medium px-10 leading-relaxed italic opacity-80">Ingresso já utilizado, inválido ou de outro evento.</p>
+                                    </div>
+                                </>
+                            )}
+
+                            <div className="pt-6">
+                                <Button 
+                                    onClick={resetScan} 
+                                    className="bg-white text-gray-900 h-16 rounded-full font-black uppercase tracking-widest shadow-2xl hover:bg-gray-100 w-full transition-all active:scale-95"
+                                >
+                                    Fazer Nova Leitura
+                                </Button>
+                            </div>
                         </div>
                     </div>
                 )}
-            </div>
-
-            {/* Footer Status */}
-            <div className="p-6 bg-white border-t border-gray-100 flex justify-between items-center text-[10px] font-black text-gray-400 uppercase tracking-widest italic">
-                <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                    Servidor Sincronizado
-                </div>
-                <span>A2 Tickets 360 Security Hub</span>
             </div>
         </div>
     );

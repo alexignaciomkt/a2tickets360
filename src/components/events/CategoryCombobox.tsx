@@ -24,12 +24,20 @@ const CategoryCombobox = ({ value, onChange }: CategoryComboboxProps) => {
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
             if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+                // Se fechou e tem texto, tenta auto-selecionar se houver match exato
+                if (search.trim() && !value) {
+                    const match = categories.find(c => c.name.toLowerCase() === search.trim().toLowerCase());
+                    if (match) {
+                        onChange(match.name);
+                    }
+                }
+                setSearch('');
                 setIsOpen(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
+    }, [search, value, categories, onChange]);
 
     const loadCategories = async () => {
         try {
@@ -61,12 +69,15 @@ const CategoryCombobox = ({ value, onChange }: CategoryComboboxProps) => {
         }
     };
 
+    const normalize = (str: string) => 
+        str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
     const filtered = categories.filter(c =>
-        c.name.toLowerCase().includes(search.toLowerCase())
+        normalize(c.name).includes(normalize(search))
     );
 
     const exactMatch = categories.some(
-        c => c.name.toLowerCase() === search.trim().toLowerCase()
+        c => normalize(c.name) === normalize(search)
     );
 
     return (
@@ -81,6 +92,19 @@ const CategoryCombobox = ({ value, onChange }: CategoryComboboxProps) => {
                         if (!isOpen) setIsOpen(true);
                     }}
                     onFocus={() => setIsOpen(true)}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter' && search.trim()) {
+                            e.preventDefault();
+                            const match = categories.find(c => c.name.toLowerCase() === search.trim().toLowerCase());
+                            if (match) {
+                                onChange(match.name);
+                                setSearch('');
+                                setIsOpen(false);
+                            } else if (!exactMatch) {
+                                handleCreateCategory();
+                            }
+                        }
+                    }}
                     className="pl-10 bg-white border-gray-300 text-gray-900 placeholder:text-gray-400 focus:border-indigo-500 focus:ring-indigo-500/20"
                 />
             </div>

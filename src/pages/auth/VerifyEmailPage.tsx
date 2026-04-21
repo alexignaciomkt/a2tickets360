@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
-import { authService } from '@/services/authService';
+import { supabase } from '@/lib/supabase';
 import { CheckCircle2, XCircle, Loader2, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Logo from '@/components/ui/logo';
@@ -11,33 +11,29 @@ const VerifyEmailPage = () => {
     const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
     const [message, setMessage] = useState('');
 
-    const token = searchParams.get('token');
-    const type = searchParams.get('type') as 'candidate' | 'organizer';
-
     useEffect(() => {
-        const verify = async () => {
-            if (!token || !type) {
-                setStatus('error');
-                setMessage('Link de verificação inválido ou expirado.');
-                return;
-            }
-
+        const checkVerification = async () => {
             try {
-                const response: any = await authService.verifyEmail(token, type);
-                if (response.status === 'success') {
+                // No Supabase, o link de confirmação geralmente traz o usuário de volta 
+                // já com a sessão ativa ou com um access_token fragmentado
+                const { data: { session } } = await supabase.auth.getSession();
+
+                if (session) {
                     setStatus('success');
                 } else {
+                    // Se não houver sessão, o link pode ter expirado ou o usuário já confirmou
                     setStatus('error');
-                    setMessage(response.error || 'Erro ao verificar e-mail.');
+                    setMessage('Não foi possível confirmar sua sessão automática. Tente fazer login.');
                 }
             } catch (error: any) {
+                console.error('❌ Erro na verificação:', error);
                 setStatus('error');
-                setMessage(error.message || 'Falha na comunicação com o servidor.');
+                setMessage(error.message || 'Falha ao verificar e-mail. O link pode ter expirado.');
             }
         };
 
-        verify();
-    }, [token, type]);
+        checkVerification();
+    }, [searchParams]);
 
     return (
         <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center p-4">
@@ -65,7 +61,7 @@ const VerifyEmailPage = () => {
                         </p>
                         <Button
                             className="w-full h-14 rounded-2xl bg-primary hover:bg-primary/90 text-white font-black uppercase tracking-widest gap-2"
-                            onClick={() => navigate(type === 'candidate' ? '/staff/portal' : '/organizer/dashboard')}
+                            onClick={() => navigate('/login')}
                         >
                             Ir para o Painel
                             <ArrowRight className="w-5 h-5" />
@@ -82,8 +78,8 @@ const VerifyEmailPage = () => {
                         <p className="text-gray-400 mb-10">
                             {message}
                         </p>
-                        <Link to="/" className="text-primary font-bold hover:underline py-2">
-                            Voltar para a página inicial
+                        <Link to="/login" className="text-primary font-bold hover:underline py-2">
+                            Tentar fazer login
                         </Link>
                     </div>
                 )}

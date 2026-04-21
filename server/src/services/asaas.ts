@@ -7,8 +7,8 @@ export class AsaasService {
 
     constructor() {
         this.apiKey = process.env.ASAAS_API_KEY || '';
-        this.walletId = process.env.ASAAS_WALLET_ID || 'cdcbd1de-2c4f-4b90-a290-06610df89db1';
-        this.baseUrl = process.env.NODE_ENV === 'production'
+        this.walletId = process.env.ASAAS_WALLET_ID || '';
+        this.baseUrl = process.env.ASAAS_ENV === 'production'
             ? 'https://api.asaas.com/v3'
             : 'https://sandbox.asaas.com/api/v3';
     }

@@ -13,15 +13,20 @@ import {
   DollarSign,
   Palette,
   UserCheck,
+  User,
   ShieldCheck,
   MapPin,
   Store,
   TrendingUp,
   Truck,
-  Handshake
+  Handshake,
+  Share2,
+  Activity,
+  LayoutDashboard
 } from 'lucide-react';
 import Logo from '@/components/ui/logo';
 import { useAuth } from '@/contexts/AuthContext';
+import SupportBot from './SupportBot';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -53,20 +58,17 @@ const DashboardLayout = ({ children, userType }: DashboardLayoutProps) => {
             category: 'Geral',
             icon: Home,
             items: [
-              { name: 'Dashboard', path: '/organizer', icon: Home },
+              { name: 'Dashboard BI', path: '/organizer/dashboard', icon: LayoutDashboard },
+              { name: 'Meu Perfil (Público)', path: '/organizer/settings', icon: User },
               { name: 'Meus Eventos', path: '/organizer/events', icon: Calendar },
-              { name: 'Participantes', path: '/organizer/attendees', icon: Users },
-              { name: 'Meu Perfil', path: '/organizer/onboarding', icon: Users },
             ]
           },
           {
             category: 'Operações & Staff',
             icon: Users,
             items: [
+              { name: 'Mailing Gold', path: '/organizer/visitors', icon: Users },
               { name: 'Gestão de Staff', path: '/organizer/staff', icon: UserCheck },
-              { name: 'Cargos e Permissões', path: '/organizer/staff/roles', icon: ShieldCheck },
-              { name: 'Banco de Talentos', path: '/organizer/staff/talent-pool', icon: Users },
-              { name: 'Gestão de Visitantes', path: '/organizer/visitors', icon: Users },
               { name: 'Check-in', path: '/organizer/checkin', icon: ChevronRight },
             ]
           },
@@ -75,6 +77,7 @@ const DashboardLayout = ({ children, userType }: DashboardLayoutProps) => {
             icon: Truck,
             items: [
               { name: 'Gestão de Fornecedores', path: '/organizer/suppliers', icon: Truck },
+              { name: 'Painel do Expositor', path: '/organizer/exhibitor', icon: Store },
               { name: 'Pontos de Venda', path: '/organizer/sales-points', icon: MapPin },
             ]
           },
@@ -131,6 +134,7 @@ const DashboardLayout = ({ children, userType }: DashboardLayoutProps) => {
             category: 'Monitoramento',
             icon: ChevronRight,
             items: [
+              { name: 'Mailing Global (Leads)', path: '/master/mailing', icon: Users },
               { name: 'Alertas', path: '/master/alerts', icon: ChevronRight },
               { name: 'Relatórios', path: '/master/reports', icon: ChevronRight },
             ]
@@ -140,6 +144,7 @@ const DashboardLayout = ({ children, userType }: DashboardLayoutProps) => {
             icon: Settings,
             items: [
               { name: 'Configurações', path: '/master/settings', icon: Settings },
+              { name: 'Webhooks & Integrações', path: '/master/webhooks', icon: Share2 },
             ]
           }
         ];
@@ -272,39 +277,76 @@ const DashboardLayout = ({ children, userType }: DashboardLayoutProps) => {
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="bg-white shadow-sm z-10">
           <div className="px-6 py-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold">{getDashboardTitle()}</h2>
+            <h2 className="text-lg font-black uppercase tracking-tighter text-slate-800">{getDashboardTitle()}</h2>
 
-            {userType === 'organizer' && user && location.pathname !== '/organizer/onboarding' && (
-              <div className={`flex items-center gap-4 px-4 py-2 rounded-xl transition-all ${user.profileComplete ? 'bg-emerald-50 border border-emerald-100 group' : 'bg-amber-50 border border-amber-100 animate-pulse hover:animate-none group'}`}>
-                <div className="flex items-center gap-2">
-                  {user.profileComplete ? (
-                    <>
-                      <ShieldCheck className="h-5 w-5 text-emerald-500" />
-                      <p className="text-xs font-bold text-emerald-900 uppercase tracking-tighter">Cadastro Verificado</p>
-                    </>
-                  ) : (
-                    <>
-                      <ShieldCheck className="h-5 w-5 text-amber-500" />
-                      <p className="text-xs font-bold text-amber-900 uppercase tracking-tighter">Perfil Incompleto</p>
-                    </>
-                  )}
-                </div>
-                {!user.profileComplete && (
-                  <Link
-                    to="/organizer/onboarding"
-                    className="bg-amber-500 text-white px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-amber-600 transition-colors shadow-sm"
-                  >
-                    Continuar Onde Parei
-                  </Link>
-                )}
+            {/* Simplified Header Icons */}
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs">
+                {user?.name?.charAt(0).toUpperCase()}
               </div>
-            )}
+            </div>
           </div>
         </header>
+
+        {userType === 'organizer' && user && user.status === 'pending' && user.profileComplete && (
+          <div className="bg-amber-100 border-b border-amber-200 px-6 py-3 flex items-center justify-center gap-3">
+            <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p className="text-sm font-bold text-amber-900 uppercase tracking-tight">
+              Sua conta está em análise! Você já pode navegar e criar eventos (em modo rascunho), mas não poderá publicar até a aprovação.
+            </p>
+          </div>
+        )}
+
+        {userType === 'organizer' && user && (
+          <div className="bg-white border-b border-gray-100 px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center text-white font-black text-xl shadow-lg shadow-indigo-100">
+                {(user.companyName || user.name || 'P').charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <h1 className="text-xl font-black text-gray-900 tracking-tighter uppercase leading-none">
+                  {user.companyName || user.name || 'Produtor Ticketera'}
+                </h1>
+                <div className="flex items-center gap-2 mt-1.5">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                    Membro desde {user.createdAt ? new Date(user.createdAt).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }) : '---'}
+                  </p>
+                  <div className="h-1 w-1 rounded-full bg-gray-300" />
+                  <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">
+                    ID: {user.id.slice(0, 8)}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              {(user.status === 'approved' && user.profileComplete) ? (
+                <div className="bg-emerald-50 text-emerald-600 px-4 py-2 rounded-xl border border-emerald-100 flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4" />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Cadastro Verificado</span>
+                </div>
+              ) : (
+                <div className="bg-amber-50 text-amber-600 px-4 py-2 rounded-xl border border-amber-100 flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4" />
+                  <span className="text-[10px] font-black uppercase tracking-widest">
+                    {user.profileComplete ? 'Em Análise' : 'Perfil Incompleto'}
+                  </span>
+                </div>
+              )}
+              
+              <Link to="/organizer/settings" className="p-2 hover:bg-gray-50 rounded-lg transition-colors border border-gray-100">
+                <Settings className="w-5 h-5 text-gray-400" />
+              </Link>
+            </div>
+          </div>
+        )}
 
         <main className="flex-1 overflow-y-auto p-6">
           {children}
         </main>
+        <SupportBot />
       </div>
     </div>
   );

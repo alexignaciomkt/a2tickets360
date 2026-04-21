@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   Users, DollarSign, CheckCircle, FileText,
-  AlertTriangle, BarChart2, Calendar, Loader2
+  AlertTriangle, BarChart2, Calendar, Loader2, Share2, Settings
 } from 'lucide-react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
@@ -143,10 +143,37 @@ const MasterAdminPanel = () => {
           onNavigate: (url: string) => navigate(url),
         },
         {
+          title: "Mailing Global (Leads)",
+          icon: Users,
+          description: "Acesse e exporte todos os dados de todos os clientes da plataforma para marketing.",
+          url: "/master/mailing",
+          onNavigate: (url: string) => navigate(url),
+        },
+        {
           title: "Relatórios por Tipo de Evento",
           icon: FileText,
           description: "Compare performance entre categorias e tipos de eventos.",
           url: "/master/reports?filter=type",
+          onNavigate: (url: string) => navigate(url),
+        },
+      ],
+    },
+    {
+      title: "Configurações e API",
+      icon: Settings,
+      modules: [
+        {
+          title: "Configurações Globais",
+          icon: Settings,
+          description: "Ajustar parâmetros básicos do sistema e preferências.",
+          url: "/master/settings",
+          onNavigate: (url: string) => navigate(url),
+        },
+        {
+          title: "Webhooks & Automação",
+          icon: Share2,
+          description: "Configurar URLs de integração (N8N, Zapier, Chatwoot).",
+          url: "/master/webhooks",
           onNavigate: (url: string) => navigate(url),
         },
       ],

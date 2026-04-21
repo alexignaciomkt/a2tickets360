@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, Ticket, Clock, Loader2 } from 'lucide-react';
+import { Calendar, Ticket, Clock, Loader2, UserCheck, AlertCircle, Camera } from 'lucide-react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { customerService } from '@/services/customerService';
+import { supabase } from '@/lib/supabase';
 
 const CustomerDashboard = () => {
   const { user } = useAuth();
@@ -11,13 +12,23 @@ const CustomerDashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!user?.email) return;
+    if (!user?.id) return;
 
     const fetchTickets = async () => {
       try {
         setIsLoading(true);
-        const data = await customerService.getTickets(user.email);
-        setTickets(data);
+        const { data, error } = await supabase
+          .from('purchased_tickets')
+          .select(`
+            *,
+            event:event_id (title, start_date, location_name),
+            ticket:ticket_id (name, price)
+          `)
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        setTickets(data || []);
       } catch (error) {
         console.error('Error fetching tickets:', error);
       } finally {
@@ -25,10 +36,10 @@ const CustomerDashboard = () => {
       }
     };
     fetchTickets();
-  }, [user?.email]);
+  }, [user?.id]);
 
-  const activeTicketsCount = tickets.filter(t => t.paymentStatus === 'paid').length;
-  const nextTicket = tickets.find(t => t.paymentStatus === 'paid');
+  const activeTicketsCount = tickets.filter(t => t.status === 'active').length;
+  const nextTicket = tickets.find(t => t.status === 'active');
   const nextEvent = nextTicket?.event;
 
   return (
@@ -36,10 +47,42 @@ const CustomerDashboard = () => {
       <div className="space-y-6">
         {/* Welcome Section */}
         <div className="bg-white rounded-lg shadow-md p-6">
-          <h1 className="text-2xl font-bold mb-2">Olá, {user?.name || 'Visitante'}</h1>
-          <p className="text-gray-600">
-            Bem-vindo(a) ao seu painel de ingressos no A2 Tickets 360.
-          </p>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold mb-2">Olá, {user?.name || 'Visitante'}</h1>
+              <p className="text-gray-600">
+                Bem-vindo(a) ao seu painel de ingressos no A2 Tickets 360.
+              </p>
+            </div>
+            
+            {/* Profile Completion Alert */}
+            {(!user?.cpf || !user?.photoUrl) && (
+              <Link 
+                to="/dashboard/settings" 
+                className="flex items-center gap-3 bg-amber-50 border border-amber-100 p-4 rounded-xl hover:bg-amber-100 transition-colors"
+              >
+                <div className="bg-amber-500 p-2 rounded-full text-white">
+                  <AlertCircle className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-amber-900">Perfil Incompleto</p>
+                  <p className="text-xs text-amber-700">Adicione seu CPF e Selfie para agilizar sua entrada.</p>
+                </div>
+              </Link>
+            )}
+
+            {(user?.cpf && user?.photoUrl) && (
+              <div className="flex items-center gap-3 bg-green-50 border border-green-100 p-4 rounded-xl">
+                <div className="bg-green-500 p-2 rounded-full text-white">
+                  <UserCheck className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-green-900">Identidade Verificada</p>
+                  <p className="text-xs text-green-700">Tudo pronto para os seus eventos!</p>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Stats Cards */}
@@ -121,25 +164,25 @@ const CustomerDashboard = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-gray-600">
-                          {sale.ticket?.name || 'Ingresso'}
+                          {sale.ticket?.name || 'Ingresso Individual'}
                         </div>
                         <div className="text-sm text-gray-500">
-                          R$ {Number(sale.totalPrice).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          {sale.ticket?.price > 0 ? `R$ ${Number(sale.ticket.price).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'Grátis'}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${sale.paymentStatus === 'paid' ? 'bg-green-100 text-green-800' :
-                          sale.paymentStatus === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${sale.status === 'active' ? 'bg-green-100 text-green-800' :
+                          sale.status === 'used' ? 'bg-gray-100 text-gray-800' :
                             'bg-red-100 text-red-800'
                           }`}>
-                          {sale.paymentStatus === 'paid' ? 'Válido' :
-                            sale.paymentStatus === 'pending' ? 'Pendente' : 'Cancelado'}
+                          {sale.status === 'active' ? 'Válido' :
+                            sale.status === 'used' ? 'Utilizado' : 'Inativo'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <a href={`/dashboard/tickets/${sale.id}`} className="text-primary hover:text-primary/80">
+                        <Link to={`/dashboard/tickets/${sale.id}`} className="text-primary hover:text-primary/80">
                           Ver Detalhes
-                        </a>
+                        </Link>
                       </td>
                     </tr>
                   ))}

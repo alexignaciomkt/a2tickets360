@@ -36,7 +36,7 @@ const ParaProdutores: React.FC = () => {
                             </p>
                             <div className="flex flex-col sm:flex-row gap-6 justify-center lg:justify-start">
                                 <Link
-                                    to="/register?type=organizer"
+                                    to="/register-organizer"
                                     className="group bg-indigo-600 text-white px-10 py-5 rounded-[2rem] font-black text-xl hover:bg-indigo-700 transition shadow-2xl shadow-indigo-200 flex items-center justify-center gap-3 active:scale-95"
                                 >
                                     Criar Minha Conta Grátis
@@ -154,7 +154,7 @@ const ParaProdutores: React.FC = () => {
                                 </div>
                             </div>
                             <Link
-                                to="/register"
+                                to="/register-organizer"
                                 className="mt-16 inline-flex bg-white text-gray-950 px-12 py-6 rounded-[2rem] font-black text-2xl hover:scale-105 transition shadow-2xl animate-pulse"
                             >
                                 Começar Gratuitamente
@@ -231,7 +231,7 @@ const ParaProdutores: React.FC = () => {
                             </ul>
 
                             <Link
-                                to="/register?type=organizer"
+                                to="/register-organizer"
                                 className="inline-flex items-center gap-3 bg-gray-900 text-white px-10 py-5 rounded-[2rem] font-black text-lg hover:bg-indigo-600 transition-all shadow-xl hover:scale-105 active:scale-95"
                             >
                                 Quero Contratar Melhor <ArrowRight className="w-5 h-5" />
@@ -270,7 +270,7 @@ const ParaProdutores: React.FC = () => {
                         <h2 className="text-4xl md:text-7xl font-black mb-10 relative z-10 leading-tight uppercase tracking-tighter">Pronto para o<br />próximo nível?</h2>
                         <p className="text-xl md:text-2xl text-indigo-100 mb-16 relative z-10 font-medium">Junte-se a centenas de produtores que já economizam tempo e dinheiro com a A2 Tickets 360.</p>
                         <Link
-                            to="/register"
+                            to="/register-organizer"
                             className="inline-flex bg-white text-indigo-600 px-16 py-8 rounded-[2rem] font-black text-3xl hover:scale-110 transition shadow-2xl relative z-10 active:scale-95"
                         >
                             CRIAR MINHA CONTA

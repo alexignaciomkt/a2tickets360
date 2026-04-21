@@ -1,189 +1,122 @@
 import { Hono, Context } from 'hono';
 import { cors } from 'hono/cors';
 import { db } from './db';
-import {
-    organizers as organizersTable,
-    events,
-    tickets,
-    sales,
-    checkins,
-    staff,
-    candidates,
-    staffProposals,
-    legalPages,
-    stands,
-    standCategories,
-    sponsorTypes,
-    sponsors,
-    sponsorInstallments,
-    sponsorDeliverables,
-    visitors,
-    admins,
-    eventCategories,
-    organizerPosts
-} from './db/schema';
-import { eq, and, or, ne, isNull, sql, gte, lte } from 'drizzle-orm';
-import Redis from 'ioredis';
+import * as schema from './db/schema';
 import dotenv from 'dotenv';
-import { jwt, sign } from 'hono/jwt';
+import Redis from 'ioredis';
+import { serveStatic } from '@hono/node-server/serve-static';
+import { join } from 'node:path';
+import { existsSync } from 'node:fs';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { v4 as uuidv4 } from 'uuid';
+import nodemailer from 'nodemailer';
+
+// Router Imports
+import exhibitorRoutes from './routes/exhibitor';
+import aiRoutes from './routes/ai';
+import authRoutes from './routes/auth';
 
 dotenv.config();
 
-import { asaas } from './services/asaas';
-import nodemailer from 'nodemailer';
-import { v4 as uuidv4 } from 'uuid';
-import { serveStatic } from '@hono/node-server/serve-static';
-import { writeFile, mkdir } from 'node:fs/promises';
-import { join } from 'node:path';
-import { existsSync } from 'node:fs';
+const app = new Hono();
 
+// Redis opcional para desenvolvimento (não trava se falhar)
+const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
+let redis: Redis | null = null;
+try {
+    redis = new Redis(REDIS_URL, {
+        lazyConnect: true,
+        maxRetriesPerRequest: 1
+    });
+    redis.on('error', (err) => {
+        // Silenciar erro de conexão do Redis
+    });
+} catch (e) {
+    console.warn('[REDIS] Falha ao inicializar (Opcional)');
+}
+
+// Configuração do Nodemailer
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: Number(process.env.SMTP_PORT) || 587,
+    secure: false, // true para 465, false para outras portas
     auth: {
-        user: 'a2tickets360@gmail.com',
-        pass: 'stux gjzd umcp ezrb'
-    }
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+    },
 });
 
-const app = new Hono();
-const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
-
-// SEED: Garantir que o Organizador de Teste existe
-async function seedOrganizer() {
-    const testId = '6d123456-789a-4bc3-d2e1-09876543210f';
-    const exists = await db.query.organizers.findFirst({
-        where: eq(organizersTable.id, testId)
-    });
-
-    if (!exists) {
-        await db.insert(organizersTable).values({
-            id: testId,
-            name: 'A2 Produções Elite',
-            email: 'contato@a2tickets360.com.br',
-            passwordHash: await Bun.password.hash('123456'),
-            emailVerified: true
-        });
-        console.log('✅ Organizador de teste criado');
-    }
-}
-
-// SEED: Garantir que o Master Admin existe
-async function seedMasterAdmin() {
-    const email = 'alexignaciomkt@gmail.com';
-    const exists = await db.query.admins.findFirst({
-        where: eq(admins.email, email)
-    });
-
-    if (!exists) {
-        await db.insert(admins).values({
-            name: 'Alex Ignacio',
-            email: email,
-            passwordHash: await Bun.password.hash('Ticketera010203#360'),
-            role: 'master'
-        });
-        console.log('✅ Master Admin criado');
-    }
-}
-
-// SEED: Garantir que as Categorias Globais de Eventos existem
-async function seedEventCategories() {
-    const defaultCategories = [
-        { name: 'Música', icon: 'Music' },
-        { name: 'Feira de Negócios', icon: 'Briefcase' },
-        { name: 'Festival', icon: 'PartyPopper' },
-        { name: 'Workshop', icon: 'Wrench' },
-        { name: 'Conferência', icon: 'Presentation' },
-        { name: 'Teatro', icon: 'Drama' },
-        { name: 'Dança', icon: 'Music2' },
-        { name: 'Esportes', icon: 'Trophy' },
-        { name: 'Gastronomia', icon: 'Utensils' },
-        { name: 'Arte', icon: 'PenTool' },
-        { name: 'Networking', icon: 'Users' },
-        { name: 'Shows', icon: 'Ticket' },
-        { name: 'Educação', icon: 'BookOpen' },
-        { name: 'Tecnologia', icon: 'Monitor' },
-        { name: 'Outros', icon: 'MoreHorizontal' },
-    ];
-
-    for (const cat of defaultCategories) {
-        const exists = await db.query.eventCategories.findFirst({
-            where: eq(eventCategories.name, cat.name)
-        });
-        if (!exists) {
-            await db.insert(eventCategories).values(cat);
-        }
-    }
-    console.log('✅ Categorias de eventos verificadas');
-}
-
-seedOrganizer();
-seedMasterAdmin();
-seedEventCategories();
-
-
-// Middleware CORS Global
+// Global Middlewares
 app.use('/*', cors({
     origin: '*',
-    allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowHeaders: ['Content-Type', 'Authorization'],
-    exposeHeaders: ['Content-Length'],
+    allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+    exposeHeaders: ['Content-Length', 'X-Kuma-Revision'],
     maxAge: 600,
     credentials: true,
 }));
 
-// Middleware de Autenticação (JWT)
-const authMiddleware = jwt({
-    secret: process.env.JWT_SECRET || 'fallback_secret_for_dev_only',
-    alg: 'HS256',
-});
+// API Routes
+app.route('/api/exhibitor', exhibitorRoutes);
+app.route('/api/ai', aiRoutes);
+app.route('/api/auth', authRoutes);
 
-// Aplicar Auth APENAS em rotas protegidas
-// Exemplo: app.use('/api/protected/*', authMiddleware);
-// POR ENQUANTO: Vamos aplicar manualmente onde necessário ou criar grupos
-// NÃO aplicar globalmente para evitar bloquear login/registro
+app.get('/', (c: Context) => c.text('A2 Tickets 360º API - High Performance Ready'));
 
-app.get('/', (c: Context) => c.text('Ticketera API - High Performance Ready'));
-
-// Health Check for Version Verification
 app.get('/api/health', (c: Context) => {
     return c.json({
         status: 'ok',
-        version: '1.0.2',
-        timestamp: new Date().toISOString(),
-        uptime: process.uptime()
+        version: '1.1.0',
+        timestamp: new Date().toISOString()
     });
 });
 
-// --- DOWNLOAD/STORAGE ---
+// Storage Config
 const UPLOADS_DIR = join(process.cwd(), 'uploads');
 if (!existsSync(UPLOADS_DIR)) {
     await mkdir(UPLOADS_DIR, { recursive: true });
 }
+// Servir arquivos estáticos corretamente
+app.use('/uploads/*', serveStatic({ 
+    root: './',
+    getContentType: (path) => {
+        if (path.endsWith('.jpg') || path.endsWith('.jpeg')) return 'image/jpeg';
+        if (path.endsWith('.png')) return 'image/png';
+        return 'application/octet-stream';
+    }
+}));
 
-// Servir arquivos estáticos
-app.use('/uploads/*', serveStatic({ root: './' }));
+// --- RESTO DO CÓDIGO (Será modularizado nos próximos dias) ---
 
 // Endpoint de Upload
 app.post('/api/upload', async (c: Context) => {
     try {
+        console.log('[UPLOAD] Iniciando recebimento de arquivo...');
         const body = await c.req.parseBody();
-        const file = body['file'] as File;
+        const file = body['file'] as any;
 
-        if (!file) {
-            return c.json({ error: 'Nenhum arquivo enviado' }, 400);
+        if (!file || !(file instanceof File)) {
+            console.error('[UPLOAD] Falha: Campo "file" ausente ou inválido');
+            return c.json({ error: 'Nenhum arquivo válido enviado' }, 400);
         }
 
-        const extension = file.name.split('.').pop();
+        console.log(`[UPLOAD] Recebido: ${file.name} (${file.size} bytes) - Tipo: ${file.type}`);
+
+        const extension = file.name.split('.').pop() || 'jpg';
         const fileName = `${uuidv4()}.${extension}`;
         const filePath = join(UPLOADS_DIR, fileName);
 
         const bytes = await file.arrayBuffer();
         await writeFile(filePath, Buffer.from(bytes));
 
-        const url = `${process.env.API_URL || 'http://localhost:3001'}/uploads/${fileName}`;
+        // Garantir que a URL da API não termina com /
+        const apiUrl = (process.env.API_URL || 'http://localhost:3000').replace(/\/$/, '');
+        const url = `${apiUrl}/uploads/${fileName}`;
 
+        console.log(`[UPLOAD] Sucesso! Arquivo salvo em: ${filePath} -> Disponível em: ${url}`);
         return c.json({ url });
     } catch (error: any) {
+        console.error('[UPLOAD] Erro crítico no processo:', error);
         return c.json({ error: error.message }, 500);
     }
 });
@@ -260,7 +193,7 @@ app.post('/api/login', async (c: Context) => {
 
 // --- Rota de Cadastro de Organizador (Com Asaas e Verificação) ---
 app.post('/api/organizers/register', async (c: Context) => {
-    const { name, email, password, cpfCnpj, mobilePhone } = await c.req.json();
+    const { name, email, password, cpfCnpj, mobilePhone, slug, bannerUrl } = await c.req.json();
     const token = uuidv4();
 
     try {
@@ -270,6 +203,16 @@ app.post('/api/organizers/register', async (c: Context) => {
         });
         if (existing) {
             return c.json({ error: 'Já existe um organizador cadastrado com este e-mail.' }, 409);
+        }
+
+        // 0.1 Verificar se o slug já existe
+        if (slug) {
+            const slugExisting = await db.query.organizers.findFirst({
+                where: eq(organizersTable.slug, slug)
+            });
+            if (slugExisting) {
+                return c.json({ error: 'Este link (slug) já está sendo usado por outro produtor.' }, 409);
+            }
         }
 
         // 1. Criar Subconta no Asaas (Opcional/Resiliente)
@@ -292,6 +235,8 @@ app.post('/api/organizers/register', async (c: Context) => {
             passwordHash,
             phone: mobilePhone || null,
             cpf: cpfCnpj || null,
+            slug: slug || name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]/g, ''),
+            bannerUrl: bannerUrl || null,
             asaasId: asaasAccount?.id,
             walletId: asaasAccount?.walletId,
             asaasApiKey: asaasAccount?.apiKey,
@@ -303,9 +248,14 @@ app.post('/api/organizers/register', async (c: Context) => {
 
         // 4. Enviar e-mail de confirmação (Resiliente)
         try {
-            const verificationUrl = `http://46.224.101.23:5173/auth/verify?token=${token}&type=organizer`;
+            if (!transporter) {
+                console.warn('⚠️ SMTP not configured. Skipping verification email.');
+                throw new Error('SMTP disabled');
+            }
+            const appUrl = (process.env.APP_URL || 'http://localhost:5173').replace(/\/$/, '');
+            const verificationUrl = `${appUrl}/auth/verify?token=${token}&type=organizer`;
             await transporter.sendMail({
-                from: '"A2 Tickets 360" <a2tickets360@gmail.com>',
+                from: process.env.SMTP_FROM || '"A2 Tickets 360º" <noreply@a2tickets360.com.br>',
                 to: email,
                 subject: 'Verifique sua conta de Organizador - A2 Tickets 360',
                 html: `
@@ -618,6 +568,20 @@ app.get('/api/organizers/slug/:slug', async (c) => {
 app.post('/api/events', async (c: Context) => {
     const data = await c.req.json();
     try {
+        // Check if organizer has a complete profile
+        let finalStatus = data.status || 'draft';
+
+        if (finalStatus === 'published' && data.organizerId) {
+            const organizer = await db.query.organizers.findFirst({
+                where: eq(organizersTable.id, data.organizerId)
+            });
+            // If profile is not complete, force status to 'pending' for admin review
+            if (!organizer?.profileComplete) {
+                finalStatus = 'pending';
+                console.log(`[EVENTS] Produtor ${data.organizerId} com perfil incompleto. Evento forçado para 'pending'.`);
+            }
+        }
+
         const [newEvent] = await db.insert(events).values({
             organizerId: data.organizerId,
             title: data.title,
@@ -633,12 +597,12 @@ app.post('/api/events', async (c: Context) => {
             locationState: data.locationState,
             locationPostalCode: data.locationPostalCode,
             capacity: Number(data.capacity) || 0,
-            status: data.status || 'draft',
+            status: finalStatus,
             imageUrl: data.imageUrl,
             isFeatured: data.isFeatured || false,
             featuredPaymentStatus: data.featuredPaymentStatus || 'none',
         }).returning();
-        return c.json(newEvent);
+        return c.json({ ...newEvent, forcedToPending: finalStatus === 'pending' && data.status === 'published' });
     } catch (error: any) {
         return c.json({ error: error.message }, 400);
     }
@@ -961,10 +925,15 @@ app.post('/api/candidates', async (c: Context) => {
         }).returning();
 
         // Enviar e-mail de confirmação
-        const verificationUrl = `http://46.224.101.23:5173/auth/verify?token=${token}&type=candidate`;
+        if (!transporter) {
+            console.warn('⚠️ SMTP not configured. Skipping candidate verification email.');
+            return c.json({ status: 'success', message: 'Cadastro realizado! SMTP desabilitado.' });
+        }
+        const appUrl = (process.env.APP_URL || 'http://localhost:5173').replace(/\/$/, '');
+        const verificationUrl = `${appUrl}/auth/verify?token=${token}&type=candidate`;
 
         await transporter.sendMail({
-            from: '"A2 Tickets 360" <a2tickets360@gmail.com>',
+            from: process.env.SMTP_FROM || '"A2 Tickets 360º" <noreply@a2tickets360.com.br>',
             to: data.email,
             subject: 'Confirme seu e-mail - A2 Tickets 360',
             html: `
@@ -1159,11 +1128,11 @@ app.delete('/api/master/organizers/:id', async (c: Context) => {
     }
 });
 
-// 5. Listar eventos pendentes para aprovação
+// 5. Listar eventos pendentes para aprovação (draft E pending)
 app.get('/api/master/events/pending', async (c: Context) => {
     try {
         const pendingEvents = await db.query.events.findMany({
-            where: eq(events.status, 'draft'),
+            where: or(eq(events.status, 'draft'), eq(events.status, 'pending')),
             with: {
                 organizer: true
             },
@@ -1175,10 +1144,17 @@ app.get('/api/master/events/pending', async (c: Context) => {
     }
 });
 
-// 6. Aprovar evento
+// 6. Aprovar evento (aceita draft, pending → published)
 app.put('/api/master/events/:id/approve', async (c: Context) => {
     const id = c.req.param('id');
     try {
+        const event = await db.query.events.findFirst({ where: eq(events.id, id) });
+        if (!event) return c.json({ error: 'Evento não encontrado' }, 404);
+
+        if (!['draft', 'pending'].includes(event.status as string)) {
+            return c.json({ error: `Evento com status '${event.status}' não pode ser aprovado.` }, 400);
+        }
+
         const [updated] = await db.update(events)
             .set({
                 status: 'published',
@@ -1187,11 +1163,7 @@ app.put('/api/master/events/:id/approve', async (c: Context) => {
             .where(eq(events.id, id))
             .returning();
 
-        if (!updated) {
-            return c.json({ error: 'Evento não encontrado' }, 404);
-        }
-
-        return c.json({ message: 'Evento aprovado com sucesso' });
+        return c.json({ message: 'Evento aprovado com sucesso', event: updated });
     } catch (error: any) {
         return c.json({ error: error.message }, 400);
     }
