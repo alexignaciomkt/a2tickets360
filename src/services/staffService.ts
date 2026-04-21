@@ -15,8 +15,7 @@ class StaffService {
           status,
           photo_url,
           ticket_id,
-          tickets:ticket_id (name),
-          profiles:user_id (name, cpf)
+          tickets(name)
         `)
         .eq('event_id', eventId)
         .in('status', ['active', 'used']);
@@ -26,8 +25,8 @@ class StaffService {
       const localTickets: LocalTicket[] = (data || []).map((pt: any) => ({
         id: pt.id,
         qr_code: pt.qr_code_data,
-        buyer_name: pt.profiles?.name || 'Comprador',
-        buyer_cpf: pt.profiles?.cpf || '',
+        buyer_name: 'Participante',
+        buyer_cpf: '',
         selfie_url: pt.photo_url || '',
         ticket_name: pt.tickets?.name || 'Ingresso',
         status: pt.status === 'used' ? 'used' : 'valid',
@@ -71,10 +70,10 @@ class StaffService {
         .from('purchased_tickets')
         .select(`
           id,
+          event_id,
           status,
           photo_url,
-          profiles:user_id (name, cpf),
-          tickets:ticket_id (name)
+          tickets(name)
         `);
         
       if (qrCode.startsWith('TICKET-')) {
@@ -102,7 +101,7 @@ class StaffService {
           message: 'Este ingresso já foi utilizado!', 
           alreadyUsed: true,
           ticket: {
-            buyer_name: ticket.profiles?.name,
+            buyer_name: 'Participante',
             selfie_url: ticket.photo_url
           }
         };
@@ -126,8 +125,7 @@ class StaffService {
         success: true, 
         message: 'Check-in realizado com sucesso!',
         ticket: {
-          buyer_name: ticket.profiles?.name,
-          buyer_cpf: ticket.profiles?.cpf,
+          buyer_name: 'Participante',
           selfie_url: ticket.photo_url,
           ticket_name: ticket.tickets?.name
         }
