@@ -35,6 +35,8 @@ const CheckInPage = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [manualCode, setManualCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const lastScannedRef = useRef<string>('');
+  const scanCooldownRef = useRef<boolean>(false);
   
   // Local tickets count for this event (simulated)
   const localTicketsCount = useLiveQuery(() => db.tickets.count()) || 0;
@@ -105,7 +107,12 @@ const CheckInPage = () => {
   };
 
   const onScanSuccess = async (decodedText: string) => {
-    if (isLoading) return;
+    // Anti-double-scan: ignora se estiver em cooldown ou se for o mesmo QR
+    if (isLoading || scanCooldownRef.current) return;
+    if (lastScannedRef.current === decodedText) return;
+    
+    scanCooldownRef.current = true;
+    lastScannedRef.current = decodedText;
     setIsLoading(true);
     
     // Vibrate device if possible
@@ -117,12 +124,23 @@ const CheckInPage = () => {
     
     // Sons de Validação (Modo Polícia)
     if (result.success) {
+      // Check-in realizado com sucesso
       audioSuccess.current.currentTime = 0;
       audioSuccess.current.play().catch(e => console.error("Erro ao tocar áudio sucesso:", e));
+    } else if (result.alreadyUsed) {
+      // Ingresso já foi utilizado — som neutro (não é fraude)
+      audioSuccess.current.currentTime = 0;
+      audioSuccess.current.play().catch(e => console.error("Erro ao tocar áudio:", e));
     } else {
+      // Ingresso inválido / fraude — SIRENE!
       audioError.current.currentTime = 0;
       audioError.current.play().catch(e => console.error("Erro ao tocar sirene:", e));
     }
+    
+    // Cooldown de 5 segundos antes de aceitar outro scan
+    setTimeout(() => {
+      scanCooldownRef.current = false;
+    }, 5000);
   };
 
   const onScanFailure = (error: any) => {
@@ -289,7 +307,11 @@ const CheckInPage = () => {
                  )}
 
                  <button 
-                   onClick={() => setScanResult(null)}
+                   onClick={() => {
+                    setScanResult(null);
+                    lastScannedRef.current = ''; // Permite re-escanear após fechar
+                    scanCooldownRef.current = false;
+                  }}
                    className="w-full bg-white text-gray-900 py-5 rounded-2xl font-black uppercase text-sm tracking-widest shadow-xl active:scale-95 transition-transform"
                  >
                    Próximo Cliente
