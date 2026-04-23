@@ -41,6 +41,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import WelcomeModal from '@/components/modals/WelcomeModal';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import AdBanner from '@/components/ui/AdBanner';
 import { 
   Select, 
   SelectContent, 
@@ -163,21 +164,21 @@ const OrganizerDashboard = () => {
         
         {/* SIDEBAR FILTERS */}
         <aside className="w-full lg:w-72 space-y-6">
-          <Card className="border-none shadow-xl bg-slate-900 text-white overflow-hidden">
-            <CardHeader className="pb-4 border-b border-white/10">
+          <Card className="border-none shadow-sm bg-white overflow-hidden">
+            <CardHeader className="pb-4 border-b border-slate-100">
               <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-indigo-400" />
-                <CardTitle className="text-sm font-black uppercase tracking-widest">Filtros de BI</CardTitle>
+                <Filter className="h-4 w-4 text-indigo-600" />
+                <CardTitle className="text-sm font-bold text-slate-800">Filtros de BI</CardTitle>
               </div>
             </CardHeader>
             <CardContent className="pt-6 space-y-6">
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Selecionar Evento</label>
+                <label className="text-xs font-semibold text-slate-600">Selecionar Evento</label>
                 <Select value={selectedEvent} onValueChange={handleEventChange}>
-                  <SelectTrigger className="bg-slate-800 border-none text-white focus:ring-indigo-500">
+                  <SelectTrigger className="bg-white border-slate-200 text-slate-800 focus:ring-indigo-500">
                     <SelectValue placeholder="Todos os eventos" />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-800 border-slate-700 text-white">
+                  <SelectContent className="bg-white border-slate-200 text-slate-800">
                     <SelectItem value="all">Todos os Eventos</SelectItem>
                     {events.map(e => (
                       <SelectItem key={e.id} value={e.id}>{e.title}</SelectItem>
@@ -187,12 +188,12 @@ const OrganizerDashboard = () => {
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Período de Análise</label>
+                <label className="text-xs font-semibold text-slate-600">Período de Análise</label>
                 <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-                  <SelectTrigger className="bg-slate-800 border-none text-white focus:ring-indigo-500">
+                  <SelectTrigger className="bg-white border-slate-200 text-slate-800 focus:ring-indigo-500">
                     <SelectValue placeholder="Últimos 30 dias" />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-800 border-slate-700 text-white">
+                  <SelectContent className="bg-white border-slate-200 text-slate-800">
                     <SelectItem value="7">Últimos 7 dias</SelectItem>
                     <SelectItem value="30">Últimos 30 dias</SelectItem>
                     <SelectItem value="90">Últimos 3 meses</SelectItem>
@@ -201,17 +202,18 @@ const OrganizerDashboard = () => {
                 </Select>
               </div>
 
-              <div className="pt-4 border-t border-white/10">
+              <div className="pt-4 border-t border-slate-100">
                 <Button 
                   onClick={() => refreshStats(selectedEvent, selectedPeriod)}
                   disabled={isLoading}
-                  className="w-full bg-slate-800 hover:bg-slate-700 text-white font-black uppercase tracking-widest text-[10px] py-6 border border-white/5"
+                  variant="outline"
+                  className="w-full text-slate-700 font-semibold"
                 >
                   {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Activity className="h-4 w-4 mr-2" />}
-                  Atualizar BI
+                  Atualizar Dados
                 </Button>
-                <Button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-[10px] py-6 shadow-lg shadow-indigo-500/20 mt-3">
-                  <Download className="h-4 w-4 mr-2" /> Exportar Dados
+                <Button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold mt-3">
+                  <Download className="h-4 w-4 mr-2" /> Exportar Relatório
                 </Button>
               </div>
             </CardContent>
@@ -219,23 +221,23 @@ const OrganizerDashboard = () => {
 
           {/* Quick Actions */}
           <div className="space-y-3">
-            <Link to="/organizer/events/create" className="flex items-center justify-between p-4 bg-white rounded-2xl shadow-sm border border-slate-100 hover:border-indigo-200 transition-all group">
+            <Link to="/organizer/events/create" className="flex items-center justify-between p-4 bg-white rounded-xl shadow-sm border border-slate-200 hover:border-indigo-300 transition-all group">
               <div className="flex items-center gap-3">
-                <div className="bg-indigo-50 p-2 rounded-xl group-hover:bg-indigo-600 transition-colors">
+                <div className="bg-indigo-50 p-2 rounded-lg group-hover:bg-indigo-600 transition-colors">
                   <Plus className="h-4 w-4 text-indigo-600 group-hover:text-white" />
                 </div>
-                <span className="text-xs font-black uppercase tracking-tight text-slate-700">Novo Evento</span>
+                <span className="text-sm font-semibold text-slate-700">Novo Evento</span>
               </div>
-              <ChevronRight className="h-4 w-4 text-slate-300" />
+              <ChevronRight className="h-4 w-4 text-slate-400" />
             </Link>
-            <Link to="/organizer/visitors" className="flex items-center justify-between p-4 bg-white rounded-2xl shadow-sm border border-slate-100 hover:border-emerald-200 transition-all group">
+            <Link to="/organizer/visitors" className="flex items-center justify-between p-4 bg-white rounded-xl shadow-sm border border-slate-200 hover:border-emerald-300 transition-all group">
               <div className="flex items-center gap-3">
-                <div className="bg-emerald-50 p-2 rounded-xl group-hover:bg-emerald-600 transition-colors">
+                <div className="bg-emerald-50 p-2 rounded-lg group-hover:bg-emerald-600 transition-colors">
                   <Users className="h-4 w-4 text-emerald-600 group-hover:text-white" />
                 </div>
-                <span className="text-xs font-black uppercase tracking-tight text-slate-700">Mailing Gold</span>
+                <span className="text-sm font-semibold text-slate-700">Mailing de Clientes</span>
               </div>
-              <ChevronRight className="h-4 w-4 text-slate-300" />
+              <ChevronRight className="h-4 w-4 text-slate-400" />
             </Link>
           </div>
         </aside>
@@ -245,14 +247,14 @@ const OrganizerDashboard = () => {
           
           {/* TOP KPIs */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <Card className="border-none shadow-sm overflow-hidden relative group">
+            <Card className="border-none shadow-sm overflow-hidden relative">
               <div className="absolute top-0 right-0 p-4 opacity-10">
                 <TrendingUp className="h-12 w-12 text-indigo-600" />
               </div>
               <CardContent className="p-6">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Receita Atual</p>
+                <p className="text-sm font-semibold text-slate-500 mb-1">Receita Atual</p>
                 <div className="flex items-baseline gap-2">
-                  <h3 className="text-3xl font-black tracking-tighter text-slate-900">{formatCurrency(kpis.currentRevenue)}</h3>
+                  <h3 className="text-3xl font-bold text-slate-900">{formatCurrency(kpis.currentRevenue)}</h3>
                 </div>
                 <div className="mt-4 flex items-center gap-2">
                   <div className="h-1.5 flex-1 bg-slate-100 rounded-full overflow-hidden">
@@ -261,32 +263,21 @@ const OrganizerDashboard = () => {
                       style={{ width: `${revenueProgress}%` }}
                     />
                   </div>
-                  <span className="text-[10px] font-black text-indigo-600">{revenueProgress.toFixed(1)}% da meta</span>
+                  <span className="text-xs font-semibold text-indigo-600">{revenueProgress.toFixed(1)}% da meta</span>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="border-none shadow-sm overflow-hidden relative group">
+            <Card className="border-none shadow-sm overflow-hidden relative">
               <div className="absolute top-0 right-0 p-4 opacity-10">
                 <Target className="h-12 w-12 text-emerald-600" />
               </div>
               <CardContent className="p-6">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Receita Estimada</p>
-                <h3 className="text-3xl font-black tracking-tighter text-slate-900">
+                <p className="text-sm font-semibold text-slate-500 mb-1">Receita Estimada</p>
+                <h3 className="text-3xl font-bold text-slate-900">
                   {kpis.estimatedRevenue > 0 ? formatCurrency(kpis.estimatedRevenue) : 'Grátis / --'}
                 </h3>
-                <p className="text-[10px] font-bold text-slate-500 mt-2 uppercase tracking-tight">Potencial total de vendas</p>
-              </CardContent>
-            </Card>
-
-            <Card className="border-none shadow-sm overflow-hidden relative group">
-              <div className="absolute top-0 right-0 p-4 opacity-10">
-                <Users className="h-12 w-12 text-amber-600" />
-              </div>
-              <CardContent className="p-6">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Ingressos Vendidos</p>
-                <h3 className="text-3xl font-black tracking-tighter text-slate-900">{kpis.ticketsSold}</h3>
-                <p className="text-[10px] font-bold text-slate-500 mt-2 uppercase tracking-tight">De {kpis.ticketsGenerated} gerados ({occupancyRate.toFixed(1)}% ocupação)</p>
+                <p className="text-xs font-medium text-slate-500 mt-2">Potencial total de vendas</p>
               </CardContent>
             </Card>
           </div>
@@ -369,7 +360,7 @@ const OrganizerDashboard = () => {
               <CardHeader className="pb-2">
                 <div className="flex items-center gap-2">
                   <PieIcon className="h-4 w-4 text-indigo-600" />
-                  <CardTitle className="text-sm font-black uppercase tracking-widest">Público por Sexo</CardTitle>
+                  <CardTitle className="text-sm font-bold text-slate-800">Público por Sexo</CardTitle>
                 </div>
               </CardHeader>
               <CardContent>
@@ -399,9 +390,9 @@ const OrganizerDashboard = () => {
                       <div key={item.name} className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <div className="h-2 w-2 rounded-full" style={{backgroundColor: COLORS[index % COLORS.length]}} />
-                          <span className="text-[10px] font-black uppercase text-slate-500">{item.name}</span>
+                          <span className="text-xs font-semibold text-slate-600">{item.name}</span>
                         </div>
-                        <span className="text-xs font-black text-slate-900">{item.value}</span>
+                        <span className="text-xs font-bold text-slate-900">{item.value}</span>
                       </div>
                     ))}
                   </div>
@@ -414,7 +405,7 @@ const OrganizerDashboard = () => {
               <CardHeader className="pb-2">
                 <div className="flex items-center gap-2">
                   <Users className="h-4 w-4 text-indigo-600" />
-                  <CardTitle className="text-sm font-black uppercase tracking-widest">Faixa Etária</CardTitle>
+                  <CardTitle className="text-sm font-bold text-slate-800">Faixa Etária</CardTitle>
                 </div>
               </CardHeader>
               <CardContent>
@@ -425,7 +416,7 @@ const OrganizerDashboard = () => {
                         dataKey="name" 
                         axisLine={false} 
                         tickLine={false} 
-                        tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 700}}
+                        tick={{fill: '#64748b', fontSize: 11, fontWeight: 500}}
                       />
                       <YAxis hide />
                       <Tooltip 

@@ -123,52 +123,56 @@ const EventSuccessPage = () => {
                     <div className="md:col-span-12 space-y-4 text-center">
                         <h1 className="text-4xl font-black text-gray-900 tracking-tighter uppercase relative">
                             <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-emerald-600">
-                               Evento Enviado para Análise!
+                               {event.status === 'published' ? 'Evento Publicado!' : 'Evento Enviado para Análise!'}
                             </span>
                         </h1>
                         <p className="text-lg text-gray-500 font-medium max-w-2xl mx-auto italic">
-                             "Seu evento foi registrado com sucesso e entrou na fila de revisão da nossa equipe."
+                             {event.status === 'published' 
+                                ? '"Seu evento já está disponível para o público e pronto para vender!"'
+                                : '"Seu evento foi registrado com sucesso e entrou na fila de revisão da nossa equipe."'}
                         </p>
                     </div>
 
-                    {/* Pending Analysis Box */}
-                    <div className="md:col-span-12">
-                        <div className="bg-amber-50 border-2 border-amber-200 rounded-[2.5rem] p-8 md:p-12 relative overflow-hidden group hover:scale-[1.01] transition-all duration-500">
-                            <div className="absolute top-0 right-0 p-8 text-amber-200/50 -mr-4 -mt-4 transform rotate-12 group-hover:rotate-0 transition-transform">
-                                <Clock className="w-32 h-32" />
-                            </div>
-                            
-                            <div className="relative z-10 flex flex-col md:flex-row items-center gap-8 text-center md:text-left">
-                                <div className="w-20 h-20 bg-amber-100 rounded-3xl flex items-center justify-center shrink-0 shadow-lg shadow-amber-200/50">
-                                    <Clock className="w-10 h-10 text-amber-600" />
+                    {/* Pending Analysis Box - ONLY SHOW IF NOT PUBLISHED */}
+                    {event.status !== 'published' && (
+                        <div className="md:col-span-12">
+                            <div className="bg-amber-50 border-2 border-amber-200 rounded-[2.5rem] p-8 md:p-12 relative overflow-hidden group hover:scale-[1.01] transition-all duration-500">
+                                <div className="absolute top-0 right-0 p-8 text-amber-200/50 -mr-4 -mt-4 transform rotate-12 group-hover:rotate-0 transition-transform">
+                                    <Clock className="w-32 h-32" />
                                 </div>
-                                <div>
-                                    <h2 className="text-2xl font-black text-amber-900 uppercase tracking-tight mb-2">PRAZO DE ANÁLISE: ATÉ 30 MINUTOS</h2>
-                                    <p className="text-amber-800/80 font-medium leading-relaxed">
-                                        Nossa equipe está revisando as diretrizes, categorias e integridade do seu evento. 
-                                        {user?.status !== 'approved' 
-                                            ? " Como seu cadastro ainda está em análise, seu evento será publicado automaticamente assim que sua conta for aprovada."
-                                            : " Em instantes seu evento estará disponível para venda em toda a plataforma."}
-                                    </p>
+                                
+                                <div className="relative z-10 flex flex-col md:flex-row items-center gap-8 text-center md:text-left">
+                                    <div className="w-20 h-20 bg-amber-100 rounded-3xl flex items-center justify-center shrink-0 shadow-lg shadow-amber-200/50">
+                                        <Clock className="w-10 h-10 text-amber-600" />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-2xl font-black text-amber-900 uppercase tracking-tight mb-2">PRAZO DE ANÁLISE: ATÉ 30 MINUTOS</h2>
+                                        <p className="text-amber-800/80 font-medium leading-relaxed">
+                                            Nossa equipe está revisando as diretrizes, categorias e integridade do seu evento. 
+                                            {user?.status !== 'approved' 
+                                                ? " Como seu cadastro ainda está em análise, seu evento será publicado automaticamente assim que sua conta for aprovada."
+                                                : " Em instantes seu evento estará disponível para venda em toda a plataforma."}
+                                        </p>
+                                    </div>
                                 </div>
-                            </div>
 
-                            {/* WhatsApp Notification Banner */}
-                            <div className="relative z-10 mt-6 flex items-center gap-4 bg-emerald-100/80 border border-emerald-200 rounded-2xl p-4 md:p-5">
-                                <div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center shrink-0 shadow-lg shadow-emerald-200">
-                                    <MessageCircle className="w-6 h-6 text-white" />
-                                </div>
-                                <div>
-                                    <h4 className="text-sm font-black text-emerald-900 uppercase tracking-tight flex items-center gap-2">
-                                        <Bell className="w-4 h-4" /> Você será notificado via WhatsApp
-                                    </h4>
-                                    <p className="text-xs text-emerald-700/80 font-medium mt-0.5">
-                                        Assim que seu evento for aprovado e publicado, enviaremos uma mensagem no seu WhatsApp confirmando a publicação. Fique tranquilo!
-                                    </p>
+                                {/* WhatsApp Notification Banner */}
+                                <div className="relative z-10 mt-6 flex items-center gap-4 bg-emerald-100/80 border border-emerald-200 rounded-2xl p-4 md:p-5">
+                                    <div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center shrink-0 shadow-lg shadow-emerald-200">
+                                        <MessageCircle className="w-6 h-6 text-white" />
+                                    </div>
+                                    <div>
+                                        <h4 className="text-sm font-black text-emerald-900 uppercase tracking-tight flex items-center gap-2">
+                                            <Bell className="w-4 h-4" /> Você será notificado via WhatsApp
+                                        </h4>
+                                        <p className="text-xs text-emerald-700/80 font-medium mt-0.5">
+                                            Assim que seu evento for aprovado e publicado, enviaremos uma mensagem no seu WhatsApp confirmando a publicação. Fique tranquilo!
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    )}
 
                     {/* Event Summary Card */}
                     <div className="md:col-span-7">

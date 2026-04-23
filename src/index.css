@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap');
 @import './styles/typography.css';
 
 @tailwind base;
@@ -48,9 +48,13 @@
   }
 
   body {
-    @apply bg-page text-text-primary font-body antialiased;
-    font-size: 13px;
-    line-height: 1.5;
+    @apply bg-page text-text-primary font-body antialiased tracking-tight;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading tracking-tighter uppercase;
   }
 }
 
@@ -64,11 +68,12 @@
   }
 
   .btn-primary {
-    @apply btn bg-indigo-600 text-white hover:shadow-lg hover:shadow-indigo-500/25 hover:-translate-y-0.5 transform shadow-md;
-    color: white;
-    font-weight: 900;
+    @apply btn bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-lg hover:shadow-indigo-500/10 transition-all;
+    font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: -0.025em;
+    letter-spacing: 0.05em;
+    font-size: 10px;
+    border-radius: 9999px;
   }
 
   .btn-primary:hover {

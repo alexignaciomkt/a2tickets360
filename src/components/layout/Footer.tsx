@@ -9,7 +9,7 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-12 gap-16 mb-20">
           <div className="md:col-span-5 space-y-8">
             <Link to="/" className="flex items-center gap-2 text-white font-black text-4xl tracking-tighter">
-              <img src="/assets/logo.png" alt="A2 Tickets 360º" className="w-12 h-12 object-contain" />
+              <img src="/logo_512x512.png" alt="A2 Tickets 360º" className="w-12 h-12 object-contain" />
               <span>A2 Tickets 360º</span>
             </Link>
             <p className="text-gray-400 text-xl font-medium leading-relaxed max-w-md">

@@ -14,29 +14,16 @@ const Logo = ({
 }: LogoProps) => {
   const getIconSize = () => {
     switch (variant) {
-      case 'compact': return 'w-6 h-6';
-      case 'footer': return 'w-10 h-10';
-      case 'large': return 'w-12 h-12';
-      default: return 'w-8 h-8';
+      case 'compact': return 'w-8 h-8';
+      case 'footer': return 'w-20 h-20';
+      case 'large': return 'w-32 h-32';
+      default: return 'w-14 h-14';
     }
   };
-
-  const getTextSize = () => {
-    switch (variant) {
-      case 'compact': return 'text-lg';
-      case 'footer': return 'text-4xl';
-      case 'large': return 'text-5xl';
-      default: return 'text-2xl';
-    }
-  };
-
-  const isCompact = variant === 'compact';
 
   return (
-    <div className={`flex items-center gap-2 font-bold tracking-tighter text-primary ${getTextSize()} ${className}`}>
-      <img src="/assets/logo.png" alt="A2 Tickets 360º" className={`${getIconSize()} object-contain`} />
-      {showText && !isCompact && <span>A2 Tickets 360º</span>}
-      {isCompact && <span>A2</span>}
+    <div className={`flex items-center justify-center ${className}`}>
+      <img src="/logo_512x512.png" alt="A2 Tickets 360º" className={`${getIconSize()} object-contain`} />
     </div>
   );
 };

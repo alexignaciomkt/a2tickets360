@@ -9,18 +9,19 @@ interface StatCardProps {
   icon: LucideIcon;
   iconColor: string;
   iconBgColor: string;
+  className?: string;
 }
 
-const StatCard = ({ title, value, icon: Icon, iconColor, iconBgColor }: StatCardProps) => {
+const StatCard = ({ title, value, icon: Icon, iconColor, iconBgColor, className = "" }: StatCardProps) => {
   return (
-    <Card>
-      <CardContent className="p-6 flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium text-gray-500">{title}</p>
-          <h3 className="text-2xl font-bold mt-1">{value}</h3>
+    <Card className={`rounded-[2rem] border-gray-100 shadow-sm ${className}`}>
+      <CardContent className="p-5 flex items-center justify-between">
+        <div className="space-y-0.5">
+          <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 leading-none">{title}</p>
+          <h3 className="text-lg font-black tracking-tighter text-slate-900 leading-none">{value}</h3>
         </div>
-        <div className={`rounded-full p-3 ${iconBgColor}`}>
-          <Icon className={`w-5 h-5 ${iconColor}`} />
+        <div className={`rounded-2xl p-2.5 ${iconBgColor} bg-opacity-20`}>
+          <Icon className={`w-4 h-4 ${iconColor}`} />
         </div>
       </CardContent>
     </Card>

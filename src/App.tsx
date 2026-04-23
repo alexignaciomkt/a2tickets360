@@ -61,6 +61,8 @@ import CheckInPage from '@/pages/staff/CheckInPage';
 
 import BuyerProfilePage from '@/pages/BuyerProfilePage';
 import MasterAdminPanel from '@/pages/dashboard/MasterAdminPanel';
+import FaqManagerPage from '@/pages/dashboard/FaqManagerPage';
+import BannerManagerPage from '@/pages/dashboard/BannerManagerPage';
 import OrganizersManagement from '@/pages/dashboard/OrganizersManagement';
 import FinancialDashboard from '@/pages/dashboard/FinancialDashboard';
 import EventApprovalPage from '@/pages/dashboard/EventApprovalPage';
@@ -73,6 +75,7 @@ import MasterSettings from '@/pages/dashboard/MasterSettings';
 import MasterWebhooks from '@/pages/dashboard/MasterWebhooks';
 import MasterGlobalMailing from '@/pages/dashboard/MasterGlobalMailing';
 import MasterFinancialBI from '@/pages/dashboard/MasterFinancialBI';
+import MasterSiteManagement from '@/pages/dashboard/MasterSiteManagement';
 
 import { AnimatePresence } from 'framer-motion';
 
@@ -325,6 +328,16 @@ function AppRoutes() {
             <MasterWebhooks />
           </ProtectedRoute>
         } />
+        <Route path="/master/faq" element={
+          <ProtectedRoute allowedRoles={['master']}>
+            <FaqManagerPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/master/banners" element={
+          <ProtectedRoute allowedRoles={['master']}>
+            <BannerManagerPage />
+          </ProtectedRoute>
+        } />
         <Route path="/master/reports" element={
           <ProtectedRoute allowedRoles={['master']}>
             <ReportsPage />
@@ -353,6 +366,11 @@ function AppRoutes() {
         <Route path="/master/settings" element={
           <ProtectedRoute allowedRoles={['master']}>
             <MasterSettings />
+          </ProtectedRoute>
+        } />
+        <Route path="/master/site-management" element={
+          <ProtectedRoute allowedRoles={['master']}>
+            <MasterSiteManagement />
           </ProtectedRoute>
         } />
 

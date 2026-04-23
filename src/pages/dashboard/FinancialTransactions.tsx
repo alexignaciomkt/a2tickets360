@@ -4,27 +4,28 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { Filter, Download, AlertTriangle, Check, XCircle, RotateCcw } from 'lucide-react';
+import { Filter, Download, AlertTriangle, Check, XCircle, RotateCcw, Activity, DollarSign, Zap, Target, History, Clock, FileText, ChevronRight, ChevronLeft } from 'lucide-react';
 import { financialService } from '@/services/financialService';
 import { Transaction } from '@/interfaces/financial';
+import { Badge } from '@/components/ui/badge';
 
 const statusBadgeStyles = {
-  pending: "bg-yellow-100 text-yellow-800",
-  confirmed: "bg-green-100 text-green-800",
-  cancelled: "bg-red-100 text-red-800",
-  refunded: "bg-gray-100 text-gray-800"
+  pending: "bg-amber-50 text-amber-600 border-amber-100",
+  confirmed: "bg-emerald-50 text-emerald-600 border-emerald-100",
+  cancelled: "bg-rose-50 text-rose-600 border-rose-100",
+  refunded: "bg-gray-50 text-slate-400 border-gray-100"
 };
 
 const StatusIcon = ({ status }: { status: string }) => {
   switch(status) {
     case 'pending':
-      return <AlertTriangle className="h-4 w-4 text-yellow-600" />;
+      return <Clock className="h-3 w-3 mr-2" />;
     case 'confirmed':
-      return <Check className="h-4 w-4 text-green-600" />;
+      return <Check className="h-3 w-3 mr-2" />;
     case 'cancelled':
-      return <XCircle className="h-4 w-4 text-red-600" />;
+      return <XCircle className="h-3 w-3 mr-2" />;
     case 'refunded':
-      return <RotateCcw className="h-4 w-4 text-gray-600" />;
+      return <RotateCcw className="h-3 w-3 mr-2" />;
     default:
       return null;
   }
@@ -52,8 +53,8 @@ const FinancialTransactions = () => {
       } catch (error) {
         console.error('Erro ao carregar transações:', error);
         toast({
-          title: 'Erro',
-          description: 'Não foi possível carregar as transações.',
+          title: 'Protocol Error',
+          description: 'Não foi possível carregar o fluxo de transações.',
           variant: 'destructive'
         });
         setLoading(false);
@@ -70,8 +71,8 @@ const FinancialTransactions = () => {
   
   const downloadTransactions = () => {
     toast({
-      title: 'Download',
-      description: 'O arquivo CSV com as transações será baixado.',
+      title: 'Data Extraction',
+      description: 'O arquivo CSV com as transações está sendo gerado.',
     });
   };
   
@@ -98,8 +99,8 @@ const FinancialTransactions = () => {
       window.open(invoiceUrl, '_blank');
     } else {
       toast({
-        title: 'Nota fiscal não disponível',
-        description: 'Este pagamento não possui nota fiscal disponível.',
+        title: 'Registry Not Found',
+        description: 'Este pagamento não possui nota fiscal disponível no cluster.',
       });
     }
   };
@@ -112,7 +113,7 @@ const FinancialTransactions = () => {
       pages.push(
         <button
           key={i}
-          className={`px-3 py-1 rounded ${currentPage === i ? 'bg-primary text-white' : 'bg-gray-100'}`}
+          className={`w-10 h-10 rounded-full text-[10px] font-black transition-all ${currentPage === i ? 'bg-slate-900 text-white shadow-xl' : 'bg-white text-slate-400 hover:bg-gray-100 border border-gray-100'}`}
           onClick={() => setCurrentPage(i)}
         >
           {i}
@@ -121,145 +122,180 @@ const FinancialTransactions = () => {
     }
     
     return (
-      <div className="flex justify-center items-center gap-2 mt-6">
-        <button
-          className="px-3 py-1 rounded bg-gray-100 disabled:opacity-50"
+      <div className="flex justify-center items-center gap-4 mt-12 mb-8 px-10">
+        <Button
+          variant="outline"
+          className="h-10 rounded-full px-6 text-[9px] font-black uppercase tracking-widest gap-2 disabled:opacity-30 border-gray-100 shadow-sm"
           onClick={() => setCurrentPage(currentPage - 1)}
           disabled={currentPage === 1}
         >
-          Anterior
-        </button>
-        {pages}
-        <button
-          className="px-3 py-1 rounded bg-gray-100 disabled:opacity-50"
+          <ChevronLeft className="w-3.5 h-3.5" /> Anterior
+        </Button>
+        <div className="flex gap-2">
+           {pages}
+        </div>
+        <Button
+          variant="outline"
+          className="h-10 rounded-full px-6 text-[9px] font-black uppercase tracking-widest gap-2 disabled:opacity-30 border-gray-100 shadow-sm"
           onClick={() => setCurrentPage(currentPage + 1)}
           disabled={currentPage === totalPages}
         >
-          Próxima
-        </button>
+          Próxima <ChevronRight className="w-3.5 h-3.5" />
+        </Button>
       </div>
     );
   };
+
+  const QuickStat = ({ title, value, icon: Icon, color }: any) => (
+    <Card className="rounded-[2rem] border-gray-100 shadow-sm bg-white overflow-hidden group hover:shadow-xl transition-all duration-700">
+      <CardContent className="p-8 flex items-center justify-between">
+        <div className="space-y-1.5">
+          <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 leading-none">{title}</p>
+          <h3 className="text-xl font-black tracking-tighter text-slate-900 leading-none tabular-nums">{value}</h3>
+        </div>
+        <div className={`w-11 h-11 rounded-[1.2rem] flex items-center justify-center transition-all group-hover:scale-110 shadow-sm border border-white/10 ${
+          color === 'indigo' ? 'bg-slate-900 text-white shadow-lg' : 
+          color === 'emerald' ? 'bg-emerald-50 text-emerald-600' : 
+          color === 'amber' ? 'bg-amber-50 text-amber-600' : 'bg-rose-50 text-rose-600'
+        }`}>
+          <Icon className="w-5 h-5" />
+        </div>
+      </CardContent>
+    </Card>
+  );
   
   return (
     <DashboardLayout userType="admin">
-      <div className="space-y-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Transações Financeiras</h1>
-            <p className="text-gray-600 mt-1">
-              Histórico de transações e pagamentos
-            </p>
-          </div>
-          
-          <div className="mt-4 md:mt-0 flex flex-wrap gap-2">
-            <div className="flex items-center border rounded-md bg-white">
-              <button 
-                className={`px-3 py-1 text-sm ${filterStatus === 'all' ? 'bg-primary text-white' : ''}`}
-                onClick={() => handleStatusFilter('all')}
-              >
-                Todas
-              </button>
-              <button 
-                className={`px-3 py-1 text-sm ${filterStatus === 'pending' ? 'bg-primary text-white' : ''}`}
-                onClick={() => handleStatusFilter('pending')}
-              >
-                Pendentes
-              </button>
-              <button 
-                className={`px-3 py-1 text-sm ${filterStatus === 'confirmed' ? 'bg-primary text-white' : ''}`}
-                onClick={() => handleStatusFilter('confirmed')}
-              >
-                Confirmadas
-              </button>
-              <button 
-                className={`px-3 py-1 text-sm ${filterStatus === 'refunded' ? 'bg-primary text-white' : ''}`}
-                onClick={() => handleStatusFilter('refunded')}
-              >
-                Estornadas
-              </button>
-            </div>
-            
-            <Button variant="outline" className="flex items-center gap-1">
-              <Filter className="h-4 w-4" />
-              <span>Filtros</span>
-            </Button>
-            
-            <Button onClick={downloadTransactions} className="flex items-center gap-1">
-              <Download className="h-4 w-4" />
-              <span>Exportar CSV</span>
-            </Button>
-          </div>
+      <div className="space-y-12 animate-in fade-in duration-1000 pb-16">
+        
+        {/* Header Section */}
+        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-8">
+           <div className="space-y-1.5">
+              <h1 className="text-xl md:text-2xl font-black text-slate-900 uppercase tracking-tighter leading-none">Financial Transaction Flux</h1>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 leading-none">
+                Monitoramento em tempo real de ativos, conversões e fluxo de caixa do ecossistema.
+              </p>
+           </div>
+           
+           <div className="flex flex-wrap items-center gap-4">
+              <div className="flex bg-gray-100/50 p-1.5 rounded-full border border-gray-100 shadow-inner">
+                {[
+                  { id: 'all', label: 'All Flux' },
+                  { id: 'pending', label: 'Pending' },
+                  { id: 'confirmed', label: 'Confirmed' },
+                  { id: 'refunded', label: 'Refunded' }
+                ].map((tab) => (
+                  <button 
+                    key={tab.id}
+                    className={`px-6 py-2.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${filterStatus === tab.id ? 'bg-white text-slate-900 shadow-xl' : 'text-slate-400 hover:text-slate-600'}`}
+                    onClick={() => handleStatusFilter(tab.id)}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+              
+              <Button variant="outline" className="h-11 rounded-full border-gray-100 text-[10px] font-black uppercase tracking-widest px-8 shadow-sm hover:bg-gray-50 transition-all">
+                <Filter className="w-4 h-4 mr-3 text-slate-400" />
+                Filter Matrix
+              </Button>
+              
+              <Button onClick={downloadTransactions} className="h-11 rounded-full bg-slate-900 text-white font-black uppercase text-[10px] tracking-widest px-10 shadow-2xl shadow-slate-100 hover:bg-black transition-all group">
+                <Download className="w-4 h-4 mr-3 group-hover:translate-y-1 transition-transform" />
+                Export CSV
+              </Button>
+           </div>
+        </div>
+
+        {/* Stats Summary */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+           <QuickStat title="Total Assets Processed" value={transactions.length} icon={Activity} color="indigo" />
+           <QuickStat title="Gross Transaction Value" value={`R$ ${transactions.reduce((sum, t) => sum + t.amount, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} icon={DollarSign} color="emerald" />
+           <QuickStat title="Platform Net Yield" value={`R$ ${transactions.reduce((sum, t) => sum + t.platformFee, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} icon={Zap} color="amber" />
         </div>
         
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle>Lista de Transações</CardTitle>
+        <Card className="rounded-[3rem] border-gray-100 shadow-sm bg-white overflow-hidden border group hover:shadow-2xl transition-all duration-700">
+          <CardHeader className="p-12 border-b border-gray-50 bg-gray-50/20 px-12 py-8">
+             <div className="flex items-center justify-between">
+                <CardTitle className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-400">Master Transaction Registry</CardTitle>
+                <div className="flex items-center gap-2">
+                   <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.8)]" />
+                   <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Live Ledger Sync</span>
+                </div>
+             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-0">
             <div className="overflow-x-auto">
-              <table className="min-w-full border-collapse">
-                <thead>
-                  <tr className="border-b">
-                    <th className="py-3 px-4 text-left">ID</th>
-                    <th className="py-3 px-4 text-left">Data</th>
-                    <th className="py-3 px-4 text-left">Evento</th>
-                    <th className="py-3 px-4 text-left">Usuário</th>
-                    <th className="py-3 px-4 text-left">Método</th>
-                    <th className="py-3 px-4 text-right">Valor</th>
-                    <th className="py-3 px-4 text-right">Taxa</th>
-                    <th className="py-3 px-4 text-right">Líquido</th>
-                    <th className="py-3 px-4 text-left">Status</th>
-                    <th className="py-3 px-4 text-right">Ações</th>
+              <table className="min-w-full">
+                <thead className="bg-gray-50/50 border-b border-gray-100">
+                  <tr className="hover:bg-transparent border-none">
+                    <th className="px-12 py-8 text-left text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">Transaction ID</th>
+                    <th className="px-12 py-8 text-left text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">Temporal Node</th>
+                    <th className="px-12 py-8 text-left text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">Asset Source</th>
+                    <th className="px-12 py-8 text-left text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">Authorized Node</th>
+                    <th className="px-12 py-8 text-right text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">Gross Flux</th>
+                    <th className="px-12 py-8 text-right text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">Node Fee</th>
+                    <th className="px-12 py-8 text-right text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">Net Yield</th>
+                    <th className="px-12 py-8 text-left text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">Status Node</th>
+                    <th className="px-12 py-8 text-right text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">Audit</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-gray-50">
                   {loading ? (
                     <tr>
-                      <td colSpan={10} className="py-4 text-center">
-                        Carregando transações...
+                      <td colSpan={9} className="px-12 py-24 text-center">
+                        <div className="flex flex-col items-center gap-6">
+                           <RefreshCw className="h-10 w-10 text-slate-200 animate-spin" />
+                           <p className="text-[10px] font-black uppercase text-slate-300 tracking-[0.2em]">Sincronizando registros do cluster...</p>
+                        </div>
                       </td>
                     </tr>
                   ) : paginatedTransactions.length === 0 ? (
                     <tr>
-                      <td colSpan={10} className="py-4 text-center">
-                        Nenhuma transação encontrada.
+                      <td colSpan={9} className="px-12 py-24 text-center">
+                        <p className="text-[10px] font-black uppercase text-slate-300 tracking-[0.2em]">Zero transações localizadas na matriz.</p>
                       </td>
                     </tr>
                   ) : paginatedTransactions.map((transaction) => (
-                    <tr key={transaction.id} className="border-b hover:bg-gray-50">
-                      <td className="py-3 px-4">{transaction.id}</td>
-                      <td className="py-3 px-4">{formatDate(transaction.date)}</td>
-                      <td className="py-3 px-4">{transaction.eventName}</td>
-                      <td className="py-3 px-4">{transaction.userName}</td>
-                      <td className="py-3 px-4">{transaction.paymentMethod}</td>
-                      <td className="py-3 px-4 text-right">
-                        R$ {transaction.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    <tr key={transaction.id} className="hover:bg-gray-50/30 transition-all duration-500 group/item cursor-pointer border-b border-transparent hover:border-gray-100">
+                      <td className="px-12 py-8">
+                        <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest tabular-nums">{transaction.id.substring(0, 10).toUpperCase()}</span>
                       </td>
-                      <td className="py-3 px-4 text-right">
-                        R$ {(transaction.fee + transaction.platformFee).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      <td className="px-12 py-8">
+                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest tabular-nums flex items-center gap-2"><Clock className="w-3.5 h-3.5" /> {formatDate(transaction.date)}</div>
                       </td>
-                      <td className="py-3 px-4 text-right">
-                        R$ {transaction.netAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${statusBadgeStyles[transaction.status as keyof typeof statusBadgeStyles]}`}>
-                          <StatusIcon status={transaction.status} />
-                          <span className="ml-1">
-                            {transaction.status === 'pending' && 'Pendente'}
-                            {transaction.status === 'confirmed' && 'Confirmada'}
-                            {transaction.status === 'cancelled' && 'Cancelada'}
-                            {transaction.status === 'refunded' && 'Estornada'}
-                          </span>
+                      <td className="px-12 py-8">
+                        <div className="space-y-1">
+                           <div className="text-[13px] font-black text-slate-900 uppercase tracking-tight leading-none truncate max-w-[200px]">{transaction.eventName}</div>
+                           <div className="text-[9px] font-black text-slate-300 uppercase tracking-widest leading-none">{transaction.paymentMethod}</div>
                         </div>
                       </td>
-                      <td className="py-3 px-4 text-right">
-                        <button 
-                          className="text-primary hover:text-primary/80 text-sm"
+                      <td className="px-12 py-8 text-[11px] font-black text-slate-900 uppercase tracking-tight">{transaction.userName}</td>
+                      <td className="px-12 py-8 text-right">
+                        <span className="text-[12px] font-black text-slate-900 tracking-tight tabular-nums">R$ {transaction.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                      </td>
+                      <td className="px-12 py-8 text-right">
+                        <span className="text-[11px] font-black text-rose-500 tracking-tight tabular-nums">-R$ {(transaction.fee + transaction.platformFee).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                      </td>
+                      <td className="px-12 py-8 text-right">
+                        <span className="text-[12px] font-black text-emerald-500 tracking-tight tabular-nums">R$ {transaction.netAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                      </td>
+                      <td className="px-12 py-8">
+                        <Badge className={`text-[8px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full border shadow-sm ${statusBadgeStyles[transaction.status as keyof typeof statusBadgeStyles]}`}>
+                          <StatusIcon status={transaction.status} />
+                          {transaction.status === 'pending' ? 'PENDING_NODE' : 
+                           transaction.status === 'confirmed' ? 'CONFIRMED_FLUX' : 
+                           transaction.status === 'cancelled' ? 'CANCELLED_ASSET' : 'REFUNDED_REGISTRY'}
+                        </Badge>
+                      </td>
+                      <td className="px-12 py-8 text-right">
+                        <Button 
+                          variant="ghost"
+                          className="h-10 w-10 rounded-full p-0 text-slate-200 hover:text-slate-900 hover:bg-gray-100 transition-all"
                           onClick={() => handleInvoice(transaction.invoiceUrl)}
                         >
-                          Nota fiscal
-                        </button>
+                          <FileText className="h-4 w-4" />
+                        </Button>
                       </td>
                     </tr>
                   ))}
@@ -268,32 +304,6 @@ const FinancialTransactions = () => {
             </div>
             
             {renderPagination()}
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle>Resumo Financeiro</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-white p-4 rounded-lg border">
-                <p className="text-sm text-gray-500">Total de Transações</p>
-                <h3 className="text-xl font-bold">{transactions.length}</h3>
-              </div>
-              <div className="bg-white p-4 rounded-lg border">
-                <p className="text-sm text-gray-500">Valor Total</p>
-                <h3 className="text-xl font-bold">
-                  R$ {transactions.reduce((sum, t) => sum + t.amount, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </h3>
-              </div>
-              <div className="bg-white p-4 rounded-lg border">
-                <p className="text-sm text-gray-500">Comissão Total</p>
-                <h3 className="text-xl font-bold">
-                  R$ {transactions.reduce((sum, t) => sum + t.platformFee, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </h3>
-              </div>
-            </div>
           </CardContent>
         </Card>
       </div>

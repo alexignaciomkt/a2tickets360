@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { User as UserIcon, Bell, Shield, CreditCard, LogOut, Upload, Loader2 } from 'lucide-react';
+import { User as UserIcon, Bell, Shield, CreditCard, LogOut, Upload, Loader2, Target, Mail, Phone, Hash, Calendar, History, Save, ShieldCheck, Zap } from 'lucide-react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -9,6 +9,8 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { organizerService } from '@/services/organizerService';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 const Settings = () => {
   const { toast } = useToast();
@@ -62,14 +64,14 @@ const Settings = () => {
       await refreshUser();
       
       toast({
-        title: "Configurações salvas",
-        description: "Suas informações foram atualizadas com sucesso.",
+        title: "Node Updated",
+        description: "Suas informações foram sincronizadas com sucesso.",
       });
     } catch (error) {
       toast({
         variant: "destructive",
-        title: "Erro ao salvar",
-        description: "Não foi possível atualizar suas informações.",
+        title: "Sync Error",
+        description: "Não foi possível atualizar suas informações no cluster.",
       });
     } finally {
       setLoading(false);
@@ -92,14 +94,14 @@ const Settings = () => {
       await refreshUser();
       
       toast({
-        title: "Foto atualizada",
+        title: "Identity Asset Updated",
         description: "Sua foto de perfil foi alterada com sucesso.",
       });
     } catch (error) {
       toast({
         variant: "destructive",
-        title: "Erro no upload",
-        description: "Não foi possível carregar sua foto.",
+        title: "Upload Error",
+        description: "Não foi possível carregar o ativo de imagem.",
       });
     } finally {
       setUploadingPhoto(false);
@@ -108,103 +110,110 @@ const Settings = () => {
 
   return (
     <DashboardLayout userType={user?.role === 'organizer' ? 'organizer' : 'customer'}>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold">Configurações</h1>
-          <p className="text-gray-600">Gerencie suas preferências e configurações de conta</p>
+      <div className="space-y-12 animate-in fade-in duration-1000 pb-16">
+        
+        {/* Header Section */}
+        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-8">
+           <div className="space-y-1.5">
+              <h1 className="text-xl md:text-2xl font-black text-slate-900 uppercase tracking-tighter leading-none">Identity Configuration</h1>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 leading-none">
+                Gestão de preferências, ativos de identidade e protocolos de comunicação.
+              </p>
+           </div>
+           
+           <div className="flex bg-gray-100/50 p-1.5 rounded-full border border-gray-100 shadow-inner">
+            <Tabs defaultValue="profile" className="w-auto">
+              <TabsList className="bg-transparent h-auto p-0 gap-1.5">
+                {[
+                  { v: 'profile', l: 'Identity', i: UserIcon },
+                  { v: 'notifications', l: 'Alerts', i: Bell },
+                  { v: 'security', l: 'Protocol', i: Shield },
+                  { v: 'payment', l: 'Financial', i: CreditCard },
+                ].map((tab) => (
+                  <TabsTrigger 
+                    key={tab.v}
+                    value={tab.v} 
+                    className="rounded-full px-8 py-3 text-[9px] font-black uppercase tracking-widest data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-xl transition-all shadow-none"
+                  >
+                    <tab.i className="w-3.5 h-3.5 mr-2" /> {tab.l}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
+           </div>
         </div>
         
-        <Tabs defaultValue="profile" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="profile" className="flex items-center gap-2">
-              <UserIcon className="h-4 w-4" />
-              Perfil
-            </TabsTrigger>
-            <TabsTrigger value="notifications" className="flex items-center gap-2">
-              <Bell className="h-4 w-4" />
-              Notificações
-            </TabsTrigger>
-            <TabsTrigger value="security" className="flex items-center gap-2">
-              <Shield className="h-4 w-4" />
-              Segurança
-            </TabsTrigger>
-            <TabsTrigger value="payment" className="flex items-center gap-2">
-              <CreditCard className="h-4 w-4" />
-              Pagamento
-            </TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="profile" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Informações do Perfil</CardTitle>
-                <CardDescription>
-                  Atualize suas informações pessoais
-                </CardDescription>
+        <Tabs defaultValue="profile" className="w-full space-y-12">
+          <TabsContent value="profile" className="mt-0 space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <Card className="rounded-[3rem] border-gray-100 shadow-sm bg-white overflow-hidden border group hover:shadow-2xl transition-all duration-700">
+              <CardHeader className="p-12 border-b border-gray-50 bg-gray-50/20">
+                 <CardTitle className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-400 flex items-center gap-4">
+                    <Target className="w-5 h-5 text-slate-900" /> Root Identity Metadata
+                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="text-sm font-medium block mb-1">Nome</label>
-                    <input 
+              <CardContent className="p-12 space-y-12">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                  <div className="space-y-3">
+                    <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-4">Authorized Full Name</Label>
+                    <Input 
                       name="name"
                       type="text" 
-                      className="w-full p-2 border border-gray-300 rounded-md" 
+                      className="h-16 rounded-[1.8rem] border-gray-100 bg-gray-50/50 text-[12px] font-black uppercase tracking-tight focus:ring-8 focus:ring-slate-50 transition-all border-2 px-8" 
                       value={formData.name}
                       onChange={handleInputChange}
                     />
                   </div>
-                  <div>
-                    <label className="text-sm font-medium block mb-1">Email</label>
-                    <input 
+                  <div className="space-y-3">
+                    <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-4">Encrypted Email Address</Label>
+                    <Input 
                       name="email"
                       type="email" 
-                      className="w-full p-2 border border-gray-300 rounded-md bg-gray-50" 
+                      className="h-16 rounded-[1.8rem] border-gray-100 bg-gray-50/50 text-[12px] font-black tracking-tight focus:ring-8 focus:ring-slate-50 transition-all border-2 px-8 opacity-50 cursor-not-allowed" 
                       value={formData.email}
                       disabled
                     />
                   </div>
-                  <div>
-                    <label className="text-sm font-medium block mb-1">Telefone / WhatsApp</label>
-                    <input 
+                  <div className="space-y-3">
+                    <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-4">Temporal Phone Node</Label>
+                    <Input 
                       name="phone"
                       type="tel" 
-                      className="w-full p-2 border border-gray-300 rounded-md" 
+                      className="h-16 rounded-[1.8rem] border-gray-100 bg-gray-50/50 text-[12px] font-black tracking-tight focus:ring-8 focus:ring-slate-50 transition-all border-2 px-8" 
                       value={formData.phone}
                       onChange={handleInputChange}
                       placeholder="(00) 00000-0000"
                     />
                   </div>
-                  <div>
-                    <label className="text-sm font-medium block mb-1">CPF</label>
-                    <input 
+                  <div className="space-y-3">
+                    <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-4">Identity Protocol (CPF)</Label>
+                    <Input 
                       name="cpf"
                       type="text" 
-                      className="w-full p-2 border border-gray-300 rounded-md" 
+                      className="h-16 rounded-[1.8rem] border-gray-100 bg-gray-50/50 text-[12px] font-black tracking-tight focus:ring-8 focus:ring-slate-50 transition-all border-2 px-8" 
                       value={formData.cpf}
                       onChange={handleInputChange}
                       placeholder="000.000.000-00"
                     />
                   </div>
-                  <div>
-                    <label className="text-sm font-medium block mb-1">Data de Nascimento</label>
-                    <input 
+                  <div className="space-y-3">
+                    <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-4">Registry Birth Date</Label>
+                    <Input 
                       name="birthDate"
                       type="date" 
-                      className="w-full p-2 border border-gray-300 rounded-md" 
+                      className="h-16 rounded-[1.8rem] border-gray-100 bg-gray-50/50 text-[12px] font-black tracking-tight focus:ring-8 focus:ring-slate-50 transition-all border-2 px-8" 
                       value={formData.birthDate}
                       onChange={handleInputChange}
                     />
                   </div>
-                  <div>
-                    <label className="text-sm font-medium block mb-1">Gênero</label>
+                  <div className="space-y-3">
+                    <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-4">Gender Classification</Label>
                     <select 
                       name="gender"
-                      className="w-full p-2 border border-gray-300 rounded-md" 
+                      className="w-full h-16 px-8 rounded-[1.8rem] border-gray-100 bg-gray-50/50 text-[12px] font-black uppercase tracking-tight focus:ring-8 focus:ring-slate-50 transition-all border-2 appearance-none" 
                       value={formData.gender}
                       onChange={(e) => setFormData(prev => ({ ...prev, gender: e.target.value }))}
                     >
-                      <option value="">Selecione</option>
+                      <option value="">Select Protocol</option>
                       <option value="Masculino">Masculino</option>
                       <option value="Feminino">Feminino</option>
                       <option value="Outro">Outro</option>
@@ -212,26 +221,36 @@ const Settings = () => {
                     </select>
                   </div>
                 </div>
-                <div>
-                  <label className="text-sm font-medium block mb-1">Foto de Perfil</label>
-                  <div className="flex items-center gap-4">
-                    <div className="h-20 w-20 rounded-2xl bg-gray-100 overflow-hidden border-2 border-indigo-100 flex items-center justify-center">
+
+                <div className="pt-8 border-t border-gray-50">
+                  <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-4 mb-6 block">Identity Visual Asset</Label>
+                  <div className="flex items-center gap-10">
+                    <div className="h-28 w-28 rounded-[2.5rem] bg-gray-50 overflow-hidden border-4 border-white shadow-2xl flex items-center justify-center relative group/avatar">
                       {uploadingPhoto ? (
-                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                        <Loader2 className="h-8 w-8 animate-spin text-slate-900" />
                       ) : user?.photoUrl ? (
                         <img 
                           src={user.photoUrl} 
-                          alt="Foto de perfil" 
-                          className="h-full w-full object-cover"
+                          alt="Identity" 
+                          className="h-full w-full object-cover transition-transform duration-700 group-hover/avatar:scale-110"
                         />
                       ) : (
-                        <UserIcon className="h-8 w-8 text-gray-300" />
+                        <UserIcon className="h-10 w-10 text-slate-200" />
                       )}
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center cursor-pointer" onClick={() => document.getElementById('avatar-upload')?.click()}>
+                         <Upload className="w-8 h-8 text-white" />
+                      </div>
                     </div>
-                    <div className="relative">
-                      <Button variant="outline" disabled={uploadingPhoto} onClick={() => document.getElementById('avatar-upload')?.click()}>
-                        {uploadingPhoto ? 'Enviando...' : 'Alterar foto'}
+                    <div className="space-y-4">
+                      <Button 
+                        variant="outline" 
+                        disabled={uploadingPhoto} 
+                        onClick={() => document.getElementById('avatar-upload')?.click()}
+                        className="h-11 rounded-full border-gray-100 text-[10px] font-black uppercase tracking-widest px-8 shadow-sm hover:bg-gray-50"
+                      >
+                        {uploadingPhoto ? 'Transferring Node...' : 'Update Asset'}
                       </Button>
+                      <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest leading-none px-2">PNG, JPG ou WebP. Max 10MB.</p>
                       <input 
                         id="avatar-upload"
                         type="file"
@@ -242,84 +261,95 @@ const Settings = () => {
                     </div>
                   </div>
                 </div>
-                <div className="flex justify-end">
-                  <Button onClick={handleSaveSettings} disabled={loading}>
-                    {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                    Salvar alterações
+
+                <div className="flex justify-end pt-8 border-t border-gray-50">
+                  <Button 
+                    onClick={handleSaveSettings} 
+                    disabled={loading}
+                    className="h-14 rounded-full bg-slate-900 hover:bg-black text-white text-[11px] font-black uppercase tracking-[0.2em] px-12 shadow-2xl shadow-slate-200 transition-all hover:scale-105 active:scale-95 group"
+                  >
+                    {loading ? <Loader2 className="h-5 w-5 mr-3 animate-spin" /> : <Save className="w-5 h-5 mr-3 group-hover:scale-125 transition-transform" />}
+                    Commit Identity Changes
                   </Button>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
           
-          <TabsContent value="notifications" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Preferências de Notificação</CardTitle>
-                <CardDescription>
-                  Personalize como e quando deseja ser notificado
-                </CardDescription>
+          <TabsContent value="notifications" className="mt-0 space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <Card className="rounded-[3rem] border-gray-100 shadow-sm bg-white overflow-hidden border group hover:shadow-2xl transition-all duration-700">
+              <CardHeader className="p-12 border-b border-gray-50 bg-gray-50/20">
+                 <CardTitle className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-400 flex items-center gap-4">
+                    <Bell className="w-5 h-5 text-slate-900" /> Alert Protocol Preferences
+                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Notificações push</p>
-                      <p className="text-sm text-gray-500">Receba alertas em tempo real</p>
+              <CardContent className="p-12 space-y-6">
+                {[
+                  { id: 'push', label: 'Push Alert Protocol', desc: 'Receba alertas de kernel em tempo real no dispositivo.', icon: Zap },
+                  { id: 'marketing', label: 'Inbound Alpha Stream', desc: 'Receba novidades, promoções e updates do ecossistema.', icon: Mail }
+                ].map((item, i) => (
+                  <div key={i} className="flex items-center justify-between py-10 border-b border-gray-50 last:border-0 px-8 hover:bg-gray-50/50 rounded-[2rem] transition-all group/item">
+                    <div className="flex items-center gap-6">
+                       <div className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center text-slate-400 group-hover/item:bg-slate-900 group-hover/item:text-white transition-all shadow-sm">
+                          <item.icon className="w-5 h-5" />
+                       </div>
+                       <div className="space-y-1.5">
+                          <Label className="text-[13px] font-black uppercase tracking-tight text-slate-900 leading-none block">{item.label}</Label>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">{item.desc}</p>
+                       </div>
                     </div>
                     <Switch 
-                      checked={notificationsEnabled}
-                      onCheckedChange={setNotificationsEnabled}
+                      checked={item.id === 'push' ? notificationsEnabled : emailNotificationsEnabled}
+                      onCheckedChange={item.id === 'push' ? setNotificationsEnabled : setEmailNotificationsEnabled}
+                      className="scale-125 data-[state=checked]:bg-slate-900"
                     />
                   </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Emails de marketing</p>
-                      <p className="text-sm text-gray-500">Receba novidades e promoções</p>
-                    </div>
-                    <Switch 
-                      checked={emailNotificationsEnabled}
-                      onCheckedChange={setEmailNotificationsEnabled}
-                    />
-                  </div>
-                </div>
-                <div className="flex justify-end">
-                  <Button onClick={handleSaveSettings}>Salvar preferências</Button>
+                ))}
+                <div className="flex justify-end pt-8">
+                  <Button 
+                    onClick={handleSaveSettings}
+                    className="h-11 rounded-full bg-slate-900 hover:bg-black text-white text-[10px] font-black uppercase tracking-widest px-10 transition-all shadow-xl shadow-slate-100"
+                  >
+                    Save Preferences
+                  </Button>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
           
-          <TabsContent value="security" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Segurança da Conta</CardTitle>
-                <CardDescription>
-                  Gerencie sua senha e configurações de segurança
-                </CardDescription>
+          <TabsContent value="security" className="mt-0 space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <Card className="rounded-[3rem] border-gray-100 shadow-sm bg-white overflow-hidden border group hover:shadow-2xl transition-all duration-700">
+              <CardHeader className="p-12 border-b border-gray-50 bg-gray-50/20">
+                 <CardTitle className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-400 flex items-center gap-4">
+                    <ShieldCheck className="w-5 h-5 text-slate-900" /> Root Access Protocols
+                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium block mb-1">Senha atual</label>
-                    <input 
+              <CardContent className="p-12 space-y-12">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                  <div className="space-y-3">
+                    <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-4">Current Access Key</Label>
+                    <Input 
                       type="password" 
-                      className="w-full p-2 border border-gray-300 rounded-md" 
+                      className="h-16 rounded-[1.8rem] border-gray-100 bg-gray-50/50 text-[12px] font-black tracking-tight focus:ring-8 focus:ring-slate-50 transition-all border-2 px-8" 
                       placeholder="••••••••" 
                     />
                   </div>
-                  <div>
-                    <label className="text-sm font-medium block mb-1">Nova senha</label>
-                    <input 
+                  <div className="space-y-3">
+                    <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-4">New Access Node</Label>
+                    <Input 
                       type="password" 
-                      className="w-full p-2 border border-gray-300 rounded-md" 
+                      className="h-16 rounded-[1.8rem] border-gray-100 bg-gray-50/50 text-[12px] font-black tracking-tight focus:ring-8 focus:ring-slate-50 transition-all border-2 px-8" 
                       placeholder="••••••••" 
                     />
                   </div>
                 </div>
-                <div className="pt-4 flex justify-end">
-                  <Button onClick={handleSaveSettings}>Alterar senha</Button>
+                <div className="flex justify-end pt-8 border-t border-gray-50">
+                  <Button 
+                    onClick={handleSaveSettings}
+                    className="h-14 rounded-full bg-slate-900 hover:bg-black text-white text-[11px] font-black uppercase tracking-[0.2em] px-12 shadow-2xl shadow-slate-200 transition-all hover:scale-105 active:scale-95 group"
+                  >
+                    <ShieldCheck className="w-5 h-5 mr-3 group-hover:scale-125 transition-transform" /> Rotate Security Node
+                  </Button>
                 </div>
               </CardContent>
             </Card>

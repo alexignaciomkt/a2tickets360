@@ -242,7 +242,7 @@ class MasterService {
     }
 
     // Approve event (Hierarchy Aware)
-    async approveEvent(eventDocId: string) {
+    async approveEvent(eventDocId: string, setFeatured: boolean = false) {
         // 1. Fetch event to get organizer_id
         const { data: event, error: evErr } = await supabaseAdmin
             .from('events')
@@ -265,15 +265,21 @@ class MasterService {
             throw new Error(`Aprovação bloqueada: O produtor do evento "${event.title}" ainda não foi aprovado pela administração.`);
         }
 
+        const updateData: any = { status: 'published' };
+        if (setFeatured) {
+            updateData.is_featured = true;
+        }
+
         const result = await supabaseAdmin
             .from('events')
-            .update({ status: 'published' })
+            .update(updateData)
             .eq('id', eventDocId);
         
         // Dispatch webhook for event approval
         webhookService.dispatch('event_approved', {
             eventId: eventDocId,
             status: 'published',
+            isFeatured: setFeatured,
             approvedAt: new Date().toISOString()
         });
 

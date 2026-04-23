@@ -144,6 +144,57 @@ class EventService {
             return null;
         }
     }
+
+    async getRankedEventSections(): Promise<{ category: string, events: Event[] }[]> {
+        try {
+            const allEvents = await this.getPublicEvents();
+            if (allEvents.length === 0) return [];
+
+            // 1. Agrupar por Categoria
+            const categoriesMap: Record<string, Event[]> = {};
+            allEvents.forEach(event => {
+                const cat = event.category?.split(' / ')[0] || 'Geral';
+                if (!categoriesMap[cat]) categoriesMap[cat] = [];
+                categoriesMap[cat].push(event);
+            });
+
+            // 2. Criar lista de seções com metadados para ordenação
+            const sections = Object.entries(categoriesMap).map(([category, events]) => {
+                // Cálculo de tamanho (total de ingressos)
+                const totalTickets = events.reduce((acc, ev) => {
+                    return acc + (ev.tickets?.reduce((tAcc, t) => tAcc + (t.total_quantity || 0), 0) || 0);
+                }, 0);
+
+                // Cálculo de percentual de vendas (Mockado se não houver dados reais)
+                const salesPercent = events.reduce((acc, ev) => {
+                    const sold = ev.tickets?.reduce((tAcc, t) => tAcc + (t.sold_quantity || 0), 0) || 0;
+                    const total = ev.tickets?.reduce((tAcc, t) => tAcc + (t.total_quantity || 0), 1) || 1;
+                    return acc + (sold / total);
+                }, 0) / events.length;
+
+                return {
+                    category,
+                    events,
+                    totalTickets,
+                    salesPercent
+                };
+            });
+
+            // 3. Ordenação: Alfabética -> Tamanho -> Percentual
+            sections.sort((a, b) => {
+                if (a.category < b.category) return -1;
+                if (a.category > b.category) return 1;
+                
+                if (b.totalTickets !== a.totalTickets) return b.totalTickets - a.totalTickets;
+                return b.salesPercent - a.salesPercent;
+            });
+
+            return sections.map(s => ({ category: s.category, events: s.events }));
+        } catch (e) {
+            console.error('Error fetching ranked event sections:', e);
+            return [];
+        }
+    }
 }
 
 export const eventService = new EventService();
