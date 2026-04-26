@@ -409,102 +409,184 @@ class OrganizerService {
       // 1. Fetch Events for this organizer
       let eventsQuery = supabase.from('events').select('*, tickets(*)').eq('organizer_id', organizerId);
       if (eventId !== 'all') {
-        eventsQuery = eventsQuery.eq('id', eventId);
+        const ids = eventId.split(',');
+        eventsQuery = eventsQuery.in('id', ids);
       }
       const { data: events, error: eventsError } = await eventsQuery;
       if (eventsError) throw eventsError;
 
       const eventIds = events.map(e => e.id);
       
-      // 2. Fetch Sales (Purchased Tickets) with User Profiles
-      let salesQuery = supabase
-        .from('purchased_tickets')
-        .select(`
-          id,
-          created_at,
-          event_id,
-          profiles:user_id (
-            gender,
-            birth_date
-          ),
-          tickets:ticket_id (
-            price,
-            name
-          )
-        `)
-        .in('event_id', eventIds)
-        .in('status', ['active', 'used', 'confirmed']);
-
-      if (dateRange) {
-        salesQuery = salesQuery.gte('created_at', dateRange.from.toISOString()).lte('created_at', dateRange.to.toISOString());
+      if (eventIds.length === 0) {
+        return {
+          kpis: { totalEvents: 0, ticketsGenerated: 0, ticketsSold: 0, currentRevenue: 0, estimatedRevenue: 0, occupancyRate: 0 },
+          charts: { salesByEvent: [], salesPerformance: [], revenueOverTime: [], salesByGender: [], salesByAge: [], usersByLocation: [] }
+        };
       }
 
+      // 2. Fetch Sales (Purchased Tickets) sem JOIN para evitar erros de FK
+      let salesQuery = supabase
+        .from('purchased_tickets')
+        .select('*')
+        .in('event_id', eventIds);
+
+      // Descomentar se dataRange for suportado depois, por agora fetch tudo
+      // se quisermos, podemos usar as datas depois
+
       const { data: sales, error: salesError } = await salesQuery;
-      if (salesError) throw salesError;
+      if (salesError) {
+        console.error('Error fetching sales:', salesError);
+        throw salesError;
+      }
 
       const safeSales = sales || [];
       const safeEvents = events || [];
 
-      // 3. Process Metrics
+      // 2.1 Fetch Profiles para os usuários das vendas
+      const userIds = [...new Set(safeSales.map((s: any) => s.user_id).filter(Boolean))];
+      let profilesMap: Record<string, any> = {};
+      
+      if (userIds.length > 0) {
+        try {
+          const { data: profilesData, error: profilesError } = await supabase
+            .from('profiles')
+            .select('user_id, gender, birth_date, city, state')
+            .in('user_id', userIds);
+            
+          if (!profilesError && profilesData) {
+            profilesData.forEach((p: any) => {
+              profilesMap[p.user_id] = p;
+            });
+          } else {
+            console.warn('Could not fetch profiles demographics:', profilesError);
+          }
+        } catch (err) {
+          console.warn('Exception fetching profiles:', err);
+        }
+      }
+
+      // Map tickets for quick price lookup (tickets are in events)
+      const ticketPriceMap: Record<string, number> = {};
+      safeEvents.forEach(e => {
+        e.tickets?.forEach((t: any) => {
+          ticketPriceMap[t.id] = t.price || 0;
+        });
+      });
+
+      // Create a map for quick event title lookup
+      const eventTitleMap: Record<string, string> = {};
+      safeEvents.forEach(e => {
+        eventTitleMap[e.id] = e.title || 'Evento Desconhecido';
+      });
+
+      // 3. Process KPIs
       const totalEvents = safeEvents.length;
       const totalCapacity = safeEvents.reduce((acc, event) => 
         acc + (event.tickets?.reduce((tAcc: number, t: any) => tAcc + (t.quantity || 0), 0) || 0), 0
       );
-      const ticketsSold = safeSales.length;
+      const ticketsSold = safeSales.filter((s: any) => s.status !== 'cancelled' && s.status !== 'refunded').length;
       
-      const currentRevenue = safeSales.reduce((acc, sale: any) => acc + (sale.tickets?.price || 0), 0);
-      
+      const currentRevenue = safeSales.reduce((acc, sale: any) => {
+        if (sale.status === 'cancelled' || sale.status === 'refunded') return acc;
+        return acc + (ticketPriceMap[sale.ticket_id] || 0);
+      }, 0);
       const estimatedRevenue = safeEvents.reduce((acc, event) => 
         acc + (event.tickets?.reduce((tAcc: number, t: any) => tAcc + ((t.price || 0) * (t.quantity || 0)), 0) || 0), 0
       );
 
-      // 4. Sales by Period
-      const periodMap: Record<string, { date: string, sales: number, revenue: number }> = {};
+      // 4. Sales by Event (BarChart) - TOP 10
+      const eventSalesMap: Record<string, number> = {};
       safeSales.forEach((sale: any) => {
-        if (!sale.created_at) return;
+        const title = eventTitleMap[sale.event_id];
+        if (title) {
+          eventSalesMap[title] = (eventSalesMap[title] || 0) + 1;
+        }
+      });
+      const salesByEvent = Object.entries(eventSalesMap)
+        .map(([name, vendas]) => ({ name, vendas }))
+        .sort((a, b) => b.vendas - a.vendas)
+        .slice(0, 10);
+
+      // 5. Performance by Period (LineChart with multiple events) & Revenue Over Time
+      const perfMap: Record<string, any> = {};
+      safeSales.forEach((sale: any) => {
+        if (!sale.created_at || sale.status === 'cancelled') return;
         const date = sale.created_at.split('T')[0];
-        if (!periodMap[date]) periodMap[date] = { date, sales: 0, revenue: 0 };
-        periodMap[date].sales++;
-        periodMap[date].revenue += (sale.tickets?.price || 0);
+        if (!perfMap[date]) {
+          perfMap[date] = { date, revenue: 0 };
+        }
+        
+        const title = eventTitleMap[sale.event_id];
+        if (title) {
+          perfMap[date][title] = (perfMap[date][title] || 0) + 1;
+        }
+        
+        perfMap[date].revenue += (ticketPriceMap[sale.ticket_id] || 0);
       });
-      const salesByPeriod = Object.values(periodMap).sort((a, b) => a.date.localeCompare(b.date));
+      const salesPerformance = Object.values(perfMap).sort((a, b) => a.date.localeCompare(b.date));
+      const revenueOverTime = salesPerformance.map(p => ({ date: p.date, revenue: p.revenue }));
 
-      // 5. Demographics: Gender
-      const genderMap: Record<string, number> = { 'Masculino': 0, 'Feminino': 0, 'Outro': 0, 'Não Informado': 0 };
+      // 6. Demographics: Gender
+      const genderMap: Record<string, number> = { 'Masculino': 0, 'Feminino': 0, 'Outros/Não Informado': 0 };
       safeSales.forEach((sale: any) => {
-        const gender = sale.profiles?.gender || 'Não Informado';
-        const normalizedGender = gender.charAt(0).toUpperCase() + gender.slice(1).toLowerCase();
-        if (genderMap[normalizedGender] !== undefined) genderMap[normalizedGender]++;
-        else genderMap['Não Informado']++;
+        if (sale.status === 'cancelled') return;
+        const profile = profilesMap[sale.user_id] || {};
+        let gender = profile.gender;
+        if (!gender) gender = 'Outros/Não Informado';
+        else {
+          gender = gender.charAt(0).toUpperCase() + gender.slice(1).toLowerCase();
+          if (!['Masculino', 'Feminino'].includes(gender)) {
+            gender = 'Outros/Não Informado';
+          }
+        }
+        genderMap[gender]++;
       });
-      const salesByGender = Object.entries(genderMap).map(([name, value]) => ({ name, value }));
+      const salesByGender = Object.entries(genderMap).map(([name, value]) => ({ name, value })).filter(g => g.value > 0);
 
-      // 6. Demographics: Age
+      // 7. Demographics: Age
       const ageRanges = [
-        { label: '< 18', min: 0, max: 17 },
-        { label: '18-25', min: 18, max: 25 },
-        { label: '26-35', min: 26, max: 35 },
-        { label: '36-45', min: 36, max: 45 },
-        { label: '46-60', min: 46, max: 60 },
-        { label: '60+', min: 61, max: 150 }
+        { label: '0-18', min: 0, max: 18 },
+        { label: '18-24', min: 19, max: 24 },
+        { label: '25-34', min: 25, max: 34 },
+        { label: '35-44', min: 35, max: 44 },
+        { label: '45-54', min: 45, max: 54 },
+        { label: '55+', min: 55, max: 150 }
       ];
       const ageStats = ageRanges.map(r => ({ name: r.label, value: 0 }));
       
       safeSales.forEach((sale: any) => {
-        if (sale.profiles?.birth_date) {
+        if (sale.status === 'cancelled') return;
+        const profile = profilesMap[sale.user_id] || {};
+        if (profile.birth_date) {
           try {
-            const birthDate = new Date(sale.profiles.birth_date);
+            const birthDate = new Date(profile.birth_date);
             const age = new Date().getFullYear() - birthDate.getFullYear();
             const range = ageRanges.find(r => age >= r.min && age <= r.max);
             if (range) {
               const stat = ageStats.find(s => s.name === range.label);
               if (stat) stat.value++;
             }
-          } catch (e) {
-            console.warn('Invalid birth date for sale:', sale.id);
-          }
+          } catch (e) {}
         }
       });
+
+      // 8. Users by Location
+      const locationMap: Record<string, number> = {};
+      safeSales.forEach((sale: any) => {
+        if (sale.status === 'cancelled') return;
+        const profile = profilesMap[sale.user_id] || {};
+        let loc = 'Não Informado';
+        if (profile.state && profile.city) {
+          loc = `${profile.city} - ${profile.state}`;
+        } else if (profile.state || profile.city) {
+          loc = profile.state || profile.city;
+        }
+        locationMap[loc] = (locationMap[loc] || 0) + 1;
+      });
+      const usersByLocation = Object.entries(locationMap)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 5);
 
       return {
         kpis: {
@@ -516,28 +598,17 @@ class OrganizerService {
           occupancyRate: totalCapacity > 0 ? (ticketsSold / totalCapacity) * 100 : 0
         },
         charts: {
-          salesByPeriod,
+          salesByEvent,
+          salesPerformance,
+          revenueOverTime,
           salesByGender,
-          salesByAge: ageStats
+          salesByAge: ageStats,
+          usersByLocation
         }
       };
     } catch (e) {
       console.error('Error calculating BI stats:', e);
-      return {
-        kpis: {
-          totalEvents: 0,
-          ticketsGenerated: 0,
-          ticketsSold: 0,
-          currentRevenue: 0,
-          estimatedRevenue: 0,
-          occupancyRate: 0
-        },
-        charts: {
-          salesByPeriod: [],
-          salesByGender: [],
-          salesByAge: []
-        }
-      };
+      return null;
     }
   }
 
@@ -571,35 +642,53 @@ class OrganizerService {
       .from('organizer_details')
       .select('*')
       .eq('slug', slug)
-      .limit(1);
+      .maybeSingle();
     
     if (error) {
        console.error('Error in getProducerBySlug:', error);
+       return null;
     }
+    
+    return data;
+  }
 
-    const row = data && data.length > 0 ? data[0] : null;
-    
-    if (error || !row) return null;
-    
-    return {
-      id: row.user_id,
-      user_id: row.user_id,
-      name: row.company_name,
-      company_name: row.company_name,
-      avatar: row.logo_url,
-      logo_url: row.logo_url,
-      banner_url: row.banner_url,
-      bio: row.bio,
-      location: row.company_address || row.city,
-      city: row.city,
-      state: row.state,
-      website: row.website_url,
-      instagram_url: row.instagram_url,
-      facebook_url: row.facebook_url,
-      whatsapp_number: row.whatsapp_number,
-      category: row.category,
-      ...row 
-    };
+  // Analytics & Metrics
+  async trackView(type: 'event_page' | 'producer_page', id: string, visitorHash?: string): Promise<void> {
+    try {
+      const data: any = {
+        view_type: type,
+        visitor_hash: visitorHash || 'anonymous',
+      };
+
+      if (type === 'event_page') data.event_id = id;
+      else data.producer_id = id;
+
+      // Se for event_page, precisamos do producer_id também para o BI do produtor
+      if (type === 'event_page') {
+        const { data: event } = await supabase.from('events').select('organizer_id').eq('id', id).single();
+        if (event) data.producer_id = event.organizer_id;
+      }
+
+      await supabase.from('analytics_views').insert(data);
+    } catch (e) {
+      console.error('Error tracking view:', e);
+    }
+  }
+
+  async getAnalyticsSummary(organizerId: string): Promise<any> {
+    try {
+      const { data, error } = await supabase
+        .from('analytics_views')
+        .select('view_type, event_id, created_at')
+        .eq('producer_id', organizerId);
+
+      if (error) throw error;
+
+      return data;
+    } catch (e) {
+      console.error('Error fetching analytics summary:', e);
+      return [];
+    }
   }
 
   async updateProfile(profileDocId: string, data: any, userId: string): Promise<any> {
@@ -631,15 +720,27 @@ class OrganizerService {
       'asaasApiKey': 'asaas_key',
       'asaas_key': 'asaas_key',
       'instagramUrl': 'instagram_url',
+      'instagram_url': 'instagram_url',
       'facebookUrl': 'facebook_url',
+      'facebook_url': 'facebook_url',
       'whatsappNumber': 'whatsapp_number',
+      'whatsapp_number': 'whatsapp_number',
       'websiteUrl': 'website_url',
+      'website_url': 'website_url',
+      'tiktok_url': 'tiktok_url',
+      'youtube_url': 'youtube_url',
+      'twitter_url': 'twitter_url',
+      'linkedin_url': 'linkedin_url',
       'companyAddress': 'company_address',
+      'company_address': 'company_address',
       'lastStep': 'last_step',
+      'settings': 'settings',
     };
 
     const profileUpdate: any = {};
     const detailsUpdate: any = {};
+
+    console.log(`[UPDATE_PROFILE] Recebendo dados para atualização:`, data);
 
     // Trava de segurança para Slug: se vier vazia ou for um UUID, tenta gerar do nome da empresa
     if ((!data.slug || data.slug.length > 20) && (data.companyName || data.name)) {
@@ -673,9 +774,11 @@ class OrganizerService {
       if (Object.keys(detailsUpdate).length > 0) {
         console.log(`[DETAILS] Salvando detalhes do organizador (Upsert) para ${userId}...`, detailsUpdate);
         
-        // Ensure documents are always prioritized if present in data
+        // Ensure documents and banner/logo are always prioritized if present in data
         if (data.documentFrontUrl) detailsUpdate.document_front_url = data.documentFrontUrl;
         if (data.documentBackUrl) detailsUpdate.document_back_url = data.documentBackUrl;
+        if (data.banner_url) detailsUpdate.banner_url = data.banner_url;
+        if (data.logo_url) detailsUpdate.logo_url = data.logo_url;
 
         const { error: dError } = await supabase
           .from('organizer_details')
@@ -688,6 +791,7 @@ class OrganizerService {
           console.error('❌ Erro no Upsert de detalhes:', dError);
           throw dError;
         }
+        console.log('✅ Detalhes atualizados com sucesso!');
       }
       return { success: true };
     } catch (e: any) {
@@ -868,6 +972,10 @@ class OrganizerService {
 
     if (error) throw error;
     return data;
+  }
+
+  async getStoreOrders(organizerId: string): Promise<any[]> {
+    return this.getProductOrders(organizerId);
   }
 }
 

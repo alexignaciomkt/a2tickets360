@@ -2,21 +2,19 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
-  Heart,
-  MessageCircle,
-  Share2,
   MapPin,
   Globe,
   ShoppingBag,
-  Star,
-  Camera,
   Info,
   Calendar,
   Ticket as TicketIcon,
   Instagram,
   Facebook,
-  MessageSquare,
-  ChevronRight
+  ChevronRight,
+  ArrowRight,
+  Clock,
+  LayoutGrid,
+  ExternalLink
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -27,16 +25,22 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 const ProducerFanPage = () => {
   const { slug } = useParams();
-  const [activeTab, setActiveTab] = useState('timeline');
-  const [isFollowing, setIsFollowing] = useState(false);
-  const [followersCount, setFollowersCount] = useState(Math.floor(Math.random() * 5000) + 1000);
   const { toast } = useToast();
 
   const [producerData, setProducerData] = useState<any>(null);
-  const [posts, setPosts] = useState<any[]>([]);
   const [producerEvents, setProducerEvents] = useState<any[]>([]);
   const [producerProducts, setProducerProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Visitor tracking
+  useEffect(() => {
+    const visitorHash = localStorage.getItem('visitor_id') || Math.random().toString(36).substring(7);
+    if (!localStorage.getItem('visitor_id')) localStorage.setItem('visitor_id', visitorHash);
+
+    if (producerData?.user_id) {
+      organizerService.trackView('producer_page', producerData.user_id, visitorHash);
+    }
+  }, [producerData?.user_id]);
 
   useEffect(() => {
     if (slug) {
@@ -51,13 +55,11 @@ const ProducerFanPage = () => {
       setProducerData(data);
 
       if (data?.user_id) {
-        const [postsData, eventsData, productsData] = await Promise.all([
-          organizerService.getPosts(data.user_id),
+        const [eventsData, productsData] = await Promise.all([
           organizerService.getEvents(data.user_id),
           organizerService.getProducts(data.user_id)
         ]);
-        setPosts(postsData);
-        setProducerEvents(eventsData.filter((e: any) => e.status === 'published' || e.status === 'active'));
+        setProducerEvents(eventsData);
         setProducerProducts(productsData.filter((p: any) => p.status === 'active'));
       }
     } catch (err) {
@@ -67,17 +69,35 @@ const ProducerFanPage = () => {
     }
   };
 
+  const [activeTestimonial, setActiveTestimonial] = useState(0);
+
+  // Automatic Carrousel for Testimonials
+  useEffect(() => {
+    const testimonials = producerData?.settings?.testimonials || [];
+    if (testimonials.length > 1) {
+      const interval = setInterval(() => {
+        setActiveTestimonial(prev => (prev + 1) % testimonials.length);
+      }, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [producerData?.settings?.testimonials]);
+
+  const scrollToSection = (id: string) => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#F0F2F5] space-y-4 pb-20">
-        <Skeleton className="h-[350px] w-full" />
-        <div className="max-w-5xl mx-auto px-4">
-           <div className="flex gap-6 -mt-16">
-              <Skeleton className="h-40 w-40 rounded-full border-4 border-white" />
-              <div className="mt-20 space-y-2">
-                 <Skeleton className="h-10 w-64" />
-                 <Skeleton className="h-4 w-40" />
-              </div>
+      <div className="min-h-screen bg-[#F8F9FA] space-y-4">
+        <Skeleton className="h-[400px] w-full" />
+        <div className="max-w-6xl mx-auto px-4 -mt-20">
+           <div className="flex flex-col items-center gap-4">
+              <Skeleton className="h-40 w-40 rounded-3xl border-8 border-[#F8F9FA]" />
+              <Skeleton className="h-10 w-64" />
+              <Skeleton className="h-4 w-40" />
            </div>
         </div>
       </div>
@@ -86,16 +106,62 @@ const ProducerFanPage = () => {
 
   if (!producerData) {
     return (
-      <div className="min-h-screen bg-[#F0F2F5] flex items-center justify-center p-4">
-        <Card className="max-w-md w-full p-10 text-center space-y-6 shadow-2xl border-none rounded-3xl">
+      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center p-4">
+        <Card className="max-w-md w-full p-10 text-center space-y-6 shadow-2xl border-none rounded-[2rem]">
           <div className="bg-gray-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto">
             <Info className="w-10 h-10 text-gray-400" />
           </div>
           <div>
-            <h2 className="text-2xl font-black uppercase tracking-tight">Página não encontrada</h2>
-            <p className="text-gray-500 font-medium mt-2">O produtor que você procura ainda não configurou sua vitrine ou a URL está incorreta.</p>
+            <h2 className="text-2xl font-black uppercase tracking-tight">Vitrine não encontrada</h2>
+            <p className="text-gray-500 font-medium mt-2">Esta URL não pertence a uma produtora ativa na Ticketera.</p>
           </div>
-          <Button variant="default" className="w-full font-black uppercase tracking-widest" asChild>
+          <Button variant="default" className="w-full font-black uppercase tracking-widest h-12 rounded-2xl" asChild>
+            <Link to="/">Explorar Eventos</Link>
+          </Button>
+        </Card>
+      </div>
+    );
+  }
+
+  const primaryColor = producerData.settings?.primaryColor || '#7C3AED';
+  const buttonStyle = producerData.settings?.buttonStyle || 'rounded-2xl';
+
+  const upcomingEvents = producerEvents.filter((e: any) => 
+    (e.status === 'published' || e.status === 'active')
+  ).sort((a, b) => new Date(a.start_date || a.date).getTime() - new Date(b.start_date || b.date).getTime());
+
+  const pastEvents = producerEvents.filter((e: any) => 
+    new Date(e.start_date || e.date) < new Date()
+  ).sort((a, b) => new Date(b.start_date || b.date).getTime() - new Date(a.start_date || a.date).getTime());
+
+  const featuredEvent = upcomingEvents[0];
+  
+  // Testimonials and Gallery from settings or fallback
+  const testimonials = producerData.settings?.testimonials || [
+    { text: "Simplesmente a melhor experiência que já tive em eventos. Organização impecável!", name: "Carolina Silva", role: "Frequentadora Assídua" },
+    { text: "Os eventos da " + producerData.company_name + " são sinônimo de qualidade e diversão garantida.", name: "Marcos Oliveira", role: "Fã da Marca" },
+    { text: "Atendimento excelente e ingressos super fáceis de comprar. Recomendo muito!", name: "Beatriz Santos", role: "Cliente VIP" },
+  ];
+
+  const galleryImages = producerData.settings?.gallery || [];
+  
+  // Visibility overrides
+  const showPage = producerData.settings?.showPage !== false;
+  const showEvents = producerData.settings?.showEvents !== false;
+  const showStore = producerData.settings?.showStore !== false;
+
+  if (!showPage) {
+    return (
+      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center p-4">
+        <Card className="max-w-md w-full p-10 text-center space-y-6 shadow-2xl border-none rounded-[2rem]">
+          <div className="bg-amber-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto">
+            <Info className="w-10 h-10 text-amber-600" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-black uppercase tracking-tight">Vitrine Temporariamente Indisponível</h2>
+            <p className="text-gray-500 font-medium mt-2">O produtor optou por manter esta vitrine privada no momento.</p>
+          </div>
+          <Button variant="default" className="w-full font-black uppercase tracking-widest h-12 rounded-2xl" asChild>
             <Link to="/">Voltar ao Início</Link>
           </Button>
         </Card>
@@ -103,464 +169,381 @@ const ProducerFanPage = () => {
     );
   }
 
-  const producer = {
-    name: producerData.company_name || producerData.name || "Produtor sem Nome",
-    bio: producerData.bio || "Este produtor ainda não adicionou uma biografia.",
-    avatar: producerData.logo_url || producerData.avatar || "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=400&h=400&fit=crop",
-    banner: producerData.banner_url || producerData.banner || "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=1200&h=400&fit=crop",
-    location: producerData.city ? `${producerData.city}, ${producerData.state || ''}` : 'Brasil',
-    instagram: producerData.instagram_url,
-    facebook: producerData.facebook_url,
-    whatsapp: producerData.whatsapp_number,
-    website: producerData.website_url,
-    category: producerData.category || "Entretenimento",
-    slug: slug
-  };
-
-  const handleSocialShare = (platform: string, post?: any) => {
-    const url = post ? `${window.location.origin}/events/${post.id}` : window.location.href;
-    const text = post ? `Olha esse post de ${producer.name}!` : `Confira a vitrine oficial de ${producer.name} na Ticketera!`;
-    
-    switch(platform) {
-      case 'whatsapp':
-        window.open(`https://wa.me/?text=${encodeURIComponent(text + ' ' + url)}`, '_blank');
-        break;
-      case 'facebook':
-        window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank');
-        break;
-      case 'twitter':
-        window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, '_blank');
-        break;
-      case 'copy':
-        navigator.clipboard.writeText(url);
-        toast({ title: 'Copiado!', description: 'Link copiado para a área de transferência.' });
-        break;
-    }
-  };
-
-  const nextEvent = producerEvents.length > 0 ? producerEvents[0] : null;
-
   return (
-    <div className="bg-[#F0F2F5] min-h-screen font-sans">
-      {/* HEADER SECTION (Facebook Style) */}
-      <div className="bg-white shadow-sm">
-        <div className="max-w-[1100px] mx-auto">
-          {/* Banner */}
-          <div className="relative h-[250px] md:h-[400px] rounded-b-xl overflow-hidden group">
-            <img 
-              src={producerData?.banner_url || "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&q=80"} 
-              className="w-full h-full object-cover" 
-              alt="Cover" 
-            />
-            <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-all duration-500"></div>
-            
-            <div className="absolute bottom-4 right-4">
-               <Button variant="secondary" size="sm" className="bg-white/90 backdrop-blur font-black uppercase text-[10px] tracking-widest gap-2 shadow-xl">
-                 <Camera className="w-3 h-3" /> Ver Capa
-               </Button>
-            </div>
+    <div className="bg-[#F8F9FA] min-h-screen font-sans pt-16">
+      {/* ─── NAVBAR FIXA ─── */}
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-xl border-b border-gray-100 shadow-sm px-6 h-16 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className={`w-8 h-8 ${buttonStyle} overflow-hidden shadow-sm`}>
+            <img src={producerData.logo_url} className="w-full h-full object-cover" />
           </div>
-
-          {/* Profile Info Overlay */}
-          <div className="px-4 md:px-10 pb-4">
-            <div className="relative flex flex-col md:flex-row items-center md:items-end gap-6 -mt-12 md:-mt-16 mb-4">
-              <div className="relative group">
-                <div className="w-40 h-40 md:w-44 md:h-44 rounded-full border-4 border-white bg-white overflow-hidden shadow-2xl">
-                  <img 
-                  src={producerData?.logo_url || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"} 
-                  className="w-full h-full object-cover" 
-                  alt="Avatar" 
-                />
-                </div>
-                <div className="absolute bottom-4 right-2 bg-gray-100 p-2 rounded-full border-2 border-white shadow-lg cursor-pointer hover:bg-gray-200 transition-colors">
-                  <Camera className="w-4 h-4 text-gray-700" />
-                </div>
-              </div>
-
-              <div className="flex-1 text-center md:text-left md:pb-4">
-                <h1 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight flex items-center justify-center md:justify-start gap-2">
-                  {producerData?.company_name || producerData?.name || 'Produtor Ticketera'}
-                  <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center shadow-lg shadow-blue-100">
-                    <svg className="w-3.5 h-3.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.64.304 1.25.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" />
-                    </svg>
-                  </div>
-                </h1>
-                <p className="text-gray-500 font-black text-sm uppercase tracking-widest mt-1">
-                  {followersCount.toLocaleString()} Seguidores • {producerData?.category}
-                </p>
-              </div>
-
-              <div className="flex gap-2 md:pb-4">
-                <Button 
-                  onClick={() => setIsFollowing(!isFollowing)}
-                  className={`h-10 px-6 font-black uppercase tracking-widest rounded-lg shadow-sm ${isFollowing ? 'bg-gray-200 text-gray-700 hover:bg-gray-300' : 'bg-[#1877F2] text-white hover:bg-[#166fe5]'}`}
-                >
-                  {isFollowing ? 'Seguindo' : 'Seguir'}
-                </Button>
-                <Button 
-                  variant="secondary" 
-                  className="h-10 px-4 font-black uppercase text-xs tracking-widest rounded-lg gap-2"
-                  onClick={() => handleSocialShare('whatsapp')}
-                >
-                  <Share2 className="w-4 h-4" /> Compartilhar
-                </Button>
-              </div>
-            </div>
-
-            <hr className="mb-1" />
-            
-            {/* Tabs Nav */}
-            <nav className="flex items-center gap-1 overflow-x-auto no-scrollbar py-1">
-              {[
-                { id: 'timeline', label: 'Feed' },
-                { id: 'events', label: 'Eventos' },
-                { id: 'store', label: 'Loja' },
-                { id: 'about', label: 'Sobre' }
-              ].map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`px-4 py-4 font-bold text-sm tracking-tight transition-all rounded-lg ${activeTab === tab.id ? 'text-[#1877F2]' : 'text-gray-600 hover:bg-gray-100'}`}
-                >
-                  <div className="relative">
-                    {tab.label}
-                    {activeTab === tab.id && <div className="absolute -bottom-4 left-0 right-0 h-[3px] bg-[#1877F2] rounded-t-full" />}
-                  </div>
-                </button>
-              ))}
-            </nav>
-          </div>
+          <span className="font-black uppercase tracking-widest text-[10px] text-gray-900">{producerData.company_name}</span>
         </div>
+        <div className="hidden md:flex items-center gap-6">
+          {[
+            { label: 'Eventos', id: 'agenda', show: showEvents },
+            { label: 'Sobre', id: 'sobre' },
+            { label: 'Loja', id: 'loja', show: showStore && producerProducts.length > 0 },
+            { label: 'Memórias', id: 'memorias' },
+            { label: 'Depoimentos', id: 'depoimentos' },
+          ].filter(item => item.show !== false).map(item => (
+            <button 
+              key={item.id}
+              onClick={() => scrollToSection(item.id)}
+              className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 hover:text-gray-900 transition-colors"
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className={`hidden md:flex font-black uppercase text-[10px] tracking-widest ${buttonStyle}`}
+          >
+            Trabalhe Conosco
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className={`font-black uppercase text-[10px] tracking-widest ${buttonStyle}`}
+            onClick={() => scrollToSection('contato')}
+          >
+            Contato
+          </Button>
+        </div>
+      </nav>
+
+      {/* ─── HERO & BRANDING ─── */}
+      <div id="home" className="max-w-[1400px] mx-auto relative overflow-hidden md:rounded-b-[4rem] shadow-2xl bg-black">
+        <img 
+          src={producerData.banner_url || "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&q=80"} 
+          className="w-full h-auto block" 
+          alt="Cover" 
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
       </div>
 
-      {/* MAIN CONTENT AREA */}
-      <div className="max-w-[1100px] mx-auto px-4 py-6 grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
-        
-        {/* SIDEBAR (Profile Intro & Store Widget) */}
-        <aside className="md:col-span-5 space-y-6">
-          {/* Intro Card */}
-          <Card className="rounded-xl shadow-sm border-none overflow-hidden">
-            <CardContent className="p-4 space-y-4">
-              <div className="flex items-center gap-2 text-gray-400 font-black text-[10px] uppercase tracking-[0.2em] mb-2">
-                <Info className="w-3 h-3" /> Sobre o Produtor
-              </div>
-              <p className="text-gray-700 text-sm font-medium leading-relaxed italic border-l-4 border-primary/20 pl-4 py-1">
-                {producerData?.bio || "Nenhuma biografia disponível."}
-              </p>
-              
-              <div className="flex items-center gap-2 text-gray-500 font-bold text-xs uppercase tracking-widest mt-4 pt-4 border-t border-gray-50">
-                <MapPin className="w-4 h-4 text-primary" />
-                {producerData?.city ? `${producerData.city}, ${producerData.state}` : 'Brasil'}
-              </div>
-
-              <div className="space-y-3 pt-4 border-t border-gray-100">
-                <div className="flex items-center gap-3 text-sm font-bold text-[#1877F2] hover:underline cursor-pointer">
-                  <Globe className="w-4 h-4 text-gray-400" />
-                  <span>{producerData?.website || 'a2tickets360.com.br'}</span>
+      <div className="max-w-6xl mx-auto px-4 relative z-10 mt-12 md:mt-16">
+        {/* ─── CONTEÚDO ON-PAGE ─── */}
+        <div className="space-y-32 pb-20 pt-12">
+          
+          {/* SEÇÃO 1: HERO / PRÓXIMO EVENTO */}
+          {showEvents && featuredEvent && (
+            <div className="relative group cursor-pointer" onClick={() => window.location.href = `/events/${featuredEvent.id}`}>
+              <div className={`overflow-hidden ${buttonStyle} shadow-2xl bg-white border border-gray-100 flex flex-col md:flex-row h-full md:h-[450px]`}>
+                <div className="md:w-3/5 relative h-72 md:h-full overflow-hidden">
+                  <img src={featuredEvent.banner_url || featuredEvent.imageUrl} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt="Feature" />
+                  <div className="absolute top-6 left-6">
+                    <Badge className="bg-white/90 text-gray-900 font-black px-4 py-2 rounded-xl backdrop-blur border-none shadow-xl uppercase tracking-widest">Em Destaque Agora</Badge>
+                  </div>
                 </div>
-                <div className="flex gap-4 pt-2">
-                   {producerData?.instagram && (
-                     <a href={producerData?.instagram} target="_blank" rel="noreferrer" className="text-gray-500 hover:text-pink-600 transition-colors">
-                        <Instagram className="w-6 h-6" />
-                     </a>
-                   )}
-                   {producerData?.facebook && (
-                     <a href={producerData?.facebook} target="_blank" rel="noreferrer" className="text-gray-500 hover:text-blue-600 transition-colors">
-                        <Facebook className="w-6 h-6" />
-                     </a>
-                   )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* STORE WIDGET (Destaque da Loja) */}
-          <Card className="rounded-xl shadow-sm border-none overflow-hidden">
-            <CardContent className="p-4 space-y-4">
-              <div className="flex justify-between items-center">
-                <h3 className="text-lg font-black uppercase tracking-tight">Loja Oficial</h3>
-                <button onClick={() => setActiveTab('store')} className="text-sm font-bold text-[#1877F2] hover:underline">Ver Tudo</button>
-              </div>
-              
-              {producerProducts.length > 0 ? (
-                <div className="space-y-4">
-                   {producerProducts.slice(0, 3).map(product => (
-                     <Link key={product.id} to={`/checkout/product/${product.id}`} className="flex items-center gap-4 group cursor-pointer border-b border-gray-50 pb-3 last:border-0 last:pb-0">
-                        <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-gray-50 shadow-inner">
-                           <img src={product.imageUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform" alt={product.name} />
-                        </div>
-                        <div className="flex-1">
-                           <h4 className="text-sm font-black text-gray-900 group-hover:text-[#1877F2] transition-colors">{product.name}</h4>
-                           <p className="text-sm font-black text-[#1877F2]">R$ {parseFloat(product.price).toFixed(2)}</p>
-                        </div>
-                        <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-[#1877F2]" />
-                     </Link>
-                   ))}
-                   <Button onClick={() => setActiveTab('store')} className="w-full bg-[#1877F2]/10 text-[#1877F2] hover:bg-[#1877F2]/20 font-black uppercase text-xs tracking-widest h-11 border-none">
-                     <ShoppingBag className="w-4 h-4 mr-2" /> Acessar Vitrine Completa
+                <div className="md:w-2/5 p-8 md:p-12 flex flex-col justify-center">
+                   <h2 className="text-3xl md:text-4xl font-black tracking-tight text-gray-900 leading-[1.1] mb-4 group-hover:text-primary transition-colors" style={{ color: primaryColor }}>
+                     {featuredEvent.title}
+                   </h2>
+                   <div className="space-y-3 mb-8">
+                      <p className="flex items-center gap-3 text-gray-500 font-bold uppercase text-xs tracking-widest">
+                        <Calendar className="w-4 h-4" style={{ color: primaryColor }} />
+                        {new Date(featuredEvent.start_date || featuredEvent.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
+                      </p>
+                      <p className="flex items-center gap-3 text-gray-500 font-bold uppercase text-xs tracking-widest">
+                        <MapPin className="w-4 h-4" style={{ color: primaryColor }} />
+                        {featuredEvent.location_name || featuredEvent.locationName}
+                      </p>
+                   </div>
+                   <Button 
+                     className={`w-full h-14 font-black uppercase tracking-widest text-sm shadow-xl hover:-translate-y-1 transition-all ${buttonStyle}`}
+                     style={{ backgroundColor: primaryColor }}
+                   >
+                     Garantir meu Ingresso <ArrowRight className="w-4 h-4 ml-2" />
                    </Button>
                 </div>
-              ) : (
-                <div className="py-10 text-center space-y-2 bg-gray-50 rounded-xl border border-dashed border-gray-200">
-                   <ShoppingBag className="w-8 h-8 text-gray-300 mx-auto" />
-                   <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Loja em breve!</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Photos/Feed Summary (Gallery Style) */}
-          <Card className="rounded-xl shadow-sm border-none overflow-hidden">
-            <CardContent className="p-4 space-y-4">
-              <h3 className="text-lg font-black uppercase tracking-tight">Fotos Recentes</h3>
-              <div className="grid grid-cols-3 gap-1 rounded-xl overflow-hidden">
-                 {posts.slice(0, 9).map(post => (
-                   <div key={post.id} className="aspect-square bg-gray-100 cursor-pointer overflow-hidden">
-                      <img src={post.imageUrl} className="w-full h-full object-cover hover:opacity-90 transition-opacity" alt="Feed" />
-                   </div>
-                 ))}
-                 {posts.length === 0 && (
-                   <div className="col-span-3 py-10 text-center text-gray-400 font-bold bg-gray-50 uppercase text-[10px] tracking-widest">Aguardando Posts</div>
-                 )}
               </div>
-            </CardContent>
-          </Card>
-        </aside>
-
-        {/* FEED / CENTRAL AREA */}
-        <main className="md:col-span-7 space-y-6">
-          
-          {activeTab === 'timeline' && (
-            <div className="space-y-6">
-              {/* Creator Card (Placeholder aesthetic) */}
-              <Card className="rounded-xl shadow-sm border-none">
-                 <CardContent className="p-4 flex gap-4">
-                    <img src={producer.avatar} className="w-10 h-10 rounded-full border border-gray-100" />
-                    <div className="flex-1 bg-gray-100/80 hover:bg-gray-200/80 transition-colors rounded-full px-5 flex items-center text-gray-500 font-medium cursor-pointer">
-                       Diga algo sobre sua próxima produção...
-                    </div>
-                 </CardContent>
-              </Card>
-
-              {posts.length === 0 ? (
-                <div className="text-center py-20 bg-white rounded-2xl shadow-sm border border-dashed border-gray-200">
-                  <Camera className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500 font-black text-lg uppercase tracking-tight">Feed em silêncio</p>
-                  <p className="text-gray-400 text-sm font-medium">As novidades serão postadas aqui em breve.</p>
-                </div>
-              ) : (
-                posts.map(post => (
-                  <Card key={post.id} className="rounded-xl shadow-sm border-none overflow-hidden">
-                    <div className="p-4 flex items-center gap-3">
-                      <img src={producer.avatar} className="w-10 h-10 rounded-full border border-gray-50 shadow-sm" alt="Author" />
-                      <div>
-                        <h4 className="font-black text-sm text-gray-900 leading-none">{producer.name}</h4>
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1 flex items-center gap-1">
-                          {new Date(post.createdAt).toLocaleDateString('pt-BR')} • <Globe className="w-3 h-3" />
-                        </p>
-                      </div>
-                    </div>
-
-                    {post.caption && (
-                       <div className="px-5 pb-3 text-sm text-gray-800 font-medium leading-relaxed">
-                         {post.caption}
-                       </div>
-                    )}
-
-                    <div className="relative group overflow-hidden bg-gray-50">
-                      <img src={post.imageUrl} className="w-full max-h-[600px] object-contain mx-auto" alt="Post" />
-                    </div>
-
-                    <div className="p-3 px-6 flex items-center gap-6 border-t border-gray-50">
-                       <button 
-                         className="flex items-center gap-2 text-sm font-black text-gray-500 hover:text-red-500 transition-colors group"
-                         onClick={() => {
-                            toast({ title: '❤️ Curtido!', description: 'Você curtiu esta foto.' });
-                         }}
-                       >
-                          <Heart className="w-5 h-5 group-hover:fill-current" /> Curtir
-                       </button>
-                       <button className="flex items-center gap-2 text-sm font-black text-gray-500 hover:text-[#1877F2] transition-colors">
-                          <MessageCircle className="w-5 h-5" /> Comentar
-                       </button>
-                       <div className="flex items-center gap-2 ml-auto">
-                          <button 
-                            onClick={() => handleSocialShare('whatsapp', post)}
-                            className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center hover:bg-emerald-200 transition-colors"
-                          >
-                             <MessageCircle className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={() => handleSocialShare('facebook', post)}
-                            className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center hover:bg-blue-200 transition-colors"
-                          >
-                             <Facebook className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={() => handleSocialShare('copy', post)}
-                            className="w-8 h-8 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center hover:bg-gray-200 transition-colors"
-                          >
-                             <Share2 className="w-4 h-4" />
-                          </button>
-                       </div>
-                    </div>
-                  </Card>
-                ))
-              )}
             </div>
           )}
 
-          {activeTab === 'events' && (
-            <div className="grid grid-cols-1 gap-6">
-              {producerEvents.length === 0 ? (
-                <div className="text-center py-20 bg-white rounded-2xl shadow-sm border border-dashed border-gray-200">
-                  <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500 font-black text-lg uppercase tracking-tight">Nenhum evento ativo</p>
-                </div>
-              ) : (
-                producerEvents.map(event => (
-                  <Card key={event.id} className="overflow-hidden rounded-2xl shadow-sm border-none group cursor-pointer hover:shadow-xl transition-all duration-500 bg-white">
-                    <div className="flex flex-col md:flex-row">
-                      <div className="md:w-1/3 h-48 md:h-auto relative overflow-hidden">
-                        <img src={event.bannerUrl || event.imageUrl} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt={event.title} />
-                        <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-all"></div>
+          {/* SEÇÃO 2: AGENDA DE EVENTOS */}
+          {showEvents && (
+            <section id="agenda" className="space-y-12">
+            <div className="flex flex-col items-center text-center space-y-4">
+              <Badge variant="outline" className="px-4 py-1.5 border-gray-200 text-gray-400 font-black uppercase tracking-widest text-[10px]">Calendário Oficial</Badge>
+              <h3 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-gray-900">{producerData.settings?.titles?.agenda || 'Agenda Completa'}</h3>
+            </div>
+            
+            {upcomingEvents.length === 0 && !featuredEvent ? (
+               <div className="py-20 text-center bg-white rounded-[2rem] border border-dashed border-gray-200">
+                  <Calendar className="w-12 h-12 text-gray-200 mx-auto mb-4" />
+                  <p className="text-gray-400 font-black uppercase tracking-widest">Nenhum evento futuro agendado</p>
+               </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {upcomingEvents.filter(e => e.id !== featuredEvent?.id).map(event => (
+                  <Link key={event.id} to={`/events/${event.id}`} className="group">
+                    <Card className={`overflow-hidden border-none shadow-lg group-hover:shadow-2xl transition-all duration-500 ${buttonStyle}`}>
+                      <div className="relative aspect-[4/3] overflow-hidden">
+                        <img src={event.banner_url || event.imageUrl} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt={event.title} />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60 group-hover:opacity-40 transition-opacity" />
+                        <div className="absolute bottom-4 left-4 right-4">
+                           <Badge className="bg-white/20 backdrop-blur-md text-white border-none font-black text-[10px] uppercase tracking-widest px-3 py-1 mb-2">Vendas Abertas</Badge>
+                           <h4 className="text-xl font-black text-white leading-tight">{event.title}</h4>
+                        </div>
                       </div>
-                      <CardContent className="md:w-2/3 p-6 flex flex-col justify-between">
-                         <div>
-                            <div className="flex justify-between items-start mb-2">
-                               <Badge className="bg-emerald-100 text-emerald-700 font-black uppercase text-[10px] tracking-widest border-none">Vendas Abertas</Badge>
-                               <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">{event.category || 'Evento'}</p>
-                            </div>
-                            <h3 className="text-2xl font-black text-gray-900 mb-2 group-hover:text-[#1877F2] transition-colors">{event.title}</h3>
+                      <CardContent className="p-6 bg-white">
+                         <div className="flex items-center justify-between">
                             <div className="space-y-1">
-                               <p className="text-sm font-bold text-gray-600 flex items-center gap-2">
-                                  <Calendar className="w-4 h-4 text-[#1877F2]" />
-                                  {new Date(event.start_date || event.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' })}
-                               </p>
-                               <p className="text-sm font-bold text-gray-600 flex items-center gap-2">
-                                  <MapPin className="w-4 h-4 text-pink-500" />
-                                  {event.location_name || 'Brasil'}
-                               </p>
+                              <p className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em]">{event.category || 'Premium'}</p>
+                              <p className="text-sm font-bold text-gray-900">{new Date(event.start_date || event.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })} • {event.city || 'Brasil'}</p>
                             </div>
-                         </div>
-                         <div className="mt-6">
-                            <Link to={`/events/${event.id}`}>
-                               <Button className="w-full bg-[#1877F2] text-white font-black uppercase tracking-widest rounded-xl h-12 shadow-lg hover:shadow-blue-200 hover:-translate-y-1 transition-all">
-                                  Garantir Ingresso
-                               </Button>
-                            </Link>
+                            <div className="w-10 h-10 rounded-full flex items-center justify-center bg-gray-50 group-hover:bg-primary/10 transition-colors" style={{ color: primaryColor }}>
+                               <ArrowRight className="w-5 h-5" />
+                            </div>
                          </div>
                       </CardContent>
-                    </div>
-                  </Card>
-                ))
-              )}
+                    </Card>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
+          {/* SEÇÃO 3: SOBRE A MARCA */}
+          <section id="sobre" className="grid grid-cols-1 md:grid-cols-12 gap-16 items-center">
+            <div className="md:col-span-5 relative">
+              <div className={`aspect-square ${buttonStyle} overflow-hidden shadow-2xl relative border-8 border-white`}>
+                <img 
+                  src={producerData.settings?.about_image || producerData.logo_url} 
+                  className="w-full h-full object-cover" 
+                  alt="Sobre"
+                />
+                <div className="absolute inset-0 bg-primary/5 mix-blend-overlay" style={{ backgroundColor: primaryColor }} />
+              </div>
             </div>
+            <div className="md:col-span-7 space-y-8 text-left">
+              <div className="space-y-4">
+                <Badge variant="outline" className="px-4 py-1.5 border-gray-200 text-gray-400 font-black uppercase tracking-widest text-[10px]">Nossa Identidade</Badge>
+                <h3 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-gray-900 leading-tight">{producerData.settings?.titles?.about || 'A história por trás da produtora'}</h3>
+              </div>
+              <div 
+                className="text-gray-600 text-lg md:text-xl leading-relaxed font-medium prose prose-slate max-w-none prose-p:leading-relaxed prose-strong:text-gray-900"
+                dangerouslySetInnerHTML={{ 
+                  __html: producerData.bio || "Esta produtora ainda não definiu sua biografia oficial, mas sua paixão por criar momentos inesquecíveis é o que nos move todos os dias." 
+                }}
+              />
+              <div className="grid grid-cols-2 gap-8 pt-8 border-t border-gray-100">
+                <div className="space-y-1">
+                  <p className="text-3xl font-black text-gray-900">{producerEvents.length}+</p>
+                  <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Eventos Realizados</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-3xl font-black text-gray-900">100%</p>
+                  <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Satisfação Garantida</p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* SEÇÃO 4: LOJA (CONDICIONAL) */}
+          {showStore && producerProducts.length > 0 && (
+            <section id="loja" className="space-y-12">
+              <div className="flex flex-col items-center text-center space-y-4">
+                <Badge variant="outline" className="px-4 py-1.5 border-gray-200 text-gray-400 font-black uppercase tracking-widest text-[10px]">Loja Oficial</Badge>
+                <h3 className="text-3xl md:text-4xl font-black uppercase tracking-tight text-gray-900">Itens Exclusivos</h3>
+              </div>
+              
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+                {producerProducts.map(product => (
+                  <Link key={product.id} to={`/checkout/product/${product.id}`} className="group">
+                    <div className={`bg-white p-3 border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-500 ${buttonStyle} overflow-hidden`}>
+                       <div className="aspect-square rounded-2xl overflow-hidden bg-gray-50 mb-4 relative">
+                          <img src={product.imageUrl} className="w-full h-full object-cover transition-transform group-hover:scale-110" alt={product.name} />
+                          <div className="absolute top-2 right-2">
+                             <Button size="icon" className="w-8 h-8 rounded-full bg-white/90 text-gray-900 hover:bg-white shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                                <ShoppingBag className="w-4 h-4" />
+                             </Button>
+                          </div>
+                       </div>
+                       <div className="px-2 pb-2">
+                          <h4 className="text-sm font-black text-gray-900 group-hover:text-primary transition-colors line-clamp-1" style={{ color: primaryColor }}>{product.name}</h4>
+                          <p className="text-lg font-black text-gray-900 mt-1">R$ {parseFloat(product.price).toFixed(2)}</p>
+                       </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </section>
           )}
 
-          {activeTab === 'store' && (
-            <div className="space-y-8 animate-in fade-in duration-500">
-               <div className="bg-white p-6 rounded-2xl shadow-sm border-none flex flex-col items-center text-center space-y-4">
-                  <div className="w-16 h-16 bg-[#1877F2]/10 flex items-center justify-center rounded-2xl">
-                     <ShoppingBag className="w-8 h-8 text-[#1877F2]" />
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-black uppercase tracking-tight">Loja Oficial {producer.name}</h2>
-                    <p className="text-gray-500 font-medium">Produtos exclusivos para nossos fãs e seguidores.</p>
-                  </div>
+          {/* SEÇÃO 5: GALERIA DE MEMÓRIAS */}
+          <section id="memorias" className="space-y-16">
+            <div className="flex flex-col items-center text-center space-y-4">
+              <Badge variant="outline" className="px-4 py-1.5 border-gray-200 text-gray-400 font-black uppercase tracking-widest text-[10px]">Galeria de Memórias</Badge>
+              <h3 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-gray-900">{producerData.settings?.titles?.gallery || 'Momentos Inesquecíveis'}</h3>
+            </div>
+
+            {galleryImages.length > 0 ? (
+               <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                  {galleryImages.map((img: string, idx: number) => (
+                    <div key={idx} className={`aspect-square ${buttonStyle} overflow-hidden shadow-lg border-4 border-white transition-transform hover:scale-105 duration-500`}>
+                       <img src={img} className="w-full h-full object-cover" alt={`Memória ${idx + 1}`} />
+                    </div>
+                  ))}
                </div>
-
-               {producerProducts.length === 0 ? (
-                 <div className="text-center py-20 bg-white rounded-2xl shadow-sm border border-dashed border-gray-200">
-                   <ShoppingBag className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                   <p className="text-gray-500 font-black text-lg uppercase tracking-tight">Cofre de produtos fechado</p>
-                 </div>
-               ) : (
-                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    {producerProducts.map(product => (
-                      <Card key={product.id} className="rounded-2xl shadow-sm border-none overflow-hidden group bg-white flex flex-col">
-                         <div className="aspect-square relative overflow-hidden bg-gray-50">
-                            <img src={product.imageUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={product.name} />
-                            {product.salePrice && (
-                              <Badge className="absolute top-4 left-4 bg-red-600 font-black rounded-lg border-none shadow-xl">OFF</Badge>
-                            )}
+            ) : pastEvents.length === 0 ? (
+              <div className="py-20 text-center bg-white rounded-[2rem] border border-dashed border-gray-200">
+                 <Clock className="w-12 h-12 text-gray-200 mx-auto mb-4" />
+                 <p className="text-gray-400 font-black uppercase tracking-widest">Nenhuma memória registrada ainda</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                 {pastEvents.map(event => (
+                   <div key={event.id} className="space-y-6 group">
+                      <div className={`relative aspect-[16/10] overflow-hidden shadow-2xl ${buttonStyle} border-4 border-white`}>
+                         <img src={event.banner_url || event.imageUrl} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" alt="Memory" />
+                         <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button variant="secondary" className="font-black uppercase text-[10px] tracking-widest rounded-full px-6 py-2.5">Rever Detalhes</Button>
                          </div>
-                         <CardContent className="p-5 flex-1 flex flex-col justify-between">
-                            <div>
-                               <h4 className="text-lg font-black text-gray-900 group-hover:text-[#1877F2] transition-colors line-clamp-1">{product.name}</h4>
-                               <p className="text-sm text-gray-500 font-medium line-clamp-2 mt-1">{product.description}</p>
-                            </div>
-                            <div className="mt-6 flex flex-col gap-4">
-                               <div className="flex items-center gap-2">
-                                  <span className="text-2xl font-black text-gray-900">R$ {parseFloat(product.price).toFixed(2)}</span>
-                               </div>
-                               <Link to={`/checkout/product/${product.id}`}>
-                                  <Button className="w-full bg-[#1877F2] text-white font-black uppercase tracking-widest rounded-xl hover:shadow-xl transition-all">
-                                     Comprar
-                                  </Button>
-                               </Link>
-                            </div>
-                         </CardContent>
-                      </Card>
+                      </div>
+                      <div className="flex justify-between items-start px-2">
+                         <div>
+                            <h4 className="text-xl font-black text-gray-900 uppercase tracking-tight">{event.title}</h4>
+                            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">{new Date(event.start_date || event.date).getFullYear()} • {event.location_name || event.locationName}</p>
+                         </div>
+                         <div className="flex -space-x-3">
+                            {[1,2,3].map(i => (
+                              <div key={i} className="w-10 h-10 rounded-full border-2 border-[#F8F9FA] bg-gray-100 overflow-hidden shadow-sm">
+                                 <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${event.id}${i}`} className="w-full h-full object-cover" />
+                              </div>
+                            ))}
+                         </div>
+                      </div>
+                   </div>
+                 ))}
+              </div>
+            )}
+          </section>
+
+          {/* SEÇÃO 6: PROVA SOCIAL / DEPOIMENTOS (CARROSSEL AUTOMÁTICO) */}
+          <section id="depoimentos" className="bg-white rounded-[3rem] p-12 md:p-24 shadow-xl border border-gray-100 text-center space-y-12 overflow-hidden relative">
+             <div className="absolute top-0 left-0 w-full h-2 bg-primary/20" style={{ backgroundColor: primaryColor }} />
+             
+             <div className="max-w-3xl mx-auto space-y-4">
+                <Badge variant="outline" className="px-4 py-1.5 border-gray-200 text-gray-400 font-black uppercase tracking-widest text-[10px]">Prova Social</Badge>
+                <h3 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-gray-900">{producerData.settings?.titles?.testimonials || 'O que o público diz'}</h3>
+             </div>
+
+             <div className="relative max-w-4xl mx-auto min-h-[250px] flex flex-col justify-center">
+                {testimonials.map((dep: any, i: number) => (
+                  <div 
+                    key={i} 
+                    className={`transition-all duration-1000 absolute inset-0 flex flex-col items-center justify-center space-y-8 ${i === activeTestimonial ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`}
+                  >
+                    <p className="text-gray-600 text-xl md:text-3xl font-medium italic leading-relaxed max-w-2xl mx-auto">
+                       "{dep.text}"
+                    </p>
+                    <div className="flex items-center gap-4">
+                      <div className="w-16 h-16 rounded-full bg-white shadow-sm border border-gray-100 overflow-hidden">
+                        <img src={dep.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=user${i}${dep.name}`} className="w-full h-full" alt={dep.name} />
+                      </div>
+                      <div className="text-left">
+                        <p className="text-lg font-black text-gray-900">{dep.name}</p>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{dep.role}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                
+                {/* Dots for navigation */}
+                {testimonials.length > 1 && (
+                  <div className="absolute -bottom-10 left-0 right-0 flex justify-center gap-2">
+                    {testimonials.map((_: any, i: number) => (
+                      <button 
+                        key={i}
+                        onClick={() => setActiveTestimonial(i)}
+                        className={`w-2 h-2 rounded-full transition-all ${i === activeTestimonial ? 'w-8' : 'bg-gray-200'}`}
+                        style={{ backgroundColor: i === activeTestimonial ? primaryColor : undefined }}
+                      />
                     ))}
-                 </div>
-               )}
-            </div>
-          )}
-
-          {activeTab === 'about' && (
-            <Card className="rounded-2xl shadow-sm border-none overflow-hidden pb-10">
-               <div className="h-3 bg-[#1877F2]" />
-               <CardContent className="p-8 space-y-10">
-                  <div className="space-y-4">
-                    <h3 className="text-2xl font-black uppercase tracking-tight">Missão & Visão</h3>
-                    <p className="text-gray-700 text-lg leading-relaxed font-medium">{producer.bio}</p>
                   </div>
+                 )}
+              </div>
+           </section>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-10">
-                    <div className="space-y-4">
-                       <h4 className="text-sm font-black uppercase text-gray-400 tracking-widest">Informações Adicionais</h4>
-                       <div className="space-y-3">
-                          <div className="flex items-center gap-4">
-                             <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center text-gray-500">
-                                <MapPin className="w-5 h-5" />
-                             </div>
-                             <div>
-                                <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Localização</p>
-                                <p className="text-sm font-bold text-gray-800">{producer.location}</p>
-                             </div>
-                          </div>
-                          <div className="flex items-center gap-4">
-                             <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center text-gray-500">
-                                <TicketIcon className="w-5 h-5" />
-                             </div>
-                             <div>
-                                <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Eventos Realizados</p>
-                                <p className="text-sm font-bold text-gray-800">{producerEvents.length}+ Eventos</p>
-                             </div>
-                          </div>
-                       </div>
-                    </div>
-                    
-                    <div className="space-y-4 text-center p-6 bg-gray-50 rounded-3xl border border-gray-100">
-                       <h4 className="font-black text-gray-900 text-lg uppercase tracking-tight">Fã desde...</h4>
-                       <div className="text-5xl">🎁</div>
-                       <p className="text-xs font-bold text-gray-500 leading-relaxed">Conecte-se com a marca oficial em todos os canais verificados.</p>
-                       <div className="flex justify-center gap-4">
-                           {producer.instagram && <Instagram className="w-5 h-5 text-[#1877F2] cursor-pointer" />}
-                           {producer.facebook && <Facebook className="w-5 h-5 text-[#1877F2] cursor-pointer" />}
-                       </div>
-                    </div>
-                  </div>
-               </CardContent>
-            </Card>
-          )}
+           {/* FOOTER DO PRODUTOR */}
+          <footer id="contato" className="pt-20 border-t border-gray-200">
+             <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
+                <div className="md:col-span-2 space-y-6">
+                   <div className="flex items-center gap-4">
+                      <div className={`w-12 h-12 ${buttonStyle} overflow-hidden shadow-lg`}>
+                        <img src={producerData.logo_url} className="w-full h-full object-cover" />
+                      </div>
+                      <h4 className="text-xl font-black uppercase tracking-tight text-gray-900">{producerData.company_name}</h4>
+                   </div>
+                   <p className="text-gray-500 font-medium max-w-sm">
+                      Siga nossas redes e fique por dentro de todos os eventos exclusivos. Sua próxima grande memória começa aqui.
+                   </p>
+                   <div className="flex gap-4">
+                      {producerData.instagram_url && (
+                        <a href={producerData.instagram_url} className="w-10 h-10 rounded-full bg-white shadow-sm border border-gray-100 flex items-center justify-center hover:text-pink-500 transition-colors">
+                          <Instagram className="w-5 h-5" />
+                        </a>
+                      )}
+                      {producerData.facebook_url && (
+                        <a href={producerData.facebook_url} className="w-10 h-10 rounded-full bg-white shadow-sm border border-gray-100 flex items-center justify-center hover:text-blue-600 transition-colors">
+                          <Facebook className="w-5 h-5" />
+                        </a>
+                      )}
+                   </div>
+                </div>
 
-        </main>
+                <div className="space-y-6">
+                   <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Links Rápidos</p>
+                    <ul className="space-y-3">
+                      {[
+                        { id: 'agenda', show: showEvents },
+                        { id: 'sobre', show: true },
+                        { id: 'loja', show: showStore && producerProducts.length > 0 },
+                        { id: 'memorias', show: true }
+                      ].filter(i => i.show).map(item => (
+                        <li key={item.id}>
+                          <button 
+                            onClick={() => scrollToSection(item.id)}
+                            className="text-sm font-bold text-gray-600 hover:text-gray-900 transition-colors capitalize"
+                          >
+                            {item.id}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                </div>
+
+                <div className="space-y-6">
+                   <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Suporte & Canal</p>
+                   <div className={`p-6 rounded-[2rem] bg-gray-900 text-white space-y-4`}>
+                      <p className="text-xs font-bold leading-relaxed opacity-80">Dúvidas sobre ingressos ou eventos?</p>
+                      <Button 
+                        className={`w-full h-10 text-[10px] font-black uppercase tracking-widest bg-white text-gray-900 hover:bg-gray-100 rounded-xl`}
+                      >
+                        Falar no WhatsApp
+                      </Button>
+                   </div>
+                </div>
+             </div>
+
+             <div className="mt-20 pt-8 border-t border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
+                <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest italic">
+                   Powered by <span className="text-indigo-600">Ticketera</span> • © {new Date().getFullYear()} {producerData.company_name}
+                </p>
+                <div className="flex gap-6 text-[10px] font-black uppercase text-gray-400 tracking-widest">
+                   <Link to="/terms" className="hover:text-gray-900">Termos</Link>
+                   <Link to="/privacy" className="hover:text-gray-900">Privacidade</Link>
+                </div>
+             </div>
+          </footer>
+        </div>
       </div>
-      
-      {/* Dynamic Link for Checkout / Floating button if mobile? (Optional premium touch) */}
     </div>
   );
 };
