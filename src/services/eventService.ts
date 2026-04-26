@@ -26,6 +26,7 @@ export interface Event {
         email: string;
         slug: string;
         logoUrl?: string;
+        description?: string;
     };
     ticket_design?: {
         template: string;
@@ -34,6 +35,9 @@ export interface Event {
         textColor: string;
     };
     gallery_urls?: string[];
+    faqs?: { question: string; answer: string }[];
+    duration?: string;
+    time?: string;
     tickets: any[];
 }
 
@@ -64,7 +68,8 @@ class EventService {
                 name: details.company_name || organizer.name || 'Organizador',
                 email: organizer.email,
                 slug: details.slug || '',
-                logoUrl: details.logo_url || ''
+                logoUrl: details.logo_url || '',
+                description: details.description || details.bio || organizer.bio || ''
             },
             ticket_design: d.ticket_design || {
                 template: 'modern',
@@ -72,6 +77,10 @@ class EventService {
                 secondaryColor: '#7C3AED',
                 textColor: '#FFFFFF'
             },
+            gallery_urls: d.gallery_urls || d.settings?.gallery_urls || [],
+            faqs: d.event_faqs || d.settings?.faqs || [],
+            duration: d.duration || '4',
+            time: d.start_date ? new Date(d.start_date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '00:00',
             tickets: d.tickets || []
         } as Event;
     }
@@ -119,7 +128,7 @@ class EventService {
             
             const { data: eventData, error: eError } = await supabase
                 .from('events')
-                .select('*, tickets(*)')
+                .select('*, tickets(*), event_faqs(*)')
                 .or(isUuid ? `id.eq.${idOrSlug}` : `slug.eq.${idOrSlug}`)
                 .maybeSingle();
 
@@ -127,13 +136,16 @@ class EventService {
             if (!eventData) return null;
 
             if (eventData.organizer_id) {
-                const { data: profileData } = await supabase
-                    .from('profiles')
-                    .select('*, details:organizer_details(*)')
-                    .eq('user_id', eventData.organizer_id)
-                    .maybeSingle();
+                const [profileRes, detailsRes] = await Promise.all([
+                    supabase.from('profiles').select('*').eq('id', eventData.organizer_id).maybeSingle(),
+                    supabase.from('organizer_details').select('*').eq('user_id', eventData.organizer_id).maybeSingle()
+                ]);
                 
-                if (profileData) {
+                if (profileRes.data) {
+                    const profileData = profileRes.data;
+                    if (detailsRes.data) {
+                        profileData.details = detailsRes.data;
+                    }
                     eventData.organizer = profileData;
                 }
             }

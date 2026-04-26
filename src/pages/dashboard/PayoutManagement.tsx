@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { DollarSign, Calendar, Check, AlertTriangle, ArrowUpRight, Clock, ShieldCheck, User, XCircle, Loader2, ChevronRight, Hash, Zap, ShieldAlert, Database, Target, Cpu, Banknote } from 'lucide-react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
@@ -27,7 +26,7 @@ const PayoutManagement = () => {
       } catch (error) {
         console.error('Erro ao carregar solicitações de pagamento:', error);
         toast({
-          title: 'Financial Matrix Error',
+          title: 'Erro na Matriz Financeira',
           description: 'Não foi possível sincronizar os repasses pendentes no kernel central.',
           variant: 'destructive'
         });
@@ -83,7 +82,7 @@ const PayoutManagement = () => {
     };
     
     toast({
-      title: 'Matrix Status Synchronized',
+      title: 'Status da Matriz Sincronizado',
       description: statusMessages[newStatus],
     });
     
@@ -124,10 +123,10 @@ const PayoutManagement = () => {
         {/* Financial Metrics Matrix */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
           {[
-            { label: 'Total Operations Registry', value: payouts.length, icon: Hash, color: 'slate' },
-            { label: 'Net Liquidation Matrix', value: `R$ ${payouts.reduce((sum, p) => sum + p.amount, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, icon: ArrowUpRight, color: 'emerald' },
-            { label: 'Settlement Waitlist Hub', value: payouts.filter(p => p.status === 'pending').length, icon: Clock, color: 'amber' },
-            { label: 'Cleared Master Nodes', value: payouts.filter(p => p.status === 'completed').length, icon: ShieldCheck, color: 'slate' },
+            { label: 'Registro Total de Operações', value: payouts.length, icon: Hash, color: 'slate' },
+            { label: 'Matriz de Liquidação Líquida', value: `R$ ${payouts.reduce((sum, p) => sum + p.amount, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, icon: ArrowUpRight, color: 'emerald' },
+            { label: 'Fila de Saques', value: payouts.filter(p => p.status === 'pending').length, icon: Clock, color: 'amber' },
+            { label: 'Nós Master Liberados', value: payouts.filter(p => p.status === 'completed').length, icon: ShieldCheck, color: 'slate' },
           ].map((stat, i) => (
             <Card key={i} className="rounded-[3rem] border-gray-100 shadow-sm bg-white overflow-hidden group hover:shadow-[0_40px_100px_rgba(0,0,0,0.1)] transition-all duration-1000 border-2">
               <CardContent className="p-10 flex items-center justify-between">
@@ -152,11 +151,11 @@ const PayoutManagement = () => {
           <CardHeader className="pb-6 border-b border-gray-50 bg-gray-50/20 px-16 py-12">
             <div className="flex items-center justify-between">
                <CardTitle className="text-[12px] font-black text-slate-300 uppercase tracking-[0.4em] flex items-center gap-5">
-                  <Database className="w-6 h-6 text-slate-900" /> Transaction Registry Ledger
+                  <Database className="w-6 h-6 text-slate-900" /> Ledger de Registro de Transações
                </CardTitle>
                <div className="flex items-center gap-4 bg-white/50 px-6 py-2.5 rounded-full border border-gray-100">
                   <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_15px_rgba(16,185,129,0.8)]" />
-                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 leading-none">Live Clearing Flux</span>
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 leading-none">Fluxo de Clearing ao Vivo</span>
                </div>
             </div>
           </CardHeader>
@@ -165,12 +164,12 @@ const PayoutManagement = () => {
               <table className="w-full text-left">
                 <thead className="bg-gray-50/50 border-b border-gray-100">
                   <tr>
-                    <th className="px-16 py-10 text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">Hash / Node Registry</th>
-                    <th className="px-16 py-10 text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">Producer Authority Hub</th>
-                    <th className="px-16 py-10 text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">Temporal Cluster Node</th>
-                    <th className="px-16 py-10 text-[10px] font-black text-slate-300 uppercase tracking-[0.3em] text-right">Net Matrix Clearing</th>
-                    <th className="px-16 py-10 text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">Flux Status</th>
-                    <th className="px-16 py-10 text-right text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">Action Hub</th>
+                    <th className="px-16 py-10 text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">Hash / Nó de Registro</th>
+                    <th className="px-16 py-10 text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">Autoridade Produtor</th>
+                    <th className="px-16 py-10 text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">Nó Temporal</th>
+                    <th className="px-16 py-10 text-[10px] font-black text-slate-300 uppercase tracking-[0.3em] text-right">Liquidação Líquida</th>
+                    <th className="px-16 py-10 text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">Status</th>
+                    <th className="px-16 py-10 text-right text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -179,7 +178,7 @@ const PayoutManagement = () => {
                       <td colSpan={6} className="px-16 py-32 text-center">
                         <div className="flex flex-col items-center gap-8">
                            <Loader2 className="animate-spin h-12 w-12 text-slate-900" />
-                           <span className="text-[11px] font-black uppercase text-slate-300 tracking-[0.4em]">Scanning Financial Kernel Flux...</span>
+                           <span className="text-[11px] font-black uppercase text-slate-300 tracking-[0.4em]">Sincronizando Fluxo Financeiro...</span>
                         </div>
                       </td>
                     </tr>
@@ -189,7 +188,7 @@ const PayoutManagement = () => {
                          <div className="w-32 h-32 rounded-[3.5rem] bg-gray-50 flex items-center justify-center mx-auto mb-10 border-4 border-white shadow-2xl transition-transform hover:scale-110">
                             <Banknote className="w-12 h-12 text-slate-200" />
                          </div>
-                         <p className="text-[12px] font-black uppercase text-slate-400 tracking-[0.3em]">Zero settlement requests in current Matrix waitlist.</p>
+                         <p className="text-[12px] font-black uppercase text-slate-400 tracking-[0.3em]">Zero solicitações de repasse pendentes.</p>
                       </td>
                     </tr>
                   ) : filteredPayouts.map((payout) => (
@@ -219,7 +218,9 @@ const PayoutManagement = () => {
                           payout.status === 'completed' ? 'bg-emerald-50 text-emerald-600' :
                           'bg-rose-50 text-rose-600'
                         }`}>
-                          {payout.status?.toUpperCase() || 'WAITING_LOG'}
+                          {payout.status === 'pending' ? 'PENDENTE' : 
+                           payout.status === 'processing' ? 'PROCESSANDO' : 
+                           payout.status === 'completed' ? 'CONCLUÍDO' : 'FALHOU'}
                         </Badge>
                       </td>
                       <td className="px-16 py-10 text-right" onClick={(e) => e.stopPropagation()}>
@@ -229,7 +230,7 @@ const PayoutManagement = () => {
                           onClick={() => handleViewDetails(payout)}
                           className="h-12 rounded-full text-slate-300 hover:text-slate-900 hover:bg-gray-100 font-black uppercase text-[10px] tracking-widest px-8 transition-all hover:scale-105"
                         >
-                          Deep Audit <ChevronRight className="w-4 h-4 ml-3 group-hover:translate-x-2 transition-transform" />
+                          Auditoria Profunda <ChevronRight className="w-4 h-4 ml-3 group-hover:translate-x-2 transition-transform" />
                         </Button>
                       </td>
                     </tr>
@@ -249,7 +250,7 @@ const PayoutManagement = () => {
                 <div className="space-y-3">
                   <DialogTitle className="text-3xl font-black uppercase tracking-tighter flex items-center gap-6">
                     <div className="p-4 bg-slate-900 rounded-[1.6rem] text-white shadow-2xl border-4 border-white"><Target className="w-8 h-8" /></div>
-                    Liquidation Protocol
+                    Protocolo de Liquidação
                   </DialogTitle>
                   <DialogDescription className="text-[11px] font-bold uppercase tracking-[0.4em] text-slate-300 leading-none">Verificação atômica de domicílio bancário e autorização de clearing global.</DialogDescription>
                 </div>
@@ -264,15 +265,15 @@ const PayoutManagement = () => {
                 <div className="grid grid-cols-2 gap-10 bg-slate-900 text-white p-12 rounded-[3.5rem] border-4 border-white shadow-[0_40px_100px_rgba(0,0,0,0.3)] relative overflow-hidden group">
                   <div className="absolute -right-12 -top-12 p-12 opacity-5 group-hover:opacity-10 group-hover:scale-125 transition-all duration-1000 group-hover:rotate-12"><Zap className="w-52 h-52" /></div>
                   <div className="space-y-3 relative z-10">
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] leading-none">Net Matrix Clearing Volume</p>
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] leading-none">Volume Líquido de Clearing</p>
                     <p className="text-4xl font-black text-emerald-400 tracking-tighter leading-none tabular-nums">R$ {selectedPayout.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                   </div>
                   <div className="space-y-3 relative z-10">
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] leading-none">Authorized Kernel Hash</p>
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] leading-none">Hash de Kernel Autorizado</p>
                     <p className="text-[11px] font-mono text-white/40 leading-none tabular-nums uppercase">#{selectedPayout.id.slice(0, 16).toUpperCase()}</p>
                   </div>
                   <div className="space-y-4 col-span-2 pt-10 border-t-2 border-white/5 relative z-10">
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] leading-none">Authorized Node Entity</p>
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] leading-none">Entidade de Nó Autorizada</p>
                     <p className="text-[18px] font-black text-white uppercase tracking-tight leading-none group-hover:translate-x-2 transition-transform duration-1000">{selectedPayout.organizerName}</p>
                   </div>
                 </div>
@@ -280,19 +281,19 @@ const PayoutManagement = () => {
                 <div className="space-y-8">
                   <div className="flex items-center gap-6">
                      <div className="w-12 h-px bg-gray-100" />
-                     <p className="text-[11px] font-black uppercase tracking-[0.4em] text-slate-300 flex items-center gap-4 leading-none"><ShieldCheck className="h-5 w-5 text-slate-900" /> Authorized Banking Registry Hub</p>
+                     <p className="text-[11px] font-black uppercase tracking-[0.4em] text-slate-300 flex items-center gap-4 leading-none"><ShieldCheck className="h-5 w-5 text-slate-900" /> Hub de Registro Bancário Autorizado</p>
                      <div className="flex-1 h-px bg-gray-100" />
                   </div>
                   <div className="bg-gray-50/30 border-2 border-gray-50 p-12 rounded-[3rem] space-y-8 shadow-inner">
                     {[
-                      { l: 'Bank Node Authority', v: selectedPayout.bankInfo.bankName },
-                      { l: 'Account Cluster Protocol', v: selectedPayout.bankInfo.accountType },
-                      { l: 'Branch Registry Hash', v: selectedPayout.bankInfo.branchCode },
-                      { l: 'Master Account Number Hub', v: selectedPayout.bankInfo.accountNumber }
+                      { l: 'Banco Autorizado', v: selectedPayout.bankInfo.bankName },
+                      { l: 'Tipo de Conta', v: selectedPayout.bankInfo.accountType },
+                      { l: 'Agência', v: selectedPayout.bankInfo.branchCode },
+                      { l: 'Conta', v: selectedPayout.bankInfo.accountNumber }
                     ].map((item, idx) => (
                       <div key={idx} className={`flex justify-between items-center text-[13px] font-black uppercase tracking-tight ${idx < 3 ? 'border-b-2 border-gray-50 pb-6' : ''} group/row`}>
                          <span className="text-slate-300 tracking-[0.2em] leading-none group-hover/row:text-slate-900 transition-colors">{item.l}</span>
-                         <span className="text-slate-900 leading-none tabular-nums group-hover/row:translate-x-[-4px] transition-transform">{item.v?.toUpperCase() || 'ROOT_EMPTY'}</span>
+                         <span className="text-slate-900 leading-none tabular-nums group-hover/row:translate-x-[-4px] transition-transform">{item.v?.toUpperCase() || 'VAZIO_RAIZ'}</span>
                       </div>
                     ))}
                   </div>
@@ -309,14 +310,14 @@ const PayoutManagement = () => {
                       onClick={() => handleStatusChange(selectedPayout.id, 'failed')}
                       className="flex-1 h-16 rounded-full font-black text-[12px] uppercase tracking-[0.3em] text-rose-500 hover:bg-rose-50 transition-all hover:scale-105"
                     >
-                      Abort & Reject Node
+                      Rejeitar & Abortar
                     </Button>
                     <Button 
                       variant="outline" 
                       onClick={() => handleStatusChange(selectedPayout.id, 'processing')}
                       className="flex-1 h-16 rounded-full border-2 border-gray-100 bg-white text-slate-900 font-black text-[12px] uppercase tracking-[0.3em] hover:bg-slate-900 hover:text-white transition-all shadow-xl"
                     >
-                      Audit Mode Flux
+                      Modo de Auditoria
                     </Button>
                   </div>
                   <Button 
@@ -324,7 +325,7 @@ const PayoutManagement = () => {
                     onClick={() => handleStatusChange(selectedPayout.id, 'completed')}
                   >
                     <ShieldCheck className="w-8 h-8 mr-6 group-hover:scale-125 transition-transform" />
-                    Authorize Global Liquidation
+                    Autorizar Liquidação Global
                   </Button>
                 </>
               )}
@@ -336,21 +337,21 @@ const PayoutManagement = () => {
                     onClick={() => handleStatusChange(selectedPayout.id, 'failed')}
                     className="h-16 rounded-full border-4 border-rose-50 bg-white text-rose-500 font-black text-[12px] uppercase tracking-[0.3em] hover:bg-rose-500 hover:text-white transition-all shadow-xl"
                   >
-                    Fail Operation Node & Block
+                    Falhar Operação e Bloquear
                   </Button>
                   <Button 
                     className="h-20 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white font-black text-[14px] uppercase tracking-[0.5em] shadow-[0_30px_80px_rgba(16,185,129,0.3)] transition-all hover:scale-110 active:scale-95 group/liq border-4 border-emerald-400"
                     onClick={() => handleStatusChange(selectedPayout.id, 'completed')}
                   >
                     <Zap className="w-8 h-8 mr-6 group-hover:animate-pulse" />
-                    Liquidate Alpha Asset Matrix
+                    Liquidar Ativo Master
                   </Button>
                 </div>
               )}
               
               {selectedPayout && (selectedPayout.status === 'completed' || selectedPayout.status === 'failed') && (
                 <Button onClick={() => setDialogOpen(false)} className="w-full h-16 rounded-full font-black text-[12px] uppercase tracking-[0.4em] bg-slate-900 text-white shadow-2xl transition-all hover:scale-110 border-4 border-slate-800">
-                   Close Authorized Audit Protocol
+                   Fechar Protocolo de Auditoria
                 </Button>
               )}
             </div>

@@ -99,19 +99,151 @@ class MasterService {
         return this.getOrganizers('pending');
     }
 
-    // List all customers (Leads/Mailing Global)
-    async getAllCustomers() {
-        const { data, error } = await supabaseAdmin
+    // List all customers (Leads/Mailing Global) with BI analytics
+    async getMailingAnalytics() {
+        console.log('[MASTER SERVICE] Buscando Mailing e processando métricas de BI...');
+        
+        // 1. Fetch customers
+        const { data: customers, error: custErr } = await supabaseAdmin
             .from('profiles')
             .select('*')
             .eq('role', 'customer')
             .order('created_at', { ascending: false });
             
-        if (error) {
-            console.error('Erro ao buscar clientes (MasterService):', error);
-            throw error;
+        if (custErr) {
+            console.error('Erro ao buscar clientes (MasterService):', custErr);
+            throw custErr;
         }
-        return data;
+
+        if (!customers || customers.length === 0) {
+            return {
+                customers: [],
+                stats: { topProducers: [], cities: [], genders: [], ages: [] }
+            };
+        }
+
+        // 2. Fetch purchases to link Origin Producer
+        // Pegamos todos os tickets comprados
+        const { data: tickets } = await supabaseAdmin
+            .from('purchased_tickets')
+            .select('user_id, event_id, purchase_date')
+            .order('purchase_date', { ascending: true });
+            
+        const { data: events } = await supabaseAdmin
+            .from('events')
+            .select('id, organizer_id');
+            
+        const { data: profiles } = await supabaseAdmin
+            .from('profiles')
+            .select('user_id, name')
+            .eq('role', 'organizer');
+            
+        const { data: orgDetails } = await supabaseAdmin
+            .from('organizer_details')
+            .select('user_id, company_name');
+
+        // Maps para acesso rápido (O(1))
+        const eventToOrgMap = new Map();
+        events?.forEach(e => eventToOrgMap.set(e.id, e.organizer_id));
+        
+        const orgNameMap = new Map();
+        profiles?.forEach(p => orgNameMap.set(p.user_id, p.name));
+        orgDetails?.forEach(d => {
+            if (d.company_name) orgNameMap.set(d.user_id, d.company_name);
+        });
+
+        // 3. Process Origin Producer for each customer
+        const originProducerMap = new Map(); // user_id -> producer_name
+        const producerCountMap = new Map();  // producer_name -> count
+        
+        tickets?.forEach(t => {
+            if (!originProducerMap.has(t.user_id)) {
+                // Primeira compra!
+                const orgId = eventToOrgMap.get(t.event_id);
+                if (orgId) {
+                    const orgName = orgNameMap.get(orgId) || 'Produtor Desconhecido';
+                    originProducerMap.set(t.user_id, orgName);
+                    producerCountMap.set(orgName, (producerCountMap.get(orgName) || 0) + 1);
+                }
+            }
+        });
+
+        // 4. BI Analytics Counters
+        const cityCount: Record<string, number> = {};
+        const genderCount: Record<string, number> = {};
+        const ageCount = {
+            '18-24': 0,
+            '25-34': 0,
+            '35-44': 0,
+            '45-54': 0,
+            '55+': 0,
+            'Não Informado': 0
+        };
+
+        const enrichedCustomers = customers.map(c => {
+            // Origin Producer
+            const originProducer = originProducerMap.get(c.user_id) || 'Orgânico (Ticketera)';
+            
+            // City
+            const city = c.city || 'Não Informada';
+            cityCount[city] = (cityCount[city] || 0) + 1;
+            
+            // Gender
+            const gender = c.gender || 'Não Informado';
+            genderCount[gender] = (genderCount[gender] || 0) + 1;
+            
+            // Age
+            if (c.birth_date) {
+                const birthYear = new Date(c.birth_date).getFullYear();
+                const currentYear = new Date().getFullYear();
+                const age = currentYear - birthYear;
+                
+                if (age >= 18 && age <= 24) ageCount['18-24']++;
+                else if (age >= 25 && age <= 34) ageCount['25-34']++;
+                else if (age >= 35 && age <= 44) ageCount['35-44']++;
+                else if (age >= 45 && age <= 54) ageCount['45-54']++;
+                else if (age >= 55) ageCount['55+']++;
+                else ageCount['Não Informado']++;
+            } else {
+                ageCount['Não Informado']++;
+            }
+
+            return {
+                ...c,
+                origin_producer: originProducer
+            };
+        });
+
+        // Formatar Top 10 Producers
+        const topProducers = Array.from(producerCountMap.entries())
+            .map(([name, count]) => ({ name, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 10); // Apenas os 10 maiores
+
+        // Formatar Cidades
+        const topCities = Object.entries(cityCount)
+            .map(([name, count]) => ({ name, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 10); // Apenas as 10 maiores
+
+        // Formatar Gêneros
+        const genders = Object.entries(genderCount)
+            .map(([name, count]) => ({ name, count }))
+            .sort((a, b) => b.count - a.count);
+
+        // Formatar Idades
+        const ages = Object.entries(ageCount)
+            .map(([range, count]) => ({ range, count }));
+
+        return {
+            customers: enrichedCustomers,
+            stats: {
+                topProducers,
+                cities: topCities,
+                genders,
+                ages
+            }
+        };
     }
 
     // Approve an organizer
@@ -309,6 +441,131 @@ class MasterService {
             .from('events')
             .update({ is_featured: isFeatured })
             .eq('id', eventDocId);
+    }
+
+    // Get Advanced Analytics for Reports BI
+    async getReportsAnalytics() {
+        console.log('[MASTER SERVICE] Buscando dados consolidados para o BI de Relatórios...');
+        
+        try {
+            // 1. Fetch events
+            const { data: events, error: evErr } = await supabaseAdmin
+                .from('events')
+                .select('id, city, event_type, created_at, status');
+                
+            if (evErr) throw evErr;
+
+            // 2. Fetch all purchased tickets (to calculate revenue and link to events)
+            const { data: tickets, error: ticErr } = await supabaseAdmin
+                .from('purchased_tickets')
+                .select('event_id, price, purchase_date');
+                
+            if (ticErr) throw ticErr;
+
+            // Data Structures for Aggregation
+            const cityData: Record<string, { events: number, revenue: number }> = {};
+            const categoryData: Record<string, number> = {};
+            const monthlyData: Record<string, { events: number, revenue: number }> = {};
+
+            const monthNames = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
+
+            // Initialize last 6 months for the chronological chart
+            const now = new Date();
+            for (let i = 5; i >= 0; i--) {
+                const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                const label = `${monthNames[d.getMonth()]}`;
+                monthlyData[label] = { events: 0, revenue: 0 };
+            }
+
+            // Maps
+            const eventInfoMap = new Map(); // event_id -> { city, type }
+            events?.forEach(e => {
+                const city = (e.city || 'Outros').toUpperCase();
+                const type = (e.event_type || 'OUTRO').toUpperCase();
+                
+                eventInfoMap.set(e.id, { city, type });
+                
+                // Aggregate Event count by City
+                if (!cityData[city]) cityData[city] = { events: 0, revenue: 0 };
+                cityData[city].events += 1;
+
+                // Aggregate Event count by Category
+                categoryData[type] = (categoryData[type] || 0) + 1;
+                
+                // Aggregate Event count by Month
+                const eDate = new Date(e.created_at);
+                const monthLabel = monthNames[eDate.getMonth()];
+                if (monthlyData[monthLabel]) {
+                    monthlyData[monthLabel].events += 1;
+                }
+            });
+
+            // Aggregate Ticket Revenue
+            tickets?.forEach(t => {
+                const price = parseFloat(t.price || '0');
+                const eInfo = eventInfoMap.get(t.event_id);
+                
+                if (eInfo) {
+                    if (cityData[eInfo.city]) {
+                        cityData[eInfo.city].revenue += price;
+                    }
+                }
+
+                const pDate = new Date(t.purchase_date);
+                const monthLabel = monthNames[pDate.getMonth()];
+                if (monthlyData[monthLabel]) {
+                    monthlyData[monthLabel].revenue += price;
+                }
+            });
+
+            // Format City Data
+            const formattedCityData = Object.entries(cityData)
+                .map(([name, stats]) => ({
+                    name,
+                    value: stats.events,
+                    revenue: stats.revenue,
+                    avg: stats.events > 0 ? (stats.revenue / stats.events) : 0
+                }))
+                .sort((a, b) => b.value - a.value)
+                .slice(0, 10);
+
+            // Format Category Data
+            const formattedCategoryData = Object.entries(categoryData)
+                .map(([name, value]) => ({ name, value }))
+                .sort((a, b) => b.value - a.value)
+                .slice(0, 10);
+
+            // Format Monthly Data
+            const formattedMonthlyData = Object.entries(monthlyData)
+                .map(([month, stats]) => ({
+                    month,
+                    events: stats.events,
+                    revenue: stats.revenue
+                }));
+
+            // Totais
+            const totalRevenue = Object.values(cityData).reduce((sum, c) => sum + c.revenue, 0);
+            const totalEvents = events?.length || 0;
+
+            return {
+                cityData: formattedCityData,
+                categoryData: formattedCategoryData,
+                monthlyData: formattedMonthlyData,
+                totals: {
+                    events: totalEvents,
+                    revenue: totalRevenue
+                }
+            };
+        } catch (error) {
+            console.error('[MASTER SERVICE] Erro ao gerar Reports BI:', error);
+            // Fallback empty data
+            return {
+                cityData: [],
+                categoryData: [],
+                monthlyData: [],
+                totals: { events: 0, revenue: 0 }
+            };
+        }
     }
 
     // Platform stats

@@ -1,45 +1,71 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
-import { Users, Search, Download, Loader2, MapPin, Mail, Phone, Calendar, CreditCard, Filter, ChevronRight, User, Hash, Zap, Database, ShieldCheck, Target, ShieldAlert, Activity } from 'lucide-react';
+import { Users, Search, Download, Loader2, MapPin, Mail, Phone, Calendar, CreditCard, ChevronRight, Database, ShieldCheck, Zap, BarChart3, User, Activity } from 'lucide-react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { masterService } from '@/services/masterService';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from '@/components/ui/sheet';
+
+// Progress Bar Custom Component (Minimalismo Autoritário)
+const ProgressBar = ({ label, value, max, color = 'bg-slate-900' }: { label: string, value: number, max: number, color?: string }) => {
+  const percentage = max > 0 ? (value / max) * 100 : 0;
+  return (
+    <div className="space-y-1 mb-3">
+      <div className="flex justify-between items-end">
+        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">{label}</span>
+        <span className="text-[12px] font-black text-slate-900 tabular-nums">{value.toLocaleString('pt-BR')}</span>
+      </div>
+      <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
+        <div 
+          className={`h-full ${color} rounded-full transition-all duration-1000 ease-out`} 
+          style={{ width: `${percentage}%` }}
+        />
+      </div>
+    </div>
+  );
+};
 
 const MasterGlobalMailing = () => {
-  const [customers, setCustomers] = useState<any[]>([]);
+  const [data, setData] = useState<any>({ customers: [], stats: null });
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
 
   useEffect(() => {
-    const fetchCustomers = async () => {
+    const fetchAnalytics = async () => {
       try {
-        const data = await masterService.getAllCustomers();
-        setCustomers(data || []);
+        const result = await masterService.getMailingAnalytics();
+        setData(result);
       } catch (error) {
-        console.error('Erro ao buscar mailing global:', error);
+        console.error('Erro ao buscar analytics de mailing:', error);
       } finally {
         setLoading(false);
       }
     };
-    fetchCustomers();
+    fetchAnalytics();
   }, []);
+
+  const customers = data?.customers || [];
+  const stats = data?.stats;
 
   const filtered = useMemo(() => {
     if (!searchTerm) return customers;
     const low = searchTerm.toLowerCase();
-    return customers.filter(c => 
+    return customers.filter((c: any) => 
       c.name?.toLowerCase().includes(low) || 
       c.email?.toLowerCase().includes(low) ||
-      c.cpf?.includes(low)
+      c.cpf?.includes(low) ||
+      c.origin_producer?.toLowerCase().includes(low) ||
+      c.city?.toLowerCase().includes(low)
     );
   }, [customers, searchTerm]);
 
   const exportCSV = () => {
-    const headers = ['Nome', 'Email', 'CPF', 'Telefone', 'Cidade', 'Estado', 'Data de Nascimento', 'Criado em'];
-    const rows = filtered.map(c => [
+    const headers = ['Nome', 'Email', 'CPF', 'Telefone', 'Cidade', 'Estado', 'Data de Nascimento', 'Produtor Origem', 'Criado em'];
+    const rows = filtered.map((c: any) => [
       c.name || 'Sem Nome',
       c.email || 'Sem Email',
       c.cpf || '—',
@@ -47,6 +73,7 @@ const MasterGlobalMailing = () => {
       c.city || '—',
       c.state || '—',
       c.birth_date || '—',
+      c.origin_producer || '—',
       c.created_at ? new Date(c.created_at).toLocaleDateString('pt-BR') : '—'
     ]);
     const csv = [headers, ...rows].map(r => r.map(v => `"${String(v || '').replace(/"/g, '""')}"`).join(',')).join('\n');
@@ -56,180 +83,261 @@ const MasterGlobalMailing = () => {
     URL.revokeObjectURL(url);
   };
 
+  const openDossier = (user: any) => {
+    setSelectedUser(user);
+    setIsSheetOpen(true);
+  };
+
+  // Find max values for BI Charts
+  const maxProducers = stats?.topProducers?.[0]?.count || 1;
+  const maxCities = stats?.cities?.[0]?.count || 1;
+  const maxGenders = stats?.genders?.[0]?.count || 1;
+  const maxAges = stats?.ages?.reduce((max: number, item: any) => item.count > max ? item.count : max, 1) || 1;
+
   return (
     <DashboardLayout userType="admin">
-      <div className="space-y-16 pb-20 animate-in fade-in duration-1000">
+      <div className="space-y-10 pb-20 animate-in fade-in duration-1000">
         
         {/* Master Mailing Header */}
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 px-2">
            <div className="space-y-1">
-              <h1 className="text-lg font-bold text-slate-800 tracking-tight">Mailing Global</h1>
+              <h1 className="text-lg font-bold text-slate-800 tracking-tight">Mailing Global Analytics</h1>
               <p className="text-xs font-medium text-slate-500 max-w-2xl">
-                Base centralizada de clientes e usuários cadastrados na plataforma.
+                Base centralizada de inteligência demográfica e aquisição de clientes.
               </p>
            </div>
            
            <div className="flex items-center gap-4">
               <Button 
-                variant="outline"
-                className="h-8 text-xs font-medium px-3 shadow-sm transition-all rounded-md"
-              >
-                <Filter className="w-3 h-3 mr-1.5" />
-                Filtros
-              </Button>
-              <Button 
                 onClick={exportCSV}
                 disabled={loading || customers.length === 0}
-                className="h-8 bg-indigo-600 text-white hover:bg-indigo-700 text-xs font-medium px-3 shadow-sm transition-all rounded-md"
+                className="h-8 bg-indigo-600 text-white hover:bg-indigo-700 text-xs font-medium px-4 shadow-sm transition-all rounded-md"
               >
-                <Download className="w-3 h-3 mr-1.5" /> Exportar CSV
+                <Download className="w-3 h-3 mr-2" /> Exportar CSV
               </Button>
            </div>
         </div>
 
-        {/* Intelligence Units */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-10">
-          <Card className="rounded-[3rem] border-gray-100 shadow-sm bg-white overflow-hidden hover:shadow-[0_40px_100px_rgba(0,0,0,0.1)] transition-all duration-1000 group border-2">
-             <CardContent className="p-10 flex items-center gap-8">
-                <div className="w-16 h-16 rounded-[1.8rem] bg-slate-900 text-white flex items-center justify-center border-4 border-white shadow-2xl group-hover:scale-110 group-hover:rotate-6 transition-transform">
-                   <Database className="w-7 h-7" />
-                </div>
-                <div className="space-y-1.5">
-                   <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-300 leading-none mb-2">Lead Matrix Nodes</p>
-                   <p className="text-4xl font-black text-slate-900 tracking-tighter leading-none tabular-nums">{loading ? '---' : customers.length.toLocaleString('pt-BR')}</p>
-                </div>
-             </CardContent>
-          </Card>
-          
-          <div className="md:col-span-3">
-             <div className="relative group h-full">
-                <Search className="absolute left-10 top-1/2 -translate-y-1/2 w-6 h-6 text-slate-200 group-focus-within:text-slate-900 transition-all duration-700" />
-                <Input 
-                  placeholder="Escaneando base protocolar por nome, e-mail ou hash de documento (CPF)..."
-                  className="w-full h-full pl-24 pr-12 bg-white border-2 border-gray-100 rounded-[3rem] shadow-sm text-[13px] font-black uppercase tracking-tight focus:ring-[12px] focus:ring-slate-50 focus:border-slate-900 transition-all placeholder:text-slate-200"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-                <div className="absolute right-10 top-1/2 -translate-y-1/2 flex items-center gap-4">
-                   <Badge className="bg-gray-50 text-slate-400 border-none font-black text-[9px] uppercase tracking-[0.2em] px-6 py-2 rounded-full shadow-inner">INDEXED_CLUSTER_ALPHA</Badge>
-                   <div className="w-px h-8 bg-gray-100" />
-                   <Zap className="w-5 h-5 text-amber-500 animate-pulse shadow-[0_0_15px_rgba(245,158,11,0.4)]" />
-                </div>
-             </div>
-          </div>
-        </div>
+        {/* BI Dashboards */}
+        {loading ? (
+           <div className="h-64 flex items-center justify-center border-2 border-gray-100 rounded-[3rem] bg-white">
+              <Loader2 className="w-10 h-10 animate-spin text-slate-300" />
+           </div>
+        ) : (
+           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              
+              {/* Top Producers */}
+              <Card className="md:col-span-2 rounded-[3rem] border-2 border-gray-100 shadow-sm bg-white overflow-hidden">
+                 <CardHeader className="border-b border-gray-50 bg-gray-50/30 px-6 py-4">
+                    <CardTitle className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-500 flex items-center gap-3">
+                       <BarChart3 className="w-4 h-4 text-slate-900" /> Top 10 Produtores (Aquisição)
+                    </CardTitle>
+                 </CardHeader>
+                 <CardContent className="p-6">
+                    {stats?.topProducers?.length > 0 ? (
+                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
+                          {stats.topProducers.map((p: any, i: number) => (
+                             <ProgressBar key={p.name} label={`${i+1}. ${p.name}`} value={p.count} max={maxProducers} color="bg-indigo-600" />
+                          ))}
+                       </div>
+                    ) : (
+                       <p className="text-xs text-slate-400 text-center py-8">Dados insuficientes</p>
+                    )}
+                 </CardContent>
+              </Card>
 
-        {/* Matrix Registry Table */}
-        <Card className="bg-white border-gray-100 shadow-sm rounded-[4rem] overflow-hidden group hover:shadow-[0_40px_100px_rgba(0,0,0,0.1)] transition-all duration-1000 border-2">
-          <CardHeader className="pb-6 border-b border-gray-50 bg-gray-50/20 px-16 py-12">
-             <div className="flex items-center justify-between">
-                <CardTitle className="text-[12px] font-black uppercase tracking-[0.4em] text-slate-300 flex items-center gap-5">
-                   <ShieldCheck className="w-6 h-6 text-slate-900" /> Master Mailing Registry
-                </CardTitle>
-                <div className="flex items-center gap-4 bg-white/50 px-6 py-2.5 rounded-full border border-gray-100">
-                   <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_15px_rgba(16,185,129,0.8)]" />
-                   <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 leading-none">Live Matrix Streaming</span>
+              {/* Demographics */}
+              <Card className="rounded-[3rem] border-2 border-gray-100 shadow-sm bg-white overflow-hidden">
+                 <CardHeader className="border-b border-gray-50 bg-gray-50/30 px-6 py-4">
+                    <CardTitle className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-500 flex items-center gap-3">
+                       <Users className="w-4 h-4 text-slate-900" /> Faixa Etária
+                    </CardTitle>
+                 </CardHeader>
+                 <CardContent className="p-6">
+                    {stats?.ages?.filter((a: any) => a.count > 0).map((a: any) => (
+                       <ProgressBar key={a.range} label={a.range} value={a.count} max={maxAges} color="bg-emerald-500" />
+                    ))}
+                 </CardContent>
+              </Card>
+
+              {/* Demographics - Gender & Location */}
+              <div className="space-y-4">
+                 <Card className="rounded-[2rem] border-2 border-gray-100 shadow-sm bg-white overflow-hidden">
+                    <CardHeader className="border-b border-gray-50 bg-gray-50/30 px-5 py-3">
+                       <CardTitle className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 flex items-center gap-3">
+                          <Activity className="w-3 h-3 text-slate-900" /> Gênero
+                       </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-5">
+                       {stats?.genders?.slice(0, 3).map((g: any) => (
+                          <ProgressBar key={g.name} label={g.name} value={g.count} max={maxGenders} color="bg-amber-500" />
+                       ))}
+                    </CardContent>
+                 </Card>
+                 <Card className="rounded-[2rem] border-2 border-gray-100 shadow-sm bg-white overflow-hidden">
+                    <CardHeader className="border-b border-gray-50 bg-gray-50/30 px-5 py-3">
+                       <CardTitle className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 flex items-center gap-3">
+                          <MapPin className="w-3 h-3 text-slate-900" /> Cidades
+                       </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-5">
+                       {stats?.cities?.slice(0, 3).map((c: any) => (
+                          <ProgressBar key={c.name} label={c.name} value={c.count} max={maxCities} color="bg-rose-500" />
+                       ))}
+                    </CardContent>
+                 </Card>
+              </div>
+
+           </div>
+        )}
+
+        {/* Matrix Registry Table with Search and Scroll */}
+        <Card className="bg-white border-gray-100 shadow-sm rounded-[3rem] overflow-hidden group border-2 flex flex-col h-[600px]">
+          <CardHeader className="pb-6 border-b border-gray-50 bg-gray-50/20 px-10 py-8 shrink-0">
+             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div className="flex items-center gap-5">
+                   <div className="w-12 h-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center shadow-lg">
+                      <Database className="w-5 h-5" />
+                   </div>
+                   <div>
+                      <CardTitle className="text-[14px] font-black uppercase tracking-[0.2em] text-slate-900">
+                         Mailing Detalhado
+                      </CardTitle>
+                      <p className="text-[10px] font-bold text-slate-400 tracking-widest uppercase mt-1">
+                         {filtered.length} Registros Indexados
+                      </p>
+                   </div>
+                </div>
+
+                <div className="relative w-full md:w-[400px]">
+                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                   <Input 
+                     placeholder="Buscar por nome, email ou cidade..."
+                     className="w-full pl-12 pr-4 bg-white border-2 border-gray-100 rounded-xl shadow-sm text-xs font-medium focus:ring-slate-900 focus:border-slate-900"
+                     value={searchTerm}
+                     onChange={(e) => setSearchTerm(e.target.value)}
+                   />
                 </div>
              </div>
           </CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead className="bg-gray-50/50 border-b border-gray-100">
-                  <tr className="hover:bg-transparent border-none">
-                    <th className="px-16 py-10 text-[10px] font-black uppercase tracking-[0.3em] text-slate-300">Authorized Node / Identity Matrix</th>
-                    <th className="px-16 py-10 text-[10px] font-black uppercase tracking-[0.3em] text-slate-300">Comm Endpoint Protocol</th>
-                    <th className="px-16 py-10 text-[10px] font-black uppercase tracking-[0.3em] text-slate-300">Geo-Location Hub</th>
-                    <th className="px-16 py-10 text-[10px] font-black uppercase tracking-[0.3em] text-slate-300">KYC Attributes Hub</th>
-                    <th className="px-16 py-10 text-right text-[10px] font-black uppercase tracking-[0.3em] text-slate-300">Action Matrix</th>
+          
+          <CardContent className="p-0 overflow-y-auto flex-1">
+            <table className="w-full text-left relative">
+              <thead className="bg-white sticky top-0 z-10 border-b border-gray-100 shadow-sm">
+                <tr>
+                  <th className="px-10 py-5 text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Cliente</th>
+                  <th className="px-10 py-5 text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Localização</th>
+                  <th className="px-10 py-5 text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Produtor de Origem</th>
+                  <th className="px-10 py-5 text-right text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Ação</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {loading ? (
+                  <tr>
+                    <td colSpan={4} className="py-32 text-center">
+                      <Loader2 className="w-8 h-8 animate-spin text-slate-300 mx-auto" />
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {loading ? (
-                    <tr>
-                      <td colSpan={5} className="py-48 text-center">
-                        <div className="flex flex-col items-center gap-8">
-                           <Loader2 className="w-12 h-12 animate-spin text-slate-900" />
-                           <p className="text-[12px] font-black uppercase tracking-[0.4em] text-slate-300">Sincronizando Clusters Globais de Ativos...</p>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : filtered.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="py-48 text-center">
-                         <div className="w-32 h-32 rounded-[4rem] bg-gray-50 flex items-center justify-center mx-auto mb-10 border-4 border-white shadow-2xl">
-                            <Users className="w-12 h-12 text-slate-200" />
-                         </div>
-                         <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter mb-2">Zero Matrix Registries</h3>
-                         <p className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.2em]">Ajuste a busca para localizar ativos autorizados.</p>
-                      </td>
-                    </tr>
-                  ) : filtered.map(c => (
-                    <tr key={c.id} className="hover:bg-gray-50/30 transition-all duration-700 group cursor-pointer border-b border-transparent hover:border-gray-100">
-                      <td className="px-16 py-10">
-                        <div className="flex items-center gap-8">
-                          <div className="w-16 h-16 rounded-[1.6rem] bg-slate-900 text-white flex items-center justify-center font-black text-lg shadow-2xl border-4 border-white group-hover:scale-110 group-hover:rotate-6 transition-transform">
-                            {c.name?.charAt(0).toUpperCase() || '?'}
-                          </div>
-                          <div className="space-y-1.5">
-                            <p className="text-[14px] font-black text-slate-900 uppercase tracking-tight leading-none group-hover:text-slate-900 transition-colors">{c.name || 'Anonymous Alpha Node'}</p>
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.1em] tabular-nums">NODE_HASH: {c.id?.slice(0,16).toUpperCase() || 'ROOT_EMPTY'}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-16 py-10">
-                        <div className="space-y-3.5">
-                          <div className="flex items-center gap-4 text-[12px] font-black text-slate-900 lowercase leading-none">
-                            <div className="w-8 h-8 rounded-xl bg-gray-50 flex items-center justify-center border border-gray-100 group-hover:bg-slate-900 group-hover:text-white transition-all">
-                               <Mail className="w-4 h-4" />
-                            </div>
-                            {c.email}
-                          </div>
-                          <div className="flex items-center gap-4 text-[11px] font-black text-slate-400 uppercase tracking-widest leading-none tabular-nums">
-                            <div className="w-8 h-8 rounded-xl bg-gray-50 flex items-center justify-center border border-gray-100 group-hover:bg-slate-900 group-hover:text-white transition-all opacity-40 group-hover:opacity-100">
-                               <Phone className="w-4 h-4" />
-                            </div>
-                            {c.phone || 'PROTOCOL_PENDING'}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-16 py-10">
-                        <div className="flex items-center gap-6">
-                          <div className="w-12 h-12 rounded-[1.2rem] bg-rose-50 flex items-center justify-center text-rose-500 shrink-0 border-2 border-rose-100 group-hover:bg-rose-500 group-hover:text-white transition-all shadow-sm group-hover:rotate-12 group-hover:scale-110"><MapPin className="w-6 h-6" /></div>
-                          <div className="space-y-1.5">
-                            <p className="text-[13px] font-black text-slate-900 uppercase tracking-tight leading-none">{c.city || 'UNDEFINED'}</p>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">{c.state || 'GLOBAL_ZONE'}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-16 py-10">
-                        <div className="space-y-3.5">
-                          <div className="flex items-center gap-4 text-[12px] font-black text-slate-900 tabular-nums leading-none">
-                             <div className="w-8 h-8 rounded-xl bg-gray-50 flex items-center justify-center border border-gray-100 group-hover:bg-slate-900 group-hover:text-white transition-all">
-                                <CreditCard className="w-4 h-4" />
-                             </div>
-                             {c.cpf || 'KYC_PENDING_AUDIT'}
-                          </div>
-                          <div className="flex items-center gap-4 text-[11px] font-black text-slate-400 uppercase tracking-widest leading-none tabular-nums">
-                             <div className="w-8 h-8 rounded-xl bg-gray-50 flex items-center justify-center border border-gray-100 group-hover:bg-slate-900 group-hover:text-white transition-all opacity-40 group-hover:opacity-100">
-                                <Calendar className="w-4 h-4" />
-                             </div>
-                             {c.birth_date ? new Date(c.birth_date).toLocaleDateString('pt-BR') : 'REGISTRY_EMPTY'}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-16 py-10 text-right" onClick={(e) => e.stopPropagation()}>
-                         <Button variant="ghost" size="sm" className="h-14 w-14 rounded-full text-slate-200 hover:text-slate-900 hover:bg-gray-100 p-0 transition-all hover:scale-110 active:scale-90 group/audit">
-                            <ChevronRight className="w-8 h-8 group-hover/audit:translate-x-1 transition-transform" />
-                         </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ) : filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="py-32 text-center">
+                       <p className="text-sm font-medium text-slate-400">Nenhum registro encontrado para sua busca.</p>
+                    </td>
+                  </tr>
+                ) : filtered.map((c: any) => (
+                  <tr key={c.id} className="hover:bg-gray-50/50 transition-colors group cursor-pointer" onClick={() => openDossier(c)}>
+                    <td className="px-10 py-5">
+                       <p className="text-[13px] font-black text-slate-900 uppercase tracking-tight">{c.name || 'Sem Nome'}</p>
+                       <p className="text-[10px] font-bold text-slate-400">{c.email}</p>
+                    </td>
+                    <td className="px-10 py-5">
+                       <p className="text-[12px] font-bold text-slate-700 uppercase">{c.city || '—'}</p>
+                       <p className="text-[10px] font-bold text-slate-400 uppercase">{c.state || '—'}</p>
+                    </td>
+                    <td className="px-10 py-5">
+                       <Badge variant="outline" className="text-[9px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 border-indigo-100">
+                          {c.origin_producer}
+                       </Badge>
+                    </td>
+                    <td className="px-10 py-5 text-right">
+                       <Button variant="ghost" size="sm" className="rounded-full text-slate-400 hover:text-slate-900 hover:bg-gray-100" onClick={(e) => { e.stopPropagation(); openDossier(c); }}>
+                          Ver Dossiê <ChevronRight className="w-4 h-4 ml-1" />
+                       </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </CardContent>
         </Card>
+
+        {/* Modal/Sheet de Dossiê */}
+        <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+           <SheetContent className="sm:max-w-[500px] border-l-0 rounded-l-[3rem] shadow-[0_0_100px_rgba(0,0,0,0.2)] bg-white p-0 overflow-y-auto">
+              {selectedUser && (
+                 <div className="flex flex-col h-full relative">
+                    <div className="absolute top-0 left-0 w-full h-40 bg-slate-900 rounded-bl-[4rem]" />
+                    
+                    <div className="relative z-10 px-10 pt-20 pb-10">
+                       <div className="w-24 h-24 bg-white rounded-3xl shadow-xl flex items-center justify-center border-4 border-white text-3xl font-black text-slate-900 mb-6">
+                          {selectedUser.name?.charAt(0).toUpperCase() || '?'}
+                       </div>
+                       
+                       <h2 className="text-2xl font-black uppercase tracking-tight text-slate-900">{selectedUser.name || 'Sem Nome'}</h2>
+                       <Badge className="bg-indigo-50 text-indigo-600 border-none text-[9px] font-black uppercase tracking-widest mt-2 px-3 py-1">
+                          Trouxe por: {selectedUser.origin_producer}
+                       </Badge>
+
+                       <div className="mt-10 space-y-8">
+                          <div>
+                             <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 mb-4 border-b border-gray-100 pb-2">Contatos</h4>
+                             <div className="space-y-4">
+                                <div className="flex items-center gap-4 text-sm font-medium text-slate-700">
+                                   <Mail className="w-4 h-4 text-slate-400" /> {selectedUser.email}
+                                </div>
+                                <div className="flex items-center gap-4 text-sm font-medium text-slate-700">
+                                   <Phone className="w-4 h-4 text-slate-400" /> {selectedUser.phone || 'Não informado'}
+                                </div>
+                             </div>
+                          </div>
+
+                          <div>
+                             <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 mb-4 border-b border-gray-100 pb-2">Dados KYC</h4>
+                             <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                   <span className="text-[10px] font-bold text-slate-400 uppercase">CPF</span>
+                                   <p className="text-sm font-black text-slate-800">{selectedUser.cpf || 'Não informado'}</p>
+                                </div>
+                                <div className="space-y-1">
+                                   <span className="text-[10px] font-bold text-slate-400 uppercase">Nascimento</span>
+                                   <p className="text-sm font-black text-slate-800">{selectedUser.birth_date ? new Date(selectedUser.birth_date).toLocaleDateString('pt-BR') : 'Não informado'}</p>
+                                </div>
+                                <div className="space-y-1">
+                                   <span className="text-[10px] font-bold text-slate-400 uppercase">Gênero</span>
+                                   <p className="text-sm font-black text-slate-800">{selectedUser.gender || 'Não informado'}</p>
+                                </div>
+                                <div className="space-y-1">
+                                   <span className="text-[10px] font-bold text-slate-400 uppercase">Registro</span>
+                                   <p className="text-sm font-black text-slate-800">{selectedUser.created_at ? new Date(selectedUser.created_at).toLocaleDateString('pt-BR') : 'N/A'}</p>
+                                </div>
+                             </div>
+                          </div>
+
+                          <div>
+                             <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 mb-4 border-b border-gray-100 pb-2">Localização</h4>
+                             <div className="space-y-1 bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                                <p className="text-sm font-black text-slate-800 uppercase">{selectedUser.city || 'Não informada'} - {selectedUser.state}</p>
+                                <p className="text-[11px] font-medium text-slate-500">{selectedUser.address || 'Endereço completo não cadastrado'}</p>
+                             </div>
+                          </div>
+
+                       </div>
+                    </div>
+                 </div>
+              )}
+           </SheetContent>
+        </Sheet>
+
       </div>
     </DashboardLayout>
   );

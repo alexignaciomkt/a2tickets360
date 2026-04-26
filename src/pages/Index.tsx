@@ -270,13 +270,16 @@ const Index = () => {
         </section>
 
         {/* ADS SPACE 1 */}
-        <AdBanner 
-          imageUrl="https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=2070" 
-          title="TECNOLOGIA A2 TICKETS" 
-          subtitle="A gestão mais elegante do entretenimento nacional." 
-          badge="PREMIUM ADS" 
-          cta="SAIBA MAIS"
-        />
+        {cmsSections['home_ad_1']?.is_active !== false && (
+          <AdBanner 
+            imageUrl={cmsSections['home_ad_1']?.bg_image || "https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=2070"} 
+            title={cmsSections['home_ad_1']?.title || "TECNOLOGIA A2 TICKETS"} 
+            subtitle={cmsSections['home_ad_1']?.subtitle || "A gestão mais elegante do entretenimento nacional."} 
+            badge={cmsSections['home_ad_1']?.config?.badgeText || "PREMIUM ADS"} 
+            cta={cmsSections['home_ad_1']?.cta_text || "SAIBA MAIS"}
+            config={cmsSections['home_ad_1']?.config}
+          />
+        )}
 
         {/* DYNAMIC CATEGORY SHELVES */}
         <div className="space-y-20 py-10">
@@ -335,22 +338,24 @@ const Index = () => {
               </section>
 
               {/* ADS INTERCALADO (A cada 2 categorias) */}
-              {idx === 0 && (
+              {idx === 0 && cmsSections['home_ad_2']?.is_active !== false && (
                 <AdBanner 
-                  imageUrl="https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=1200" 
-                  title="MONETIZE SEU EVENTO" 
-                  subtitle="As melhores taxas e antecipação em D+1." 
-                  badge="ORGANIZADOR ADS" 
-                  cta="VER PLANOS"
+                  imageUrl={cmsSections['home_ad_2']?.bg_image || "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=1200"} 
+                  title={cmsSections['home_ad_2']?.title || "MONETIZE SEU EVENTO"} 
+                  subtitle={cmsSections['home_ad_2']?.subtitle || "As melhores taxas e antecipação em D+1."} 
+                  badge={cmsSections['home_ad_2']?.config?.badgeText || "ORGANIZADOR ADS"} 
+                  cta={cmsSections['home_ad_2']?.cta_text || "VER PLANOS"}
+                  config={cmsSections['home_ad_2']?.config}
                 />
               )}
-              {idx === 1 && (
+              {idx === 1 && cmsSections['home_ad_3']?.is_active !== false && (
                 <AdBanner 
-                  imageUrl="https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=1200" 
-                  title="CHECK-IN 2FA VISUAL" 
-                  subtitle="Segurança máxima para o seu público." 
-                  badge="TECNOLOGIA" 
-                  cta="CONHECER"
+                  imageUrl={cmsSections['home_ad_3']?.bg_image || "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=1200"} 
+                  title={cmsSections['home_ad_3']?.title || "CHECK-IN 2FA VISUAL"} 
+                  subtitle={cmsSections['home_ad_3']?.subtitle || "Segurança máxima para o seu público."} 
+                  badge={cmsSections['home_ad_3']?.config?.badgeText || "TECNOLOGIA"} 
+                  cta={cmsSections['home_ad_3']?.cta_text || "CONHECER"}
+                  config={cmsSections['home_ad_3']?.config}
                 />
               )}
             </React.Fragment>
@@ -358,21 +363,40 @@ const Index = () => {
         </div>
 
         {/* STAFF SECTION (Refined Sympla Style) */}
-        {cmsSections['staff_section'] && (
+        {cmsSections['staff_section']?.is_active !== false && cmsSections['staff_section'] && (
           <section className="max-w-7xl mx-auto px-4 py-20">
             <div className="relative rounded-[3rem] overflow-hidden group h-[300px] md:h-[350px] shadow-2xl border border-gray-100 bg-white">
               <div className="absolute inset-0 flex flex-col md:flex-row">
                  <div className="w-full md:w-1/2 p-8 md:p-16 flex flex-col justify-center space-y-4 z-10">
-                    <Badge className="w-fit bg-yellow-400 text-black border-none uppercase font-black text-[9px] tracking-widest px-4 py-1">
-                      <Star className="w-3 h-3 mr-2 fill-current" /> OPORTUNIDADE
+                    <Badge 
+                      className="w-fit border-none uppercase font-black text-[9px] tracking-widest px-4 py-1"
+                      style={{ 
+                        backgroundColor: cmsSections['staff_section']?.config?.badgeColor || '#fbbf24', 
+                        color: cmsSections['staff_section']?.config?.badgeTextColor || '#000000' 
+                      }}
+                    >
+                      <Star className="w-3 h-3 mr-2 fill-current" /> {cmsSections['staff_section']?.config?.badgeText || "OPORTUNIDADE"}
                     </Badge>
-                    <h2 className="text-3xl md:text-4xl font-black tracking-tighter uppercase text-slate-900 leading-tight">
+                    <h2 
+                      className={`font-black tracking-tighter uppercase leading-tight ${cmsSections['staff_section']?.config?.titleSize || 'text-3xl md:text-4xl'}`}
+                      style={{ color: cmsSections['staff_section']?.config?.titleColor || '#0f172a' }}
+                    >
                       {cmsSections['staff_section'].title}
                     </h2>
-                    <p className="text-sm text-slate-500 font-medium leading-relaxed max-w-md">
+                    <p 
+                      className={`font-medium leading-relaxed max-w-md ${cmsSections['staff_section']?.config?.subtitleSize || 'text-sm'}`}
+                      style={{ color: cmsSections['staff_section']?.config?.subtitleColor || '#64748b' }}
+                    >
                       {cmsSections['staff_section'].subtitle}
                     </p>
-                    <Link to={cmsSections['staff_section'].cta_link} className="w-fit inline-flex items-center gap-2 bg-indigo-600 text-white px-8 py-3 rounded-full font-black text-xs uppercase tracking-widest hover:bg-slate-900 transition-all shadow-lg active:scale-95">
+                    <Link 
+                      to={cmsSections['staff_section'].cta_link} 
+                      className="w-fit inline-flex items-center gap-2 px-8 py-3 rounded-full font-black text-xs uppercase tracking-widest transition-all shadow-lg active:scale-95 hover:opacity-90"
+                      style={{ 
+                        backgroundColor: cmsSections['staff_section']?.config?.ctaColor || '#4f46e5', 
+                        color: cmsSections['staff_section']?.config?.ctaTextColor || '#ffffff' 
+                      }}
+                    >
                       {cmsSections['staff_section'].cta_text} <ArrowRight className="w-4 h-4" />
                     </Link>
                  </div>
@@ -390,13 +414,16 @@ const Index = () => {
         )}
 
         {/* ADS SPACE FINAL */}
-        <AdBanner 
-          imageUrl="https://images.unsplash.com/photo-1505373877841-8d25f7d46678?w=1200" 
-          title="BAIXE O APP TICKETERA" 
-          subtitle="Seus ingressos sempre à mão, offline ou online." 
-          badge="MOBILE" 
-          cta="BAIXAR AGORA"
-        />
+        {cmsSections['home_ad_4']?.is_active !== false && (
+          <AdBanner 
+            imageUrl={cmsSections['home_ad_4']?.bg_image || "https://images.unsplash.com/photo-1505373877841-8d25f7d46678?w=1200"} 
+            title={cmsSections['home_ad_4']?.title || "BAIXE O APP TICKETERA"} 
+            subtitle={cmsSections['home_ad_4']?.subtitle || "Seus ingressos sempre à mão, offline ou online."} 
+            badge={cmsSections['home_ad_4']?.config?.badgeText || "MOBILE"} 
+            cta={cmsSections['home_ad_4']?.cta_text || "BAIXAR AGORA"}
+            config={cmsSections['home_ad_4']?.config}
+          />
+        )}
 
         {/* BLOG SECTION */}
         <section className="bg-gray-50/50 py-24 mt-20">

@@ -62,12 +62,11 @@ import CheckInPage from '@/pages/staff/CheckInPage';
 import BuyerProfilePage from '@/pages/BuyerProfilePage';
 import MasterAdminPanel from '@/pages/dashboard/MasterAdminPanel';
 import FaqManagerPage from '@/pages/dashboard/FaqManagerPage';
-import BannerManagerPage from '@/pages/dashboard/BannerManagerPage';
 import OrganizersManagement from '@/pages/dashboard/OrganizersManagement';
 import FinancialDashboard from '@/pages/dashboard/FinancialDashboard';
 import EventApprovalPage from '@/pages/dashboard/EventApprovalPage';
 import ReportsPage from '@/pages/dashboard/ReportsPage';
-import AlertsPage from '@/pages/dashboard/AlertsPage';
+
 import PayoutManagement from '@/pages/dashboard/PayoutManagement';
 import FinancialTransactions from '@/pages/dashboard/FinancialTransactions';
 import CommissionsPage from '@/pages/dashboard/CommissionsPage';
@@ -333,19 +332,9 @@ function AppRoutes() {
             <FaqManagerPage />
           </ProtectedRoute>
         } />
-        <Route path="/master/banners" element={
-          <ProtectedRoute allowedRoles={['master']}>
-            <BannerManagerPage />
-          </ProtectedRoute>
-        } />
         <Route path="/master/reports" element={
           <ProtectedRoute allowedRoles={['master']}>
             <ReportsPage />
-          </ProtectedRoute>
-        } />
-        <Route path="/master/alerts" element={
-          <ProtectedRoute allowedRoles={['master']}>
-            <AlertsPage />
           </ProtectedRoute>
         } />
         <Route path="/master/payouts" element={

@@ -1,10 +1,9 @@
-
 import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { Filter, Download, AlertTriangle, Check, XCircle, RotateCcw, Activity, DollarSign, Zap, Target, History, Clock, FileText, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Filter, Download, AlertTriangle, Check, XCircle, RotateCcw, Activity, DollarSign, Zap, Target, History, Clock, FileText, ChevronRight, ChevronLeft, RefreshCw } from 'lucide-react';
 import { financialService } from '@/services/financialService';
 import { Transaction } from '@/interfaces/financial';
 import { Badge } from '@/components/ui/badge';
@@ -53,7 +52,7 @@ const FinancialTransactions = () => {
       } catch (error) {
         console.error('Erro ao carregar transações:', error);
         toast({
-          title: 'Protocol Error',
+          title: 'Erro de Protocolo',
           description: 'Não foi possível carregar o fluxo de transações.',
           variant: 'destructive'
         });
@@ -71,7 +70,7 @@ const FinancialTransactions = () => {
   
   const downloadTransactions = () => {
     toast({
-      title: 'Data Extraction',
+      title: 'Extração de Dados',
       description: 'O arquivo CSV com as transações está sendo gerado.',
     });
   };
@@ -99,7 +98,7 @@ const FinancialTransactions = () => {
       window.open(invoiceUrl, '_blank');
     } else {
       toast({
-        title: 'Registry Not Found',
+        title: 'Registro Não Encontrado',
         description: 'Este pagamento não possui nota fiscal disponível no cluster.',
       });
     }
@@ -171,7 +170,7 @@ const FinancialTransactions = () => {
         {/* Header Section */}
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-8">
            <div className="space-y-1.5">
-              <h1 className="text-xl md:text-2xl font-black text-slate-900 uppercase tracking-tighter leading-none">Financial Transaction Flux</h1>
+              <h1 className="text-xl md:text-2xl font-black text-slate-900 uppercase tracking-tighter leading-none">Fluxo de Transações Financeiras</h1>
               <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 leading-none">
                 Monitoramento em tempo real de ativos, conversões e fluxo de caixa do ecossistema.
               </p>
@@ -180,10 +179,10 @@ const FinancialTransactions = () => {
            <div className="flex flex-wrap items-center gap-4">
               <div className="flex bg-gray-100/50 p-1.5 rounded-full border border-gray-100 shadow-inner">
                 {[
-                  { id: 'all', label: 'All Flux' },
-                  { id: 'pending', label: 'Pending' },
-                  { id: 'confirmed', label: 'Confirmed' },
-                  { id: 'refunded', label: 'Refunded' }
+                  { id: 'all', label: 'Todos' },
+                  { id: 'pending', label: 'Pendentes' },
+                  { id: 'confirmed', label: 'Confirmados' },
+                  { id: 'refunded', label: 'Reembolsados' }
                 ].map((tab) => (
                   <button 
                     key={tab.id}
@@ -197,30 +196,30 @@ const FinancialTransactions = () => {
               
               <Button variant="outline" className="h-11 rounded-full border-gray-100 text-[10px] font-black uppercase tracking-widest px-8 shadow-sm hover:bg-gray-50 transition-all">
                 <Filter className="w-4 h-4 mr-3 text-slate-400" />
-                Filter Matrix
+                Matriz de Filtros
               </Button>
               
               <Button onClick={downloadTransactions} className="h-11 rounded-full bg-slate-900 text-white font-black uppercase text-[10px] tracking-widest px-10 shadow-2xl shadow-slate-100 hover:bg-black transition-all group">
                 <Download className="w-4 h-4 mr-3 group-hover:translate-y-1 transition-transform" />
-                Export CSV
+                Exportar CSV
               </Button>
            </div>
         </div>
 
         {/* Stats Summary */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-           <QuickStat title="Total Assets Processed" value={transactions.length} icon={Activity} color="indigo" />
-           <QuickStat title="Gross Transaction Value" value={`R$ ${transactions.reduce((sum, t) => sum + t.amount, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} icon={DollarSign} color="emerald" />
-           <QuickStat title="Platform Net Yield" value={`R$ ${transactions.reduce((sum, t) => sum + t.platformFee, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} icon={Zap} color="amber" />
+           <QuickStat title="Total de Ativos Processados" value={transactions.length} icon={Activity} color="indigo" />
+           <QuickStat title="Valor Bruto de Transação" value={`R$ ${transactions.reduce((sum, t) => sum + t.amount, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} icon={DollarSign} color="emerald" />
+           <QuickStat title="Lucro Líquido da Plataforma" value={`R$ ${transactions.reduce((sum, t) => sum + t.platformFee, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} icon={Zap} color="amber" />
         </div>
         
         <Card className="rounded-[3rem] border-gray-100 shadow-sm bg-white overflow-hidden border group hover:shadow-2xl transition-all duration-700">
           <CardHeader className="p-12 border-b border-gray-50 bg-gray-50/20 px-12 py-8">
              <div className="flex items-center justify-between">
-                <CardTitle className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-400">Master Transaction Registry</CardTitle>
+                <CardTitle className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-400">Registro Master de Transações</CardTitle>
                 <div className="flex items-center gap-2">
                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.8)]" />
-                   <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Live Ledger Sync</span>
+                   <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Sincronização de Ledger ao Vivo</span>
                 </div>
              </div>
           </CardHeader>
@@ -229,15 +228,15 @@ const FinancialTransactions = () => {
               <table className="min-w-full">
                 <thead className="bg-gray-50/50 border-b border-gray-100">
                   <tr className="hover:bg-transparent border-none">
-                    <th className="px-12 py-8 text-left text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">Transaction ID</th>
-                    <th className="px-12 py-8 text-left text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">Temporal Node</th>
-                    <th className="px-12 py-8 text-left text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">Asset Source</th>
-                    <th className="px-12 py-8 text-left text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">Authorized Node</th>
-                    <th className="px-12 py-8 text-right text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">Gross Flux</th>
-                    <th className="px-12 py-8 text-right text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">Node Fee</th>
-                    <th className="px-12 py-8 text-right text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">Net Yield</th>
-                    <th className="px-12 py-8 text-left text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">Status Node</th>
-                    <th className="px-12 py-8 text-right text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">Audit</th>
+                    <th className="px-12 py-8 text-left text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">ID Transação</th>
+                    <th className="px-12 py-8 text-left text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">Nó Temporal</th>
+                    <th className="px-12 py-8 text-left text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">Fonte do Ativo</th>
+                    <th className="px-12 py-8 text-left text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">Nó Autorizado</th>
+                    <th className="px-12 py-8 text-right text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">Fluxo Bruto</th>
+                    <th className="px-12 py-8 text-right text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">Taxa do Nó</th>
+                    <th className="px-12 py-8 text-right text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">Lucro Líquido</th>
+                    <th className="px-12 py-8 text-left text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">Status</th>
+                    <th className="px-12 py-8 text-right text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">Auditoria</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -283,9 +282,9 @@ const FinancialTransactions = () => {
                       <td className="px-12 py-8">
                         <Badge className={`text-[8px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full border shadow-sm ${statusBadgeStyles[transaction.status as keyof typeof statusBadgeStyles]}`}>
                           <StatusIcon status={transaction.status} />
-                          {transaction.status === 'pending' ? 'PENDING_NODE' : 
-                           transaction.status === 'confirmed' ? 'CONFIRMED_FLUX' : 
-                           transaction.status === 'cancelled' ? 'CANCELLED_ASSET' : 'REFUNDED_REGISTRY'}
+                          {transaction.status === 'pending' ? 'NÓ_PENDENTE' : 
+                           transaction.status === 'confirmed' ? 'FLUXO_CONFIRMADO' : 
+                           transaction.status === 'cancelled' ? 'ATIVO_CANCELADO' : 'REGISTRO_REEMBOLSADO'}
                         </Badge>
                       </td>
                       <td className="px-12 py-8 text-right">

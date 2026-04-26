@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -66,7 +65,7 @@ const CommissionsPage = () => {
              { l: 'Receita Bruta (GMV)', v: `R$ ${totalRevenue.toLocaleString('pt-BR')}`, t: '+12.4%', i: DollarSign, c: 'bg-slate-900', tc: 'text-white' },
              { l: 'Comissão Acumulada', v: `R$ ${totalCommission.toLocaleString('pt-BR')}`, t: '+8.2%', i: Zap, c: 'bg-indigo-50', tc: 'text-indigo-600' },
              { l: 'Taxa Operacional', v: '10.0%', t: 'Padrão', i: Target, c: 'bg-emerald-50', tc: 'text-emerald-600' },
-             { l: 'Asset Performance', v: '329', t: '+15%', i: Calendar, c: 'bg-rose-50', tc: 'text-rose-600' },
+             { l: 'Performance de Ativos', v: '329', t: '+15%', i: Calendar, c: 'bg-rose-50', tc: 'text-rose-600' },
            ].map((stat, i) => (
              <Card key={i} className="rounded-[2.2rem] border-gray-100 shadow-sm bg-white overflow-hidden group hover:shadow-xl transition-all duration-700">
                <CardContent className="p-7">
@@ -91,7 +90,7 @@ const CommissionsPage = () => {
         <Card className="rounded-[2.5rem] border-gray-100 shadow-sm bg-white overflow-hidden">
           <CardHeader className="pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center px-10 pt-10">
             <div className="space-y-1">
-              <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Financial Insights Node</CardTitle>
+              <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Nó de Insights Financeiros</CardTitle>
               <CardDescription className="text-[9px] font-bold uppercase tracking-widest text-slate-300">Análise de fluxos transacionais e distribuição de nó.</CardDescription>
             </div>
             <div className="flex items-center gap-4 mt-4 sm:mt-0">
@@ -113,9 +112,9 @@ const CommissionsPage = () => {
             <Tabs defaultValue="revenue" className="space-y-10">
               <TabsList className="bg-transparent h-auto p-0 gap-10 border-b border-gray-100 w-full rounded-none justify-start">
                 {[
-                  { v: 'revenue', l: 'Performance Index' },
-                  { v: 'categories', l: 'Category Density' },
-                  { v: 'organizers', l: 'Producer Registry' },
+                  { v: 'revenue', l: 'Índice de Performance' },
+                  { v: 'categories', l: 'Densidade de Categorias' },
+                  { v: 'organizers', l: 'Registro de Produtores' },
                 ].map((tab) => (
                   <TabsTrigger 
                     key={tab.v}
@@ -136,8 +135,8 @@ const CommissionsPage = () => {
                       <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 900, fill: '#94a3b8' }} />
                       <Tooltip contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.1)', fontSize: '10px', fontWeight: '900', padding: '16px' }} />
                       <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ paddingBottom: '30px', fontSize: '9px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.1em' }} />
-                      <Line type="monotone" dataKey="revenue" name="Revenue" stroke="#0f172a" strokeWidth={4} activeDot={{ r: 8, strokeWidth: 0, fill: '#0f172a' }} dot={{ r: 4, strokeWidth: 2, fill: 'white' }} />
-                      <Line type="monotone" dataKey="commission" name="Commission" stroke="#4f46e5" strokeWidth={4} dot={{ r: 4, strokeWidth: 2, fill: 'white' }} />
+                      <Line type="monotone" dataKey="revenue" name="Receita" stroke="#0f172a" strokeWidth={4} activeDot={{ r: 8, strokeWidth: 0, fill: '#0f172a' }} dot={{ r: 4, strokeWidth: 2, fill: 'white' }} />
+                      <Line type="monotone" dataKey="commission" name="Comissão" stroke="#4f46e5" strokeWidth={4} dot={{ r: 4, strokeWidth: 2, fill: 'white' }} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
@@ -165,7 +164,7 @@ const CommissionsPage = () => {
                   </ResponsiveContainer>
                   
                   <div className="flex flex-col justify-center space-y-6 pr-10">
-                    <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 leading-none">Matrix Density Distribution</h3>
+                    <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 leading-none">Distribuição de Densidade da Matriz</h3>
                     <div className="space-y-4">
                       {mockCategoryData.map((category, index) => (
                         <div key={category.name} className="flex items-center justify-between group cursor-pointer">
@@ -186,10 +185,10 @@ const CommissionsPage = () => {
                   <table className="w-full text-left border-collapse">
                     <thead className="bg-gray-50/50 border-b border-gray-100">
                       <tr>
-                        <th className="py-6 px-8 text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Producer Node</th>
-                        <th className="py-6 px-8 text-right text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Events</th>
-                        <th className="py-6 px-8 text-right text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Gross (R$)</th>
-                        <th className="py-6 px-8 text-right text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Commission (R$)</th>
+                        <th className="py-6 px-8 text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Nó de Produtor</th>
+                        <th className="py-6 px-8 text-right text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Eventos</th>
+                        <th className="py-6 px-8 text-right text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Bruto (R$)</th>
+                        <th className="py-6 px-8 text-right text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Comissão (R$)</th>
                         <th className="py-6 px-8 text-right text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Cluster %</th>
                       </tr>
                     </thead>
@@ -200,7 +199,7 @@ const CommissionsPage = () => {
                              <div className="w-10 h-10 rounded-2xl bg-slate-900 text-white flex items-center justify-center font-black text-xs shrink-0 group-hover:scale-110 transition-transform">{organizer.name.charAt(0)}</div>
                              <div>
                                 <p className="text-[11px] font-black text-slate-900 uppercase tracking-tight group-hover:text-indigo-600 transition-colors leading-none mb-1">{organizer.name}</p>
-                                <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest leading-none">ID Node #{organizer.id}</p>
+                                <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest leading-none">ID do Nó #{organizer.id}</p>
                              </div>
                           </td>
                           <td className="py-6 px-8 text-right text-[12px] font-black text-slate-700 tabular-nums">{organizer.events}</td>
@@ -216,8 +215,8 @@ const CommissionsPage = () => {
                     </tbody>
                     <tfoot className="bg-slate-900 text-white">
                       <tr className="font-semibold">
-                        <td className="py-6 px-8 text-[10px] font-black uppercase tracking-[0.2em]">Total Aggregate</td>
-                        <td className="py-6 px-8 text-right text-[12px] font-black tabular-nums">{mockOrganizersData.reduce((sum, org) => sum + org.events, 0)} Units</td>
+                        <td className="py-6 px-8 text-[10px] font-black uppercase tracking-[0.2em]">Agregado Total</td>
+                        <td className="py-6 px-8 text-right text-[12px] font-black tabular-nums">{mockOrganizersData.reduce((sum, org) => sum + org.events, 0)} Unidades</td>
                         <td className="py-6 px-8 text-right text-[12px] font-black tabular-nums">R$ {mockOrganizersData.reduce((sum, org) => sum + org.revenue, 0).toLocaleString('pt-BR')}</td>
                         <td className="py-6 px-8 text-right text-[12px] font-black tabular-nums">R$ {mockOrganizersData.reduce((sum, org) => sum + org.commission, 0).toLocaleString('pt-BR')}</td>
                         <td className="py-6 px-8 text-right text-[10px] font-black uppercase">100.0%</td>

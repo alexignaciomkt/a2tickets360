@@ -28,7 +28,8 @@ import {
   Database,
   ShieldAlert,
   HelpCircle,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Plus
 } from 'lucide-react';
 import Logo from '@/components/ui/logo';
 import { Button } from '@/components/ui/button';
@@ -95,7 +96,6 @@ const DashboardLayout = ({ children, userType }: DashboardLayoutProps) => {
             items: [
               { name: 'Gestão de Stands', path: '/organizer/stands', icon: Store },
               { name: 'Gestão de Patrocinadores', path: '/organizer/sponsors', icon: Handshake },
-              { name: 'Loja/FanPage', path: '/organizer/store', icon: Store },
               { name: 'Designer de Ingressos', path: '/organizer/ticket-designer', icon: Palette },
               { name: 'Validação de Ingressos', path: '/organizer/ticket-validation', icon: ShieldCheck },
             ]
@@ -143,7 +143,6 @@ const DashboardLayout = ({ children, userType }: DashboardLayoutProps) => {
             icon: ChevronRight,
             items: [
               { name: 'Mailing Global (Leads)', path: '/master/mailing', icon: Users },
-              { name: 'Alertas', path: '/master/alerts', icon: ChevronRight },
               { name: 'Relatórios', path: '/master/reports', icon: ChevronRight },
             ]
           },
@@ -151,7 +150,6 @@ const DashboardLayout = ({ children, userType }: DashboardLayoutProps) => {
             category: 'Gestão do Site',
             icon: LayoutDashboard,
             items: [
-              { name: 'Banners da Home', path: '/master/banners', icon: ImageIcon },
               { name: 'Gestão de FAQ', path: '/master/faq', icon: HelpCircle },
               { name: 'Gestão do Site (CMS)', path: '/master/site-management', icon: LayoutDashboard },
               { name: 'Configurações Globais', path: '/master/settings', icon: Settings },
@@ -383,9 +381,18 @@ const DashboardLayout = ({ children, userType }: DashboardLayoutProps) => {
                </Link>
                
                {userType !== 'admin' && (
-                 <Button className="font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-6">
-                    Ir para Loja <ChevronRight className="w-4 h-4 ml-2" />
-                 </Button>
+                 <>
+                   <Link to="/organizer/events/create">
+                     <Button variant="outline" className="font-semibold text-indigo-600 border-indigo-200 hover:bg-indigo-50 rounded-lg hidden sm:flex">
+                        <Plus className="w-4 h-4 mr-2" /> Novo Evento
+                     </Button>
+                   </Link>
+                   <Link to="/organizer/settings?tab=store">
+                     <Button className="font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-6">
+                        Ir para Loja <ChevronRight className="w-4 h-4 ml-2" />
+                     </Button>
+                   </Link>
+                 </>
                )}
             </div>
           </div>

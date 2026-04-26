@@ -1,5 +1,5 @@
 
-import { supabase } from '@/lib/supabase';
+import { supabase, supabaseAdmin } from '@/lib/supabase';
 import { MINIO_CONFIG } from '@/lib/supabase-config';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -69,15 +69,15 @@ class CMSService {
         }
     }
 
-    async updateSection(key: string, updates: Partial<SiteSection>): Promise<void> {
+    async updateSection(key: string, updates: any): Promise<void> {
         try {
-            const { error } = await supabase
+            const { error } = await supabaseAdmin
                 .from('site_sections')
-                .update({
+                .upsert({
                     ...updates,
+                    section_key: key,
                     updated_at: new Date().toISOString()
-                })
-                .eq('section_key', key);
+                }, { onConflict: 'section_key' });
 
             if (error) throw error;
         } catch (e) {

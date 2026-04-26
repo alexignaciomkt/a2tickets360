@@ -293,7 +293,7 @@ const OrganizerEvents = () => {
                             <DropdownMenuItem asChild className="rounded-xl py-2 cursor-pointer">
                               <Link to={`/organizer/event/${event.id}/manage`} className="flex items-center">
                                 <Eye className="h-4 w-4 mr-2 text-primary" />
-                                <span className="text-xs font-bold">Ver Hub do Evento</span>
+                                <span className="text-xs font-bold">Editar Evento</span>
                               </Link>
                             </DropdownMenuItem>
                             <DropdownMenuItem asChild className="rounded-xl py-2 cursor-pointer">

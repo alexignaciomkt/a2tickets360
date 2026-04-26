@@ -16,16 +16,11 @@
                 "mcp"
             ]
         },
-        "supabase": {
-            "command": "npx",
-            "args": [
-                "-y",
-                "@supabase/mcp-server-supabase@latest"
-            ],
-            "env": {
-                "SUPABASE_URL": "https://osfnqpehvhznrecljjjf.supabase.co",
-                "SUPABASE_API_KEY": "sb_secret_K-rLyPMRkuWLfIsvJ9oolQ_aTnBECiy",
-                "SUPABASE_ACCESS_TOKEN": "sbp_52d810cbb81b34c3bdf31b34092c4babcdf545f5"
+        "n8n-mcp": {
+            "type": "http",
+            "url": "https://auto.euattendo.com.br/mcp-server/http",
+            "headers": {
+                "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyY2ZkYmNlOS05MzY5LTQzNmQtOGU2NC00ZjQxNGFhYmJlZDIiLCJpc3MiOiJuOG4iLCJhdWQiOiJtY3Atc2VydmVyLWFwaSIsImp0aSI6ImEyNDNhYzJhLWNjODAtNDcxOS1hNzRhLTgzMTNiYTk4NGI4YyIsImlhdCI6MTc3NzIwODQxM30.ryEE3oJFAsO8ujgaCFi9Ztku_YFZtnIOlUUm4cOpHHQ"
             }
         }
     }

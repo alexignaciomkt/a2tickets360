@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
@@ -39,58 +38,61 @@ const MasterAdminPanel = () => {
   }, []);
 
   const QuickStat = ({ title, value, icon: Icon, color }: any) => (
-    <Card className="border-none shadow-sm bg-white overflow-hidden group hover:shadow-md transition-all">
-      <CardContent className="p-6 flex items-center justify-between">
-        <div className="space-y-1">
-          <p className="text-sm font-semibold text-slate-500">{title}</p>
-          <h3 className="text-2xl font-bold text-slate-900">{isLoading ? '---' : value}</h3>
+    <Card className="rounded-2xl border border-gray-100 shadow-sm bg-white overflow-hidden group hover:shadow-lg transition-all duration-500">
+      <CardContent className="p-5 flex items-center justify-between">
+        <div className="flex flex-col gap-1">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400 leading-none">{title}</p>
+          <h3 className="text-2xl font-black text-slate-900 tracking-tighter leading-none tabular-nums">{isLoading ? '---' : value}</h3>
         </div>
-        <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-transform group-hover:scale-105 shadow-sm ${
-          color === 'indigo' ? 'bg-indigo-50 text-indigo-600' : 
-          color === 'emerald' ? 'bg-emerald-50 text-emerald-600' : 
-          color === 'amber' ? 'bg-amber-50 text-amber-600' : 'bg-rose-50 text-rose-600'
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center border-2 border-white transition-transform group-hover:scale-110 shadow-sm ${
+          color === 'indigo' ? 'bg-indigo-600 text-white' : 
+          color === 'emerald' ? 'bg-emerald-500 text-white' : 
+          color === 'amber' ? 'bg-amber-500 text-white' : 'bg-rose-500 text-white'
         }`}>
-          <Icon className="w-6 h-6" />
+          <Icon className="w-4 h-4" />
         </div>
       </CardContent>
     </Card>
   );
+
   const ModuleCard = ({ title, description, icon: Icon, stats: moduleStats, buttonText, onClick, color = "indigo" }: any) => (
-    <Card className="border-none shadow-sm bg-white overflow-hidden flex flex-col h-full group hover:shadow-md transition-all">
-      <CardHeader className="p-6 pb-4 border-b border-slate-100 bg-slate-50/50">
-        <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 shadow-sm ${
-           color === 'indigo' ? 'bg-indigo-600 text-white' : 
-           color === 'emerald' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-white'
-        }`}>
-          <Icon className="w-6 h-6" />
+    <Card className="rounded-2xl border border-gray-100 shadow-sm bg-white overflow-hidden flex flex-col h-full group hover:shadow-lg transition-all duration-500">
+      <CardHeader className="p-5 pb-3 border-b border-gray-50 bg-gray-50/30">
+        <div className="flex items-center gap-3 mb-2">
+           <div className={`w-8 h-8 rounded-lg flex items-center justify-center shadow-sm border border-white ${
+              color === 'indigo' ? 'bg-indigo-600 text-white' : 
+              color === 'emerald' ? 'bg-emerald-500 text-white' : 'bg-slate-900 text-white'
+           }`}>
+             <Icon className="w-4 h-4" />
+           </div>
+           <CardTitle className="text-[11px] font-black uppercase tracking-wide text-slate-900 leading-none">{title}</CardTitle>
         </div>
-        <CardTitle className="text-lg font-bold text-slate-800">{title}</CardTitle>
-        <p className="text-sm font-medium text-slate-500 mt-2">{description}</p>
+        <p className="text-[10px] font-medium text-slate-500 tracking-tight leading-snug">{description}</p>
       </CardHeader>
-      <CardContent className="p-6 flex-1 flex flex-col justify-between">
-        <div className="space-y-4 mb-8">
+      <CardContent className="p-5 flex-1 flex flex-col justify-between bg-white">
+        <div className="flex flex-col gap-2 mb-6">
           {moduleStats.map((s: any, i: number) => (
-            <div key={i} className="flex justify-between items-center border-b border-slate-100 pb-3 last:border-0">
-              <span className="text-sm font-semibold text-slate-500">{s.label}</span>
-              <span className="text-sm font-bold text-slate-900">{isLoading ? '---' : s.value}</span>
+            <div key={i} className="flex justify-between items-center border-b border-gray-50 pb-2 last:border-0 last:pb-0">
+              <span className="text-[9px] font-bold uppercase tracking-wide text-slate-400">{s.label}</span>
+              <span className="text-sm font-black text-slate-900 tracking-tight tabular-nums">{isLoading ? '---' : s.value}</span>
             </div>
           ))}
         </div>
-        <Button onClick={onClick} className="w-full bg-slate-800 text-white hover:bg-slate-900 h-8 text-xs font-medium rounded-md shadow-sm transition-all">
-          {buttonText} <ChevronRight className="w-3 h-3 ml-1.5" />
+        <Button onClick={onClick} className="w-full bg-slate-900 text-white hover:bg-slate-800 h-10 rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm transition-all group-hover:shadow-md">
+          {buttonText} <ChevronRight className="w-3 h-3 ml-1" />
         </Button>
       </CardContent>
     </Card>
-  );;
+  );
 
   if (error && !stats) {
     return (
       <DashboardLayout userType="admin">
-        <div className="flex flex-col items-center justify-center py-48 space-y-8 animate-in fade-in duration-1000">
-          <div className="w-24 h-24 rounded-full bg-rose-50 flex items-center justify-center border border-rose-100 shadow-sm">
-            <ShieldAlert className="w-10 h-10 text-rose-500" />
+        <div className="flex flex-col items-center justify-center py-48 space-y-6 animate-in fade-in duration-500">
+          <div className="w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center border border-rose-100 shadow-sm">
+            <ShieldAlert className="w-8 h-8 text-rose-500" />
           </div>
-          <div className="text-center space-y-2">
+          <div className="text-center space-y-1">
             <h2 className="text-lg font-bold text-slate-800 tracking-tight">Erro de Sincronização</h2>
             <p className="text-xs font-medium text-slate-500 max-w-sm">{error}</p>
           </div>
@@ -104,33 +106,32 @@ const MasterAdminPanel = () => {
 
   return (
     <DashboardLayout userType="admin">
-      <div className="space-y-16 pb-20 animate-in fade-in duration-1000">
+      <div className="flex flex-col gap-8 pb-20 animate-in fade-in duration-500">
         
         {/* Master Command Center Header */}
-        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 px-2">
-           <div className="space-y-1">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-1">
+           <div className="flex flex-col gap-1">
               <div className="flex items-center gap-3">
-                 <h1 className="text-lg font-bold text-slate-800 tracking-tight">Visão Geral do Sistema</h1>
-                 <Badge className="bg-indigo-50 text-indigo-700 hover:bg-indigo-50 border-none text-[10px] py-0.5">Acesso Root</Badge>
+                 <h1 className="text-lg font-black text-slate-900 uppercase tracking-tighter leading-none">Visão Geral do Sistema</h1>
+                 <Badge className="bg-indigo-50 text-indigo-700 hover:bg-indigo-50 border-none font-black text-[9px] uppercase tracking-wider px-2 py-0.5 rounded shadow-inner">Root</Badge>
               </div>
-              <p className="text-xs font-medium text-slate-500 max-w-2xl">
-                Bem-vindo ao painel central, <span className="font-semibold text-slate-700">{user?.name || 'Administrador'}</span>. Monitore produtores, vendas e eventos da Ticketera.
+              <p className="text-[11px] font-medium text-slate-500 tracking-tight leading-none">
+                Bem-vindo ao painel central, <span className="font-bold text-slate-700">{user?.name || 'Administrador'}</span>.
               </p>
            </div>
            
-           <div className="flex items-center gap-4 bg-white px-6 py-3 rounded-2xl border border-slate-200 shadow-sm">
-              <div className="hidden sm:block text-right">
-                 <p className="text-xs font-semibold text-slate-500">Status Geral</p>
-                 <div className="flex items-center justify-end gap-2 mt-1">
-                    <div className="w-2 h-2 bg-emerald-500 rounded-full" />
-                    <span className="text-sm font-bold text-slate-800">Operacional</span>
-                 </div>
+           <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-xl border border-gray-100 shadow-sm">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Status Cluster</p>
+              <div className="w-px h-4 bg-gray-200" />
+              <div className="flex items-center gap-2">
+                 <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+                 <span className="text-[10px] font-black text-slate-900 uppercase tracking-wide">Operacional</span>
               </div>
            </div>
         </div>
 
         {/* Dynamic Matrix Stats Matrix */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <QuickStat title="Total de Usuários" value={(stats?.totalUsers || 0).toLocaleString('pt-BR')} icon={Users} color="indigo" />
           <QuickStat title="Produtores Ativos" value={stats?.activeOrganizers || 0} icon={ShieldCheck} color="emerald" />
           <QuickStat title="Eventos Pendentes" value={stats?.pendingEvents || 0} icon={Activity} color="amber" />
@@ -138,41 +139,41 @@ const MasterAdminPanel = () => {
         </div>
 
         {/* Master Operational Units Hierarchy */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <ModuleCard 
             title="Gestão de Produtores"
-            description="Aprovação de contas KYC, documentos e gestão de organizadores da plataforma."
+            description="Aprovação de contas KYC e gestão operacional."
             icon={Users}
             color="indigo"
             stats={[
-              { label: "Total de Produtores", value: stats?.totalOrganizers || 0 },
-              { label: "Análises Pendentes", value: stats?.pendingOrganizers || 0 },
-              { label: "Produtores Ativos", value: stats?.activeOrganizers || 0 },
+              { label: "Total Registrado", value: stats?.totalOrganizers || 0 },
+              { label: "Aguardando Análise", value: stats?.pendingOrganizers || 0 },
+              { label: "Ativos na Plataforma", value: stats?.activeOrganizers || 0 },
             ]}
             buttonText="Gerenciar Produtores"
             onClick={() => navigate('/master/organizers')}
           />
           <ModuleCard 
             title="Gestão Financeira"
-            description="Controle de vendas, recebimentos, comissões da plataforma e repasses."
+            description="Controle de vendas, recebimentos e repasses."
             icon={DollarSign}
             color="emerald"
             stats={[
-              { label: "Volume Total (GMV)", value: `R$ ${(stats?.totalRevenue || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` },
-              { label: "Lucro da Plataforma", value: `R$ ${(stats?.totalCommissions || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` },
-              { label: "Saques Pendentes", value: stats?.totalPayouts || 0 },
+              { label: "Volume Transacionado (GMV)", value: `R$ ${(stats?.totalRevenue || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` },
+              { label: "Lucro Retido", value: `R$ ${(stats?.totalCommissions || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` },
+              { label: "Saques na Fila", value: stats?.totalPayouts || 0 },
             ]}
             buttonText="Painel Financeiro"
             onClick={() => navigate('/master/financial')}
           />
           <ModuleCard 
             title="Gestão de Eventos"
-            description="Moderação de catálogo, aprovação de eventos e acompanhamento de publicações."
+            description="Moderação de catálogo e publicações."
             icon={CheckCircle}
             color="slate"
             stats={[
-              { label: "Aguardando Moderação", value: stats?.pendingEvents || 0 },
-              { label: "Eventos Publicados", value: stats?.totalEvents || 0 },
+              { label: "Na Fila de Moderação", value: stats?.pendingEvents || 0 },
+              { label: "Publicados Ativos", value: stats?.totalEvents || 0 },
             ]}
             buttonText="Aprovar Eventos"
             onClick={() => navigate('/master/approve')}
@@ -180,64 +181,37 @@ const MasterAdminPanel = () => {
         </div>
 
         {/* Advanced Tooling Grid Matrix */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-           <div className="lg:col-span-3">
-              <Card className="border-none shadow-sm bg-white overflow-hidden h-full">
-                 <CardHeader className="p-6 border-b border-slate-100">
-                    <CardTitle className="text-lg font-bold text-slate-800 flex items-center gap-3">
-                       <Zap className="w-5 h-5 text-indigo-600" /> Ferramentas Adicionais
+           <div className="lg:col-span-4">
+              <Card className="rounded-2xl border border-gray-100 shadow-sm bg-white overflow-hidden h-full">
+                 <CardHeader className="px-6 py-4 border-b border-gray-50 bg-gray-50/30">
+                    <CardTitle className="text-[11px] font-black uppercase tracking-wide text-slate-900 flex items-center gap-2">
+                       <Zap className="w-4 h-4 text-indigo-600" /> Ferramentas do Sistema
                     </CardTitle>
                  </CardHeader>
                  <CardContent className="p-6">
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                        {[
-                         { title: 'Mailing de Leads', icon: Users, url: '/master/mailing', desc: 'Base de clientes' },
-                         { title: 'Gestão CMS', icon: Layout, url: '/master/site-management', desc: 'Banners e Site' },
-                         { title: 'Integrações', icon: Share2, url: '/master/webhooks', desc: 'Webhooks' },
-                         { title: 'Relatórios', icon: BarChart2, url: '/master/reports', desc: 'BI & Analytics' },
-                         { title: 'Alertas', icon: Bell, url: '/master/alerts', desc: 'Avisos e Segurança' },
-                         { title: 'Configurações', icon: Settings, url: '/master/settings', desc: 'Taxas globais' },
+                         { title: 'Mailing Global', icon: Users, url: '/master/mailing', desc: 'Analytics e Base KYC' },
+                         { title: 'Gestão CMS', icon: Layout, url: '/master/site-management', desc: 'Banners e Interface' },
+                         { title: 'Webhooks API', icon: Share2, url: '/master/webhooks', desc: 'Integrações Externas' },
+                         { title: 'Relatórios', icon: BarChart2, url: '/master/reports', desc: 'Dashboards BI' },
+
+                         { title: 'Configurações', icon: Settings, url: '/master/settings', desc: 'Parâmetros Globais' },
                        ].map((tool, i) => (
-                         <Link key={i} to={tool.url} className="p-5 rounded-xl bg-slate-50 border border-slate-200 hover:bg-white hover:border-indigo-300 hover:shadow-md transition-all flex items-start gap-4 group">
-                            <div className="bg-indigo-100 w-10 h-10 rounded-lg flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors shrink-0">
-                               <tool.icon className="w-5 h-5" />
+                         <Link key={i} to={tool.url} className="p-4 rounded-xl bg-gray-50/80 border border-gray-100 hover:bg-white hover:border-indigo-200 hover:shadow-md transition-all duration-300 flex items-center gap-4 group/tool">
+                            <div className="bg-white w-10 h-10 rounded-lg flex items-center justify-center text-slate-600 border border-gray-100 group-hover/tool:bg-indigo-600 group-hover/tool:border-indigo-600 group-hover/tool:text-white transition-all shadow-sm">
+                               <tool.icon className="w-4 h-4" />
                             </div>
-                            <div>
-                              <h4 className="text-sm font-bold text-slate-800">{tool.title}</h4>
-                              <p className="text-xs font-medium text-slate-500 mt-1">{tool.desc}</p>
+                            <div className="flex flex-col gap-0.5">
+                              <h4 className="text-[11px] font-black text-slate-900 uppercase tracking-tight leading-none">{tool.title}</h4>
+                              <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-tight leading-none">{tool.desc}</p>
                             </div>
                          </Link>
                        ))}
                     </div>
                  </CardContent>
               </Card>
-           </div>
-           
-           <div className="flex flex-col gap-6">
-              <Card className="border-none bg-rose-50 border border-rose-100 shadow-sm flex-1">
-                 <CardHeader className="p-6 pb-4">
-                    <CardTitle className="text-sm font-bold text-rose-700 flex items-center gap-2">
-                       <ShieldAlert className="w-5 h-5" /> Alertas Recentes
-                    </CardTitle>
-                 </CardHeader>
-                 <CardContent className="px-6 pb-6 pt-0">
-                    <div className="space-y-4">
-                       {[
-                         { t: 'Tentativa de Fraude', d: 'Múltiplos cartões detectados' }, 
-                         { t: 'Evento Suspeito', d: 'Novo evento aguardando análise' }
-                       ].map((a, i) => (
-                         <div key={i} className="space-y-1 border-l-2 border-rose-400 pl-3">
-                            <p className="text-xs font-bold text-slate-800">{a.t}</p>
-                            <p className="text-xs text-slate-600">{a.d}</p>
-                         </div>
-                       ))}
-                       <Button onClick={() => navigate('/master/alerts')} variant="outline" className="w-full mt-6 text-xs text-rose-600 border-rose-200 hover:bg-rose-100">
-                          Ver todos alertas
-                       </Button>
-                    </div>
-                 </CardContent>
-              </Card>
-           </div>
+
         </div>
 
       </div>
