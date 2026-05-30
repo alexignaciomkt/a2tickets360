@@ -42,6 +42,10 @@ const OrganizerEvents = () => {
       
       // Fetch real sales count for each event
       const eventIds = eventsData.map(e => e.id);
+      if (eventIds.length === 0) {
+        setEvents([]);
+        return;
+      }
       const { data: sales } = await supabase
         .from('purchased_tickets')
         .select('event_id, tickets(price)')
@@ -85,8 +89,8 @@ const OrganizerEvents = () => {
   };
 
   const filteredEvents = events.filter(event =>
-    event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    event.category.toLowerCase().includes(searchTerm.toLowerCase())
+    (event.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (event.category || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const getStatusBadge = (status: Event['status']) => {
@@ -98,7 +102,7 @@ const OrganizerEvents = () => {
       cancelled: { label: 'Cancelado', variant: 'destructive' as const },
     };
 
-    const config = statusConfig[status];
+    const config = statusConfig[status as keyof typeof statusConfig] || { label: 'Desconhecido', variant: 'outline' as const };
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
@@ -111,7 +115,8 @@ const OrganizerEvents = () => {
   };
 
   const calculateTotalCapacity = (event: Event) => {
-    return event.tickets.reduce((sum, ticket) => sum + ticket.quantity, 0);
+    if (!event.tickets || !Array.isArray(event.tickets)) return 0;
+    return event.tickets.reduce((sum, ticket) => sum + (ticket.quantity || 0), 0);
   };
 
   const calculateRevenue = (event: any) => {
@@ -135,12 +140,12 @@ const OrganizerEvents = () => {
     <DashboardLayout userType="organizer">
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex justify-between items-center">
+        <div className="bg-white rounded-2xl shadow-sm p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-gray-100">
           <div>
-            <h1 className="text-3xl font-bold">Meus Eventos</h1>
-            <p className="text-gray-600 mt-1">Gerencie todos os seus eventos em um só lugar</p>
+            <h1 className="text-2xl font-black text-gray-900 uppercase tracking-tighter">Meus Eventos</h1>
+            <p className="text-sm text-gray-500 mt-1 font-medium">Gerencie todos os seus eventos em um só lugar</p>
           </div>
-          <Button asChild>
+          <Button asChild className="bg-gray-900 text-white text-[10px] font-black uppercase tracking-widest px-5 py-3 rounded-xl hover:bg-gray-700 transition-colors shadow-sm">
             <Link to="/organizer/events/create">
               <Plus className="h-4 w-4 mr-2" />
               Novo Evento
@@ -149,85 +154,78 @@ const OrganizerEvents = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-500 text-sm">Total de Eventos</p>
-                <h3 className="text-2xl font-bold">{events.length}</h3>
-              </div>
-              <Calendar className="h-8 w-8 text-primary" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 flex items-center gap-4">
+            <div className="bg-indigo-50 p-3 rounded-xl"><Calendar className="w-6 h-6 text-indigo-600" /></div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400">Total de Eventos</p>
+              <h3 className="text-3xl font-black text-gray-900">{events.length}</h3>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-500 text-sm">Ingressos Vendidos</p>
-                <h3 className="text-2xl font-bold">
-                  {events.reduce((sum, event) => sum + calculateTicketsSold(event), 0)}
-                </h3>
-              </div>
-              <Users className="h-8 w-8 text-blue-600" />
+          <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 flex items-center gap-4">
+            <div className="bg-blue-50 p-3 rounded-xl"><Users className="w-6 h-6 text-blue-600" /></div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-blue-400">Ingressos Vendidos</p>
+              <h3 className="text-3xl font-black text-blue-700">
+                {events.reduce((sum, event) => sum + calculateTicketsSold(event), 0)}
+              </h3>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-500 text-sm">Receita Total</p>
-                <h3 className="text-2xl font-bold">
-                  {events.reduce((sum, event) => sum + calculateRevenue(event), 0) > 0
-                    ? `R$ ${events.reduce((sum, event) => sum + calculateRevenue(event), 0).toLocaleString('pt-BR')}`
-                    : 'Grátis'}
-                </h3>
-              </div>
-              <DollarSign className="h-8 w-8 text-green-600" />
+          <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 flex items-center gap-4">
+            <div className="bg-emerald-50 p-3 rounded-xl"><DollarSign className="w-6 h-6 text-emerald-600" /></div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Receita Total</p>
+              <h3 className="text-3xl font-black text-emerald-700">
+                {events.reduce((sum, event) => sum + calculateRevenue(event), 0) > 0
+                  ? `R$ ${events.reduce((sum, event) => sum + calculateRevenue(event), 0).toLocaleString('pt-BR')}`
+                  : 'Grátis'}
+              </h3>
             </div>
           </div>
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex flex-col md:flex-row gap-4 items-center">
-            <div className="relative flex-1 w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Buscar por título ou categoria..."
-                className="pl-10 h-12 bg-white border-gray-100 rounded-xl focus-visible:ring-primary shadow-sm"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-            <div className="flex gap-2 w-full md:w-auto">
-              <Button 
-                variant="outline" 
-                onClick={handleRefresh}
-                disabled={loading}
-                className="h-12 px-6 rounded-xl border-gray-100 font-bold gap-2 text-xs uppercase tracking-widest hover:bg-gray-50"
-              >
-                <Activity className={loading ? "w-4 h-4 animate-spin" : "w-4 h-4"} />
-                Atualizar Lista
-              </Button>
-              <Button variant="outline" className="h-12 px-6 rounded-xl border-gray-100 font-bold gap-2 text-xs uppercase tracking-widest hover:bg-gray-50">
-                <Filter className="h-4 w-4" />
-                Filtros
-              </Button>
-            </div>
+        <div className="bg-white rounded-2xl shadow-sm p-4 border border-gray-100 flex flex-col md:flex-row items-center gap-4">
+          <div className="flex-1 w-full relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Buscar por título ou categoria..."
+              className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div className="flex gap-2 w-full md:w-auto">
+            <Button 
+              variant="outline" 
+              onClick={handleRefresh}
+              disabled={loading}
+              className="h-10 px-6 rounded-xl border-gray-200 font-black gap-2 text-[10px] uppercase tracking-widest hover:bg-gray-50 text-gray-600 shadow-sm"
+            >
+              <Activity className={loading ? "w-4 h-4 animate-spin" : "w-4 h-4"} />
+              Atualizar
+            </Button>
+            <Button variant="outline" className="h-10 px-6 rounded-xl border-gray-200 font-black gap-2 text-[10px] uppercase tracking-widest hover:bg-gray-50 text-gray-600 shadow-sm">
+              <Filter className="h-4 w-4" />
+              Filtros
+            </Button>
           </div>
         </div>
 
         {/* Events Table */}
-        <div className="bg-white rounded-lg shadow-md">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <Table>
-            <TableHeader>
+            <TableHeader className="bg-gray-50 border-b border-gray-100">
               <TableRow>
-                <TableHead>Evento</TableHead>
-                <TableHead>Data</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Vendas</TableHead>
-                <TableHead>Receita</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
+                <TableHead className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest text-gray-500">Evento</TableHead>
+                <TableHead className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest text-gray-500">Data</TableHead>
+                <TableHead className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest text-gray-500">Status</TableHead>
+                <TableHead className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest text-gray-500">Vendas</TableHead>
+                <TableHead className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest text-gray-500">Receita</TableHead>
+                <TableHead className="px-4 py-3 text-right text-[10px] font-black uppercase tracking-widest text-gray-500">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -252,9 +250,9 @@ const OrganizerEvents = () => {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="text-sm">
+                      <div className="text-xs font-bold text-gray-800">
                         <div>{formatDate(event.date)}</div>
-                        <div className="text-gray-500">{event.time}</div>
+                        <div className="text-gray-500 font-medium">{event.time}</div>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -272,7 +270,7 @@ const OrganizerEvents = () => {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="font-medium">
+                      <div className="text-sm font-black text-emerald-600">
                         {revenue > 0 ? `R$ ${revenue.toLocaleString('pt-BR')}` : 'Grátis'}
                       </div>
                     </TableCell>

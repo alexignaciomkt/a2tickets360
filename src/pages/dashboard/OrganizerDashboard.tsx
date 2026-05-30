@@ -165,6 +165,27 @@ const OrganizerDashboard = () => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(safeValue);
   };
 
+  const QuickStat = ({ title, value, icon: Icon, color, suffix = '' }: any) => (
+    <Card className="rounded-2xl border border-gray-100 shadow-sm bg-white overflow-hidden group hover:shadow-lg transition-all duration-500">
+      <CardContent className="p-5 flex items-center justify-between">
+        <div className="flex flex-col gap-1">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400 leading-none">{title}</p>
+          <h3 className="text-2xl font-black text-slate-900 tracking-tighter leading-none tabular-nums">
+            {isLoading ? '---' : value}
+            {suffix && <span className="text-sm font-bold text-slate-400 ml-1">{suffix}</span>}
+          </h3>
+        </div>
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center border-2 border-white transition-transform group-hover:scale-110 shadow-sm ${
+          color === 'indigo' ? 'bg-indigo-600 text-white' : 
+          color === 'emerald' ? 'bg-emerald-500 text-white' : 
+          color === 'amber' ? 'bg-amber-500 text-white' : 'bg-rose-500 text-white'
+        }`}>
+          <Icon className="w-4 h-4" />
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   if (isLoading && !biData) {
     return (
       <DashboardLayout userType="organizer">
@@ -188,29 +209,32 @@ const OrganizerDashboard = () => {
     <DashboardLayout userType="organizer">
       <div className="flex flex-col gap-6 max-w-[1400px] mx-auto">
         
-        {/* CABEÇALHO DO DASHBOARD COM FILTROS INLINE */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col xl:flex-row xl:items-center justify-between gap-4 relative z-20">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">Relatório Executivo</h1>
-            <p className="text-sm text-slate-500">Visão consolidada do seu negócio em tempo real.</p>
+        {/* CABEÇALHO DO DASHBOARD (Master Style) */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-1 relative z-20">
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-3">
+               <h1 className="text-lg font-black text-slate-900 uppercase tracking-tighter leading-none">Relatório Executivo</h1>
+               <Badge className="bg-indigo-50 text-indigo-700 hover:bg-indigo-50 border-none font-black text-[9px] uppercase tracking-wider px-2 py-0.5 rounded shadow-inner">Dashboard</Badge>
+            </div>
+            <p className="text-[11px] font-medium text-slate-500 tracking-tight leading-none">Visão consolidada do seu negócio em tempo real.</p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 bg-white p-1.5 rounded-xl border border-gray-100 shadow-sm">
             {/* Filtro de Eventos */}
             <div className="relative">
               <Button 
-                variant="outline" 
+                variant="ghost" 
                 onClick={() => setShowEventMenu(!showEventMenu)}
-                className="bg-slate-50 border-slate-200 text-slate-700 font-semibold"
+                className="h-8 rounded-lg text-[10px] font-black uppercase tracking-wider text-slate-700 hover:bg-slate-50"
               >
-                <Filter className="w-4 h-4 mr-2" />
+                <Filter className="w-3 h-3 mr-1.5" />
                 {selectedEvents.includes('all') ? 'Todos os Eventos' : `${selectedEvents.length} Eventos`}
-                <ChevronDown className="w-4 h-4 ml-2 opacity-50" />
+                <ChevronDown className="w-3 h-3 ml-1.5 opacity-50" />
               </Button>
               {showEventMenu && (
-                <div className="absolute top-full right-0 mt-2 w-64 bg-white border border-slate-200 rounded-lg shadow-xl p-2 z-50">
+                <div className="absolute top-full right-0 mt-2 w-64 bg-white border border-gray-100 rounded-xl shadow-xl p-2 z-50">
                   <div 
-                    className={`text-sm cursor-pointer p-2 rounded-md transition-colors ${selectedEvents.includes('all') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'hover:bg-slate-50 text-slate-700'}`}
+                    className={`text-[10px] font-bold uppercase tracking-wide cursor-pointer p-2 rounded-lg transition-colors ${selectedEvents.includes('all') ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-slate-50 text-slate-700'}`}
                     onClick={() => handleEventToggle('all')}
                   >
                     Todos os Eventos
@@ -220,7 +244,7 @@ const OrganizerDashboard = () => {
                     {events.map(e => (
                       <div 
                         key={e.id}
-                        className={`text-sm cursor-pointer p-2 rounded-md transition-colors ${selectedEvents.includes(e.id) ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'hover:bg-slate-50 text-slate-700'}`}
+                        className={`text-[10px] font-bold uppercase tracking-wide cursor-pointer p-2 rounded-lg transition-colors ${selectedEvents.includes(e.id) ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-slate-50 text-slate-700'}`}
                         onClick={() => handleEventToggle(e.id)}
                       >
                         {e.title}
@@ -231,24 +255,26 @@ const OrganizerDashboard = () => {
               )}
             </div>
 
-            {/* Filtro de Data Customizado */}
-            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg p-1">
-              <div className="flex items-center px-2 border-r border-slate-200">
-                <CalendarDays className="w-4 h-4 text-slate-400 mr-2" />
+            <div className="w-px h-4 bg-gray-200" />
+
+            {/* Filtro de Data */}
+            <div className="flex items-center gap-1">
+              <div className="flex items-center px-2">
+                <CalendarDays className="w-3 h-3 text-slate-400 mr-1.5" />
                 <input 
                   type="date" 
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="bg-transparent border-none text-sm font-medium text-slate-700 focus:outline-none w-[110px]"
+                  className="bg-transparent border-none text-[10px] font-bold uppercase tracking-wide text-slate-700 focus:outline-none w-[90px]"
                 />
               </div>
+              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Até</span>
               <div className="flex items-center px-2">
-                <span className="text-xs text-slate-400 font-bold uppercase mr-2">Até</span>
                 <input 
                   type="date" 
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="bg-transparent border-none text-sm font-medium text-slate-700 focus:outline-none w-[110px]"
+                  className="bg-transparent border-none text-[10px] font-bold uppercase tracking-wide text-slate-700 focus:outline-none w-[90px]"
                 />
               </div>
             </div>
@@ -256,31 +282,33 @@ const OrganizerDashboard = () => {
             <Button 
               onClick={handleApplyFilters}
               disabled={isLoading}
-              className="bg-slate-800 hover:bg-slate-900 text-white font-semibold shadow-sm"
+              className="bg-slate-900 hover:bg-slate-800 text-white h-8 rounded-lg text-[10px] font-black uppercase tracking-wider shadow-sm px-3"
             >
-              {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Activity className="h-4 w-4 mr-2" />}
-              Atualizar
+              {isLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Activity className="h-3 w-3 mr-1.5" />}
+              {!isLoading && "Atualizar"}
             </Button>
 
-            {/* Botão Único de Exportação */}
+            <div className="w-px h-4 bg-gray-200" />
+
+            {/* Exportar */}
             <div className="relative">
               <Button 
                 onClick={() => setShowExportMenu(!showExportMenu)}
                 disabled={isExporting}
-                variant="outline"
-                className="border-slate-200 text-slate-700 font-semibold shadow-sm"
+                variant="ghost"
+                className="h-8 rounded-lg text-[10px] font-black uppercase tracking-wider text-slate-700 hover:bg-slate-50"
               >
-                {isExporting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Download className="h-4 w-4 mr-2" />}
+                {isExporting ? <Loader2 className="h-3 w-3 animate-spin mr-1.5" /> : <Download className="h-3 w-3 mr-1.5" />}
                 Exportar
-                <ChevronDown className="w-4 h-4 ml-2 opacity-50" />
+                <ChevronDown className="w-3 h-3 ml-1.5 opacity-50" />
               </Button>
               {showExportMenu && (
-                <div className="absolute top-full right-0 mt-2 w-36 bg-white border border-slate-200 rounded-lg shadow-xl p-1 z-50 flex flex-col gap-1">
-                  <Button variant="ghost" className="justify-start text-xs font-semibold text-slate-700" onClick={() => exportDashboard('pdf')}>
-                    <FileText className="w-4 h-4 mr-2 text-rose-500" /> PDF
+                <div className="absolute top-full right-0 mt-2 w-32 bg-white border border-gray-100 rounded-xl shadow-xl p-1 z-50 flex flex-col gap-1">
+                  <Button variant="ghost" className="justify-start text-[10px] font-black uppercase tracking-wider text-slate-700 rounded-lg" onClick={() => exportDashboard('pdf')}>
+                    <FileText className="w-3 h-3 mr-2 text-rose-500" /> PDF
                   </Button>
-                  <Button variant="ghost" className="justify-start text-xs font-semibold text-slate-700" onClick={() => exportDashboard('jpeg')}>
-                    <ImageIcon className="w-4 h-4 mr-2 text-emerald-500" /> JPEG
+                  <Button variant="ghost" className="justify-start text-[10px] font-black uppercase tracking-wider text-slate-700 rounded-lg" onClick={() => exportDashboard('jpeg')}>
+                    <ImageIcon className="w-3 h-3 mr-2 text-emerald-500" /> JPEG
                   </Button>
                 </div>
               )}
@@ -291,41 +319,26 @@ const OrganizerDashboard = () => {
         {/* ÁREA DE RELATÓRIO PRINCIPAL (Ref para captura) */}
         <div className="space-y-6" ref={reportRef} style={{ backgroundColor: '#ffffff', padding: '2px', borderRadius: '8px' }}>
           
-          {/* TOP KPIs (Apenas Faturamento e Ingressos) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="border-none shadow-sm overflow-hidden bg-gradient-to-br from-indigo-600 to-indigo-800 text-white">
-              <CardContent className="p-6">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="text-sm font-semibold text-indigo-100 mb-1 uppercase tracking-wider">Faturamento Líquido</p>
-                    <h3 className="text-4xl font-black">{formatCurrency(kpis.currentRevenue)}</h3>
-                  </div>
-                  <DollarSign className="h-8 w-8 text-indigo-300 opacity-50" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-none shadow-sm overflow-hidden border border-slate-200 bg-slate-50">
-              <CardContent className="p-6">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-500 mb-1 uppercase tracking-wider">Ingressos Vendidos</p>
-                    <h3 className="text-4xl font-black text-slate-900">{kpis.ticketsSold} <span className="text-lg font-medium text-slate-400">/ un</span></h3>
-                  </div>
-                  <Target className="h-8 w-8 text-emerald-500 opacity-20" />
-                </div>
-              </CardContent>
-            </Card>
+          {/* QUICK STATS MATRIX */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <QuickStat title="Faturamento Líquido" value={formatCurrency(kpis.currentRevenue)} icon={DollarSign} color="emerald" />
+            <QuickStat title="Ingressos Vendidos" value={kpis.ticketsSold} suffix="/ UN" icon={Target} color="indigo" />
+            <QuickStat title="Eventos Ativos" value={events.length} icon={CalendarDays} color="amber" />
+            <QuickStat title="Total de Visitas" value={analyticsData.length} icon={Users} color="rose" />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* 1. VENDAS POR EVENTO (Linha Empilhada/Area) */}
-            <Card className="border-none shadow-sm border border-slate-100">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                  <Activity className="h-4 w-4 text-indigo-600" />
-                  Top 10 Eventos (Vendas)
-                </CardTitle>
+            <Card className="rounded-2xl border border-gray-100 shadow-sm bg-white overflow-hidden group">
+              <CardHeader className="p-5 pb-3 border-b border-gray-50 bg-gray-50/30">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-sm">
+                    <Activity className="w-4 h-4" />
+                  </div>
+                  <CardTitle className="text-[11px] font-black uppercase tracking-wide text-slate-900 leading-none">
+                    Top 10 Eventos (Vendas)
+                  </CardTitle>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="h-[250px] w-full">
@@ -343,12 +356,16 @@ const OrganizerDashboard = () => {
             </Card>
 
             {/* 4. PERFORMANCE POR PERÍODO (Múltiplas Linhas para Eventos) */}
-            <Card className="border-none shadow-sm border border-slate-100">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-emerald-600" />
-                  Performance de Vendas (Evolução)
-                </CardTitle>
+            <Card className="rounded-2xl border border-gray-100 shadow-sm bg-white overflow-hidden group">
+              <CardHeader className="p-5 pb-3 border-b border-gray-50 bg-gray-50/30">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-500 text-white flex items-center justify-center shadow-sm">
+                    <TrendingUp className="w-4 h-4" />
+                  </div>
+                  <CardTitle className="text-[11px] font-black uppercase tracking-wide text-slate-900 leading-none">
+                    Performance de Vendas (Evolução)
+                  </CardTitle>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="h-[250px] w-full">
@@ -370,12 +387,16 @@ const OrganizerDashboard = () => {
             </Card>
 
             {/* 5. FATURAMENTO AO LONGO DO TEMPO */}
-            <Card className="border-none shadow-sm border border-slate-100">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                  <DollarSign className="h-4 w-4 text-amber-500" />
-                  Faturamento x Tempo
-                </CardTitle>
+            <Card className="rounded-2xl border border-gray-100 shadow-sm bg-white overflow-hidden group">
+              <CardHeader className="p-5 pb-3 border-b border-gray-50 bg-gray-50/30">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-amber-500 text-white flex items-center justify-center shadow-sm">
+                    <DollarSign className="w-4 h-4" />
+                  </div>
+                  <CardTitle className="text-[11px] font-black uppercase tracking-wide text-slate-900 leading-none">
+                    Faturamento x Tempo
+                  </CardTitle>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="h-[250px] w-full">
@@ -393,12 +414,16 @@ const OrganizerDashboard = () => {
             </Card>
 
             {/* 6. USUÁRIOS POR LOCALIDADE (Barras Horizontais) */}
-            <Card className="border-none shadow-sm border border-slate-100">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-rose-500" />
-                  Público por Localidade
-                </CardTitle>
+            <Card className="rounded-2xl border border-gray-100 shadow-sm bg-white overflow-hidden group">
+              <CardHeader className="p-5 pb-3 border-b border-gray-50 bg-gray-50/30">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-rose-500 text-white flex items-center justify-center shadow-sm">
+                    <MapPin className="w-4 h-4" />
+                  </div>
+                  <CardTitle className="text-[11px] font-black uppercase tracking-wide text-slate-900 leading-none">
+                    Público por Localidade
+                  </CardTitle>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="h-[250px] w-full">
@@ -416,12 +441,16 @@ const OrganizerDashboard = () => {
             </Card>
 
             {/* 2. DEMOGRAFIA GERAL: GÊNERO E IDADE */}
-            <Card className="border-none shadow-sm col-span-1 lg:col-span-2 border border-slate-100">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                  <Users className="h-4 w-4 text-indigo-600" />
-                  Perfil Demográfico do Público
-                </CardTitle>
+            <Card className="rounded-2xl border border-gray-100 shadow-sm bg-white overflow-hidden group col-span-1 lg:col-span-2">
+              <CardHeader className="p-5 pb-3 border-b border-gray-50 bg-gray-50/30">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-slate-800 text-white flex items-center justify-center shadow-sm">
+                    <Users className="w-4 h-4" />
+                  </div>
+                  <CardTitle className="text-[11px] font-black uppercase tracking-wide text-slate-900 leading-none">
+                    Perfil Demográfico do Público
+                  </CardTitle>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="flex flex-col md:flex-row h-auto md:h-[250px] gap-8 pt-4">
@@ -478,16 +507,24 @@ const OrganizerDashboard = () => {
 
           {/* 7. ANALYTICS DE VISITAS (DADOS REAIS) */}
           <div className="grid grid-cols-1 gap-6">
-            <Card className="border-none shadow-sm border border-slate-100 bg-white">
-              <CardHeader className="pb-2">
+            <Card className="rounded-2xl border border-gray-100 shadow-sm bg-white overflow-hidden group">
+              <CardHeader className="p-5 pb-3 border-b border-gray-50 bg-gray-50/30 flex flex-col gap-2">
                 <div className="flex justify-between items-center">
-                  <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                    <BarChart3 className="h-4 w-4 text-primary" />
-                    Tráfego das Páginas (Views Reais)
-                  </CardTitle>
-                  <Badge variant="outline" className="text-[10px] uppercase font-black tracking-widest bg-primary/5 text-primary border-primary/10">Real-time Analytics</Badge>
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-sm">
+                      <BarChart3 className="w-4 h-4" />
+                    </div>
+                    <CardTitle className="text-[11px] font-black uppercase tracking-wide text-slate-900 leading-none">
+                      Tráfego das Páginas (Views Reais)
+                    </CardTitle>
+                  </div>
+                  <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50 border-none font-black text-[9px] uppercase tracking-wider px-2 py-0.5 rounded shadow-inner">
+                    Real-time
+                  </Badge>
                 </div>
-                <CardDescription className="text-xs font-medium">Contagem de acessos à sua vitrine e páginas de eventos.</CardDescription>
+                <CardDescription className="text-[10px] font-medium text-slate-500 tracking-tight leading-snug ml-11">
+                  Contagem de acessos à sua vitrine e páginas de eventos.
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="h-[300px] w-full mt-4">

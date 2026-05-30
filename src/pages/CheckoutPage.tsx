@@ -339,7 +339,6 @@ const CheckoutPage = () => {
                 
                 console.log('Ingresso salvo com sucesso:', data);
 
-                // Disparar Webhook para n8n (WhatsApp/Email Automação)
                 await webhookService.dispatch('ticket_sold', {
                     ticket_id: ticketData.qr_code_data,
                     customer_name: formData.name,
@@ -351,6 +350,27 @@ const CheckoutPage = () => {
                     state: formData.state,
                     photo_url: photoUrl
                 });
+            } else {
+                // Integração real com Asaas
+                const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/payments/checkout`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        ticketId: ticket.id,
+                        quantity: 1,
+                        buyerName: formData.name,
+                        buyerEmail: formData.email,
+                        buyerCpf: formData.cpf,
+                        paymentMethod: 'PIX'
+                    })
+                });
+                const responseData = await res.json();
+                if (responseData.status === 'success' && responseData.invoiceUrl) {
+                    window.location.href = responseData.invoiceUrl;
+                    return;
+                } else {
+                    throw new Error(responseData.error || 'Erro ao processar pagamento no Asaas');
+                }
             }
             
             setLoading(false);

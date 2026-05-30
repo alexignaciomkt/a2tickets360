@@ -2,6 +2,7 @@ import { Hono, Context } from 'hono';
 import { cors } from 'hono/cors';
 import { db } from './db';
 import * as schema from './db/schema';
+import { eq } from 'drizzle-orm';
 import dotenv from 'dotenv';
 import Redis from 'ioredis';
 import { serveStatic } from '@hono/node-server/serve-static';
@@ -19,6 +20,9 @@ import authRoutes from './routes/auth';
 dotenv.config();
 
 const app = new Hono();
+
+import { AsaasService } from './services/asaas';
+export const asaas = new AsaasService();
 
 // Redis opcional para desenvolvimento (não trava se falhar)
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
@@ -288,7 +292,7 @@ app.post('/api/payments/checkout', async (c: Context) => {
     const { ticketId, quantity, buyerName, buyerEmail, buyerCpf, paymentMethod } = await c.req.json();
 
     try {
-        const ticket = await db.query.tickets.findFirst({ where: eq(tickets.id, ticketId) });
+        const ticket = await db.query.tickets.findFirst({ where: eq(schema.tickets.id, ticketId) });
         if (!ticket) throw new Error('Ingresso não encontrado');
 
         const totalValue = Number(ticket.price) * quantity;
@@ -302,14 +306,14 @@ app.post('/api/payments/checkout', async (c: Context) => {
             billingType: paymentMethod,
             value: totalValue,
             dueDate: new Date(Date.now() + 86400000).toISOString().split('T')[0], // Amanhã
-            description: `Compra de ${quantity}x ${ticket.name}`,
+            description: `[A2 Tickets] Compra de ${quantity}x ${ticket.name}`,
             externalReference: `sale_${Date.now()}`,
             splitPercent: 10 // Sua comissão de 10%
         });
 
         // 3. Registrar Venda Pendente
         const qrCode = `QR_${Math.random().toString(36).substring(7).toUpperCase()}`;
-        await db.insert(sales).values({
+        await db.insert(schema.sales).values({
             eventId: ticket.eventId,
             ticketId: ticket.id,
             buyerName,
@@ -327,6 +331,42 @@ app.post('/api/payments/checkout', async (c: Context) => {
     }
 });
 
+// --- Nova Rota: Promover Evento (Destaque na Home) ---
+app.post('/api/payments/promote-event', async (c: Context) => {
+    const { eventId, organizerId, organizerName, organizerEmail, organizerCpfCnpj } = await c.req.json();
+
+    try {
+        const event = await db.query.events.findFirst({ where: eq(schema.events.id, eventId) });
+        if (!event) throw new Error('Evento não encontrado');
+
+        // 1. Criar ou Recuperar Cliente no Asaas (O próprio produtor)
+        const customer = await asaas.createCustomer({ name: organizerName, email: organizerEmail, cpfCnpj: organizerCpfCnpj });
+
+        // 2. Criar Pagamento (Sem split, 100% para o Master)
+        // Usamos asaas.request diretamente pois não tem split
+        const payment = await (asaas as any).request('/payments', 'POST', {
+            customer: customer.id,
+            billingType: 'PIX', // Pode ser alterado no futuro
+            value: 39.90,
+            dueDate: new Date(Date.now() + 86400000).toISOString().split('T')[0], // Amanhã
+            description: `[A2 Tickets] Destaque de Evento: ${event.title}`,
+            externalReference: `promo_${eventId}_${Date.now()}`
+        });
+
+        // 3. Atualizar o Evento com o ID do Pagamento
+        await db.update(schema.events)
+            .set({ 
+                featuredAsaasPaymentId: payment.id, 
+                featuredPaymentStatus: 'pending' 
+            })
+            .where(eq(schema.events.id, eventId));
+
+        return c.json({ status: 'success', invoiceUrl: payment.invoiceUrl, paymentId: payment.id });
+    } catch (error: any) {
+        return c.json({ error: error.message }, 400);
+    }
+});
+
 // --- Webhook do Asaas ---
 app.post('/api/webhooks/asaas', async (c: Context) => {
     const data = await c.req.json();
@@ -335,18 +375,40 @@ app.post('/api/webhooks/asaas', async (c: Context) => {
     if (event === 'PAYMENT_CONFIRMED' || event === 'PAYMENT_RECEIVED') {
         const asaasId = payment.id;
 
-        // Atualizar status no banco
-        await db.update(sales)
-            .set({ paymentStatus: 'paid' })
-            .where(eq(sales.asaasPaymentId, asaasId));
-
-        // Inserir no Redis para validação imediata no portão
+        // Tentar atualizar em Sales (Ingressos)
         const saleRecord = await db.query.sales.findFirst({
-            where: eq(sales.asaasPaymentId, asaasId)
+            where: eq(schema.sales.asaasPaymentId, asaasId)
         });
 
         if (saleRecord) {
-            await redis.set(`ticket:${saleRecord.qrCodeData}`, 'PAID');
+            await db.update(schema.sales)
+                .set({ paymentStatus: 'paid' })
+                .where(eq(schema.sales.asaasPaymentId, asaasId));
+
+            if (redis) {
+                await redis.set(`ticket:${saleRecord.qrCodeData}`, 'PAID');
+            }
+            return c.json({ received: true, type: 'ticket' });
+        }
+
+        // Se não for ingresso, verificar se é Promoção de Evento
+        const eventRecord = await db.query.events.findFirst({
+            where: eq(schema.events.featuredAsaasPaymentId, asaasId)
+        });
+
+        if (eventRecord) {
+            const thirtyDaysFromNow = new Date();
+            thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+
+            await db.update(schema.events)
+                .set({ 
+                    isFeatured: true, 
+                    featuredPaymentStatus: 'paid',
+                    featuredUntil: thirtyDaysFromNow
+                })
+                .where(eq(schema.events.id, eventRecord.id));
+
+            return c.json({ received: true, type: 'event_promotion' });
         }
     }
 

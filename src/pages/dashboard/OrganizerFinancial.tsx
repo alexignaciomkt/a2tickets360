@@ -115,100 +115,82 @@ const OrganizerFinancial = () => {
     <DashboardLayout userType="organizer">
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex justify-between items-center">
+        <div className="bg-white rounded-2xl shadow-sm p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-gray-100">
           <div>
-            <h1 className="text-3xl font-bold">Área Financeira</h1>
-            <p className="text-gray-600 mt-1">Gerencie suas receitas, repasses e informações bancárias</p>
+            <h1 className="text-2xl font-black text-gray-900 uppercase tracking-tighter">Área Financeira</h1>
+            <p className="text-sm text-gray-500 mt-1 font-medium">Gerencie suas receitas, repasses e informações bancárias</p>
           </div>
-          <div className="flex space-x-2">
-            <Button>
-              <Download className="h-4 w-4 mr-2" />
-              Relatório Financeiro
-            </Button>
-          </div>
+          <Button className="bg-gray-900 text-white text-[10px] font-black uppercase tracking-widest px-5 py-3 rounded-xl hover:bg-gray-700 transition-colors shadow-sm">
+            <Download className="h-4 w-4 mr-2" />
+            Relatório Financeiro
+          </Button>
         </div>
 
         {/* Financial Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-500 text-sm">Receita Total</p>
-                  <h3 className="text-2xl font-bold">
-                    {financialSummary ? formatCurrency(financialSummary.totalRevenue) : 'R$ 0'}
-                  </h3>
-                </div>
-                <DollarSign className="h-8 w-8 text-primary" />
-              </div>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 flex items-center gap-4">
+            <div className="bg-emerald-50 p-3 rounded-xl"><DollarSign className="w-6 h-6 text-emerald-600" /></div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-500">Receita Total</p>
+              <h3 className="text-xl font-black text-gray-900">
+                {financialSummary ? formatCurrency(financialSummary.totalRevenue) : 'R$ 0'}
+              </h3>
+            </div>
+          </div>
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-500 text-sm">Valor Líquido</p>
-                  <h3 className="text-2xl font-bold">
-                    {financialSummary ? formatCurrency(financialSummary.netRevenue) : 'R$ 0'}
-                  </h3>
-                </div>
-                <CreditCard className="h-8 w-8 text-green-600" />
-              </div>
-            </CardContent>
-          </Card>
+          <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 flex items-center gap-4">
+            <div className="bg-green-50 p-3 rounded-xl"><CreditCard className="w-6 h-6 text-green-600" /></div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-green-500">Valor Líquido</p>
+              <h3 className="text-xl font-black text-gray-900">
+                {financialSummary ? formatCurrency(financialSummary.netRevenue) : 'R$ 0'}
+              </h3>
+            </div>
+          </div>
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-500 text-sm">Taxas Pagas</p>
-                  <h3 className="text-2xl font-bold">
-                    {financialSummary ? formatCurrency(financialSummary.totalFees) : 'R$ 0'}
-                  </h3>
-                </div>
-                <Landmark className="h-8 w-8 text-orange-600" />
-              </div>
-            </CardContent>
-          </Card>
+          <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 flex items-center gap-4">
+            <div className="bg-orange-50 p-3 rounded-xl"><Landmark className="w-6 h-6 text-orange-600" /></div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-orange-500">Taxas Pagas</p>
+              <h3 className="text-xl font-black text-gray-900">
+                {financialSummary ? formatCurrency(financialSummary.totalFees) : 'R$ 0'}
+              </h3>
+            </div>
+          </div>
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-500 text-sm">Pendente Repasse</p>
-                  <h3 className="text-2xl font-bold">R$ 5.200</h3>
-                </div>
-                <DollarSign className="h-8 w-8 text-blue-600" />
-              </div>
-            </CardContent>
-          </Card>
+          <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 flex items-center gap-4">
+            <div className="bg-blue-50 p-3 rounded-xl"><DollarSign className="w-6 h-6 text-blue-600" /></div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-blue-500">Pendente Repasse</p>
+              <h3 className="text-xl font-black text-gray-900">R$ 5.200</h3>
+            </div>
+          </div>
         </div>
 
         {/* Tabs */}
         <Tabs defaultValue="transactions" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="transactions">Transações</TabsTrigger>
-            <TabsTrigger value="expenses">Despesas</TabsTrigger>
-            <TabsTrigger value="payouts">Repasses</TabsTrigger>
-            <TabsTrigger value="events">Por Evento</TabsTrigger>
+          <TabsList className="bg-gray-100 p-1 rounded-xl w-full grid grid-cols-4 h-auto">
+            <TabsTrigger value="transactions" className="font-bold text-[10px] uppercase tracking-tighter rounded-lg">Transações</TabsTrigger>
+            <TabsTrigger value="expenses" className="font-bold text-[10px] uppercase tracking-tighter rounded-lg">Despesas</TabsTrigger>
+            <TabsTrigger value="payouts" className="font-bold text-[10px] uppercase tracking-tighter rounded-lg">Repasses</TabsTrigger>
+            <TabsTrigger value="events" className="font-bold text-[10px] uppercase tracking-tighter rounded-lg">Por Evento</TabsTrigger>
           </TabsList>
 
           {/* Transactions Tab */}
           <TabsContent value="transactions">
-            <Card>
-              <CardHeader>
-                <CardTitle>Histórico de Transações</CardTitle>
+            <Card className="border-none shadow-sm rounded-[2rem] overflow-hidden bg-white">
+              <CardHeader className="bg-white border-b border-gray-50 pb-4 px-6 pt-6">
+                <CardTitle className="font-black text-lg uppercase tracking-tight">Histórico de Transações</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-0">
                 <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Data</TableHead>
-                      <TableHead>Descrição</TableHead>
-                      <TableHead>Valor</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Ações</TableHead>
+                  <TableHeader className="bg-gray-50">
+                    <TableRow className="border-gray-100">
+                      <TableHead className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-gray-500">Data</TableHead>
+                      <TableHead className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-gray-500">Descrição</TableHead>
+                      <TableHead className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-gray-500">Valor</TableHead>
+                      <TableHead className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-gray-500">Status</TableHead>
+                      <TableHead className="px-6 py-4 text-right text-[10px] font-black uppercase tracking-widest text-gray-500">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -241,29 +223,29 @@ const OrganizerFinancial = () => {
 
           {/* Expenses Tab */}
           <TabsContent value="expenses">
-            <Card>
-              <CardHeader>
+            <Card className="border-none shadow-sm rounded-[2rem] overflow-hidden bg-white">
+              <CardHeader className="bg-white border-b border-gray-50 pb-4 px-6 pt-6">
                 <div className="flex justify-between items-center">
-                  <CardTitle>Gestão de Despesas (Saídas)</CardTitle>
+                  <CardTitle className="font-black text-lg uppercase tracking-tight">Gestão de Despesas (Saídas)</CardTitle>
                   <Button
-                    className="bg-red-600 hover:bg-red-700"
+                    className="bg-red-600 hover:bg-red-700 text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl h-auto"
                     onClick={() => setExpenseModalOpen(true)}
                   >
-                    <Plus className="h-4 w-4 mr-2" />
+                    <Plus className="h-3 w-3 mr-2" />
                     Registrar Despesa
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-0">
                 <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Data</TableHead>
-                      <TableHead>Descrição</TableHead>
-                      <TableHead>Fornecedor</TableHead>
-                      <TableHead>Valor</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Ações</TableHead>
+                  <TableHeader className="bg-gray-50">
+                    <TableRow className="border-gray-100">
+                      <TableHead className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-gray-500">Data</TableHead>
+                      <TableHead className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-gray-500">Descrição</TableHead>
+                      <TableHead className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-gray-500">Fornecedor</TableHead>
+                      <TableHead className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-gray-500">Valor</TableHead>
+                      <TableHead className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-gray-500">Status</TableHead>
+                      <TableHead className="px-6 py-4 text-right text-[10px] font-black uppercase tracking-widest text-gray-500">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -299,25 +281,28 @@ const OrganizerFinancial = () => {
 
           {/* Payouts Tab */}
           <TabsContent value="payouts">
-            <Card>
-              <CardHeader>
+            <Card className="border-none shadow-sm rounded-[2rem] overflow-hidden bg-white">
+              <CardHeader className="bg-white border-b border-gray-50 pb-4 px-6 pt-6">
                 <div className="flex justify-between items-center">
-                  <CardTitle>Histórico de Repasses</CardTitle>
-                  <Button onClick={() => setPayoutModalOpen(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
+                  <CardTitle className="font-black text-lg uppercase tracking-tight">Histórico de Repasses</CardTitle>
+                  <Button 
+                    className="text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl h-auto"
+                    onClick={() => setPayoutModalOpen(true)}
+                  >
+                    <Plus className="h-3 w-3 mr-2" />
                     Solicitar Repasse
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-0">
                 <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Data</TableHead>
-                      <TableHead>Eventos</TableHead>
-                      <TableHead>Valor</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Ações</TableHead>
+                  <TableHeader className="bg-gray-50">
+                    <TableRow className="border-gray-100">
+                      <TableHead className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-gray-500">Data</TableHead>
+                      <TableHead className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-gray-500">Eventos</TableHead>
+                      <TableHead className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-gray-500">Valor</TableHead>
+                      <TableHead className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-gray-500">Status</TableHead>
+                      <TableHead className="px-6 py-4 text-right text-[10px] font-black uppercase tracking-widest text-gray-500">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -354,20 +339,20 @@ const OrganizerFinancial = () => {
 
           {/* Events Tab */}
           <TabsContent value="events">
-            <Card>
-              <CardHeader>
-                <CardTitle>Resumo Financeiro por Evento</CardTitle>
+            <Card className="border-none shadow-sm rounded-[2rem] overflow-hidden bg-white">
+              <CardHeader className="bg-white border-b border-gray-50 pb-4 px-6 pt-6">
+                <CardTitle className="font-black text-lg uppercase tracking-tight">Resumo Financeiro por Evento</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-0">
                 <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Evento</TableHead>
-                      <TableHead>Data</TableHead>
-                      <TableHead>Vendas</TableHead>
-                      <TableHead>Receita Bruta</TableHead>
-                      <TableHead>Taxas</TableHead>
-                      <TableHead>Receita Líquida</TableHead>
+                  <TableHeader className="bg-gray-50">
+                    <TableRow className="border-gray-100">
+                      <TableHead className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-gray-500">Evento</TableHead>
+                      <TableHead className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-gray-500">Data</TableHead>
+                      <TableHead className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-gray-500">Vendas</TableHead>
+                      <TableHead className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-gray-500">Receita Bruta</TableHead>
+                      <TableHead className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-gray-500">Taxas</TableHead>
+                      <TableHead className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-gray-500">Receita Líquida</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -420,9 +405,9 @@ const OrganizerFinancial = () => {
         />
 
         {/* Asaas Integration Info */}
-        <Card className="bg-slate-50 border-blue-100">
-          <CardHeader>
-            <CardTitle className="flex items-center text-blue-800">
+        <Card className="border-none shadow-sm rounded-[2rem] overflow-hidden bg-slate-50 border-blue-100 mt-6">
+          <CardHeader className="bg-slate-50 border-b border-gray-100 pb-4 px-6 pt-6">
+            <CardTitle className="flex items-center text-blue-800 font-black text-lg uppercase tracking-tight">
               <Landmark className="h-5 w-5 mr-2" />
               Integração Financeira Asaas
             </CardTitle>

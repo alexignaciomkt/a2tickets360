@@ -45,7 +45,14 @@ interface DashboardLayoutProps {
 const DashboardLayout = ({ children, userType }: DashboardLayoutProps) => {
   const { user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(() => {
+    return localStorage.getItem('A2_Tickets_sidebar_collapsed') === 'true';
+  });
   const location = useLocation();
+
+  useEffect(() => {
+    localStorage.setItem('A2_Tickets_sidebar_collapsed', desktopSidebarCollapsed.toString());
+  }, [desktopSidebarCollapsed]);
 
   // Define navigation items based on user type
   const getNavItems = () => {
@@ -214,8 +221,8 @@ const DashboardLayout = ({ children, userType }: DashboardLayoutProps) => {
 
       {/* Sidebar */}
       <aside
-        className={`bg-white border-r border-slate-200 fixed md:relative z-40 w-72 transition-all duration-300 transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
-          } shadow-sm`}
+        className={`bg-white border-r border-slate-200 fixed md:relative z-40 w-72 transition-all duration-300 transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          } ${desktopSidebarCollapsed ? 'md:hidden' : 'md:translate-x-0'} shadow-sm`}
       >
         <div className="flex flex-col h-full overflow-hidden">
           <div className="p-8 border-b border-slate-100 bg-white">
@@ -291,12 +298,21 @@ const DashboardLayout = ({ children, userType }: DashboardLayoutProps) => {
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden relative">
         <header className="bg-white border-b border-slate-200 z-10 px-8 py-5 flex items-center justify-between">
-            <div className="flex flex-col">
-               <h2 className="text-xl font-bold text-slate-800">{getDashboardTitle()}</h2>
-               <div className="flex items-center gap-2 mt-1">
-                  <div className="w-2 h-2 bg-emerald-500 rounded-full" />
-                  <p className="text-xs font-medium text-slate-500">Sistema Online</p>
-               </div>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setDesktopSidebarCollapsed(!desktopSidebarCollapsed)}
+                className="hidden md:flex p-2 rounded-xl bg-slate-50 text-slate-500 border border-slate-200 hover:text-indigo-600 hover:bg-white transition-all shadow-sm"
+                title={desktopSidebarCollapsed ? "Expandir Menu" : "Esconder Menu"}
+              >
+                <Menu size={20} />
+              </button>
+              <div className="flex flex-col">
+                 <h2 className="text-xl font-bold text-slate-800">{getDashboardTitle()}</h2>
+                 <div className="flex items-center gap-2 mt-1">
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full" />
+                    <p className="text-xs font-medium text-slate-500">Sistema Online</p>
+                 </div>
+              </div>
             </div>
 
             {/* Topbar Actions */}

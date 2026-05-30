@@ -91,6 +91,7 @@ export const events = pgTable('events', {
     isFeatured: boolean('is_featured').default(false),
     featuredUntil: timestamp('featured_until'),
     featuredPaymentStatus: text('featured_payment_status').default('none'), // none, pending, paid
+    featuredAsaasPaymentId: text('featured_asaas_payment_id'),
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow(),
 });

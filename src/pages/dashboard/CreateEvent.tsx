@@ -190,18 +190,45 @@ const CreateEvent = () => {
       };
       
       const newEvent = await organizerService.createEvent(eventData);
+      const eventId = (newEvent as any).id;
       
-      // The backend returns forcedToPending=true if the organizer's profile was incomplete
-      const wasForcedToPending = (newEvent as any).forcedToPending === true;
-
       if (status === 'draft') {
         toast({ title: '💾 Rascunho salvo!', description: 'Você pode continuar editando.' });
         navigate('/organizer/events');
-      } else {
-        // Redireciona para a página de sucesso para eventos publicados ou em análise
-        const eventId = (newEvent as any).id;
-        navigate(`/organizer/events/success/${eventId}`);
+        return;
       }
+      
+      // Se o usuário quer destacar o evento, criar o pagamento real no Asaas
+      if (wantsHighlight && eventId) {
+        try {
+          const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/payments/promote-event`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              eventId,
+              organizerId: user.id,
+              organizerName: user.name,
+              organizerEmail: user.email,
+              organizerCpfCnpj: user.cpf || '00000000000' // TODO: Pegar do BD
+            })
+          });
+          const data = await res.json();
+          if (data.status === 'success' && data.invoiceUrl) {
+             // Redireciona para o link de pagamento do Asaas
+             window.location.href = data.invoiceUrl;
+             return;
+          } else {
+            console.error('Erro ao gerar pagamento Asaas:', data.error);
+            toast({ variant: 'destructive', title: 'Erro Financeiro', description: 'O evento foi criado, mas houve erro ao gerar o pagamento do destaque.' });
+          }
+        } catch (paymentErr) {
+          console.error('Erro na requisição Asaas:', paymentErr);
+          toast({ variant: 'destructive', title: 'Erro Financeiro', description: 'O evento foi criado, mas não foi possível conectar ao Asaas.' });
+        }
+      }
+
+      // Redireciona para a página de sucesso para eventos publicados ou em análise
+      navigate(`/organizer/events/success/${eventId}`);
     } catch (error: any) {
       console.error('Erro detalhado ao criar evento:', {
         message: error.message,
