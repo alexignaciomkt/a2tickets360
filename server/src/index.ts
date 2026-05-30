@@ -369,6 +369,16 @@ app.post('/api/payments/promote-event', async (c: Context) => {
 
 // --- Webhook do Asaas ---
 app.post('/api/webhooks/asaas', async (c: Context) => {
+    // 1. Validar Token de Autenticação do Asaas (Segurança)
+    const asaasToken = c.req.header('asaas-access-token');
+    const expectedToken = process.env.ASAAS_WEBHOOK_TOKEN;
+    
+    // Só valida se o servidor tiver a variável configurada, para não quebrar ambientes de dev que não configuraram ainda
+    if (expectedToken && asaasToken !== expectedToken) {
+        console.warn('⚠️ Webhook Asaas bloqueado: Token inválido.');
+        return c.json({ error: 'Unauthorized' }, 401);
+    }
+
     const data = await c.req.json();
     const { event, payment } = data;
 
