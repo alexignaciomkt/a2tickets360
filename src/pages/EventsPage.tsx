@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import MainLayout from '@/components/layout/MainLayout';
 import EventCard from '@/components/events/EventCard';
-import { eventService, Event } from '@/services/eventService';
+import { eventService, Event, getEventTimeStatus } from '@/services/eventService';
 import { Loader2 } from 'lucide-react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -125,6 +125,13 @@ const EventsPage = () => {
                         alt={event.title}
                         className="w-full h-full object-cover"
                       />
+                      {/* AO VIVO badge */}
+                      {getEventTimeStatus(event.date, event.endDate) === 'happening_now' && (
+                        <div className="absolute top-4 left-4 z-10 flex items-center gap-2 bg-emerald-500 text-white px-4 py-1.5 rounded-full shadow-lg">
+                          <span className="w-2 h-2 bg-white rounded-full animate-ping" />
+                          <span className="text-[10px] font-black uppercase tracking-widest">AO VIVO</span>
+                        </div>
+                      )}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex flex-col justify-end p-6 text-white">
                         <h2 className="text-2xl md:text-3xl font-bold mb-2">{event.title}</h2>
                         <p className="text-sm md:text-base mb-4">{event.location.city}, {new Date(event.date).toLocaleDateString('pt-BR')}</p>

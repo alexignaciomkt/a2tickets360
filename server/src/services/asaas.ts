@@ -75,6 +75,23 @@ export class AsaasService {
     async createCustomer(data: { name: string, email: string, cpfCnpj: string }) {
         return this.request('/customers', 'POST', data);
     }
+
+    // Criar Pagamento de Promoção (Destaque na Home) — Sem split, 100% para o Master
+    async createPromotionPayment(data: {
+        customer: string,
+        value: number,
+        description: string,
+        externalReference: string
+    }) {
+        return this.request('/payments', 'POST', {
+            customer: data.customer,
+            billingType: 'PIX',
+            value: data.value,
+            dueDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+            description: data.description,
+            externalReference: data.externalReference
+        });
+    }
 }
 
 export const asaas = new AsaasService();

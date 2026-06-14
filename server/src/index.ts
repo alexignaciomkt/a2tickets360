@@ -24,6 +24,9 @@ const app = new Hono();
 import { AsaasService } from './services/asaas';
 export const asaas = new AsaasService();
 
+// Valor centralizado do destaque de evento na Home
+const FEATURED_EVENT_PRICE = 49.90;
+
 // Redis opcional para desenvolvimento (não trava se falhar)
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 let redis: Redis | null = null;
@@ -331,7 +334,7 @@ app.post('/api/payments/checkout', async (c: Context) => {
     }
 });
 
-// --- Nova Rota: Promover Evento (Destaque na Home) ---
+// --- Promover Evento (Destaque na Home) — R$ 49,90 via PIX (Asaas Real) ---
 app.post('/api/payments/promote-event', async (c: Context) => {
     const { eventId, organizerId, organizerName, organizerEmail, organizerCpfCnpj } = await c.req.json();
 
@@ -342,13 +345,10 @@ app.post('/api/payments/promote-event', async (c: Context) => {
         // 1. Criar ou Recuperar Cliente no Asaas (O próprio produtor)
         const customer = await asaas.createCustomer({ name: organizerName, email: organizerEmail, cpfCnpj: organizerCpfCnpj });
 
-        // 2. Criar Pagamento (Sem split, 100% para o Master)
-        // Usamos asaas.request diretamente pois não tem split
-        const payment = await (asaas as any).request('/payments', 'POST', {
+        // 2. Criar Pagamento de Promoção (Sem split, 100% para o Master)
+        const payment = await asaas.createPromotionPayment({
             customer: customer.id,
-            billingType: 'PIX', // Pode ser alterado no futuro
-            value: 39.90,
-            dueDate: new Date(Date.now() + 86400000).toISOString().split('T')[0], // Amanhã
+            value: FEATURED_EVENT_PRICE,
             description: `[A2 Tickets] Destaque de Evento: ${event.title}`,
             externalReference: `promo_${eventId}_${Date.now()}`
         });
@@ -671,10 +671,10 @@ app.post('/api/events', async (c: Context) => {
             capacity: Number(data.capacity) || 0,
             status: finalStatus,
             imageUrl: data.imageUrl,
-            isFeatured: data.isFeatured || false,
+            isFeatured: false, // NEVER accept featured from frontend — only via Asaas webhook or Master toggle
             featuredPaymentStatus: data.featuredPaymentStatus || 'none',
         }).returning();
-        return c.json({ ...newEvent, forcedToPending: finalStatus === 'pending' && data.status === 'published' });
+        return c.json({ ...newEvent, wantsHighlight: data.isFeatured || false, forcedToPending: finalStatus === 'pending' && data.status === 'published' });
     } catch (error: any) {
         return c.json({ error: error.message }, 400);
     }

@@ -29,7 +29,8 @@ import {
   ShieldAlert,
   HelpCircle,
   Image as ImageIcon,
-  Plus
+  Plus,
+  ExternalLink
 } from 'lucide-react';
 import Logo from '@/components/ui/logo';
 import { Button } from '@/components/ui/button';
@@ -403,9 +404,9 @@ const DashboardLayout = ({ children, userType }: DashboardLayoutProps) => {
                         <Plus className="w-4 h-4 mr-2" /> Novo Evento
                      </Button>
                    </Link>
-                   <Link to="/organizer/settings?tab=store">
+                   <Link to={user.slug ? `/p/${user.slug}` : "/organizer/settings?tab=profile"} target="_blank">
                      <Button className="font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-6">
-                        Ir para Loja <ChevronRight className="w-4 h-4 ml-2" />
+                        Ir para Loja <ExternalLink className="w-4 h-4 ml-2" />
                      </Button>
                    </Link>
                  </>

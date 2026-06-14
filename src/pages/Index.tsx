@@ -23,7 +23,7 @@ import {
   Minus,
   HelpCircle
 } from 'lucide-react';
-import { eventService, Event } from '@/services/eventService';
+import { eventService, Event, getEventTimeStatus } from '@/services/eventService';
 import { cmsService, SiteSection } from '@/services/cmsService';
 import MainLayout from '@/components/layout/MainLayout';
 import { Badge } from '@/components/ui/badge';
@@ -90,13 +90,20 @@ const Index = () => {
         // Build hero banners with priority hierarchy:
         // P2: Featured events (approved by admin with is_featured=true)
         // P3: Admin-uploaded banners (fallback/filler)
-        const eventSlides = featured.map(event => ({
-          id: event.id,
-          title: event.title,
-          category: event.category?.split(' / ')[0],
-          link: `/events/${event.id}`,
-          imageUrl: event.bannerUrl || event.imageUrl || '',
-        })).filter(s => s.imageUrl);
+        const eventSlides = featured.map(event => {
+          const timeStatus = getEventTimeStatus(event.date, event.endDate);
+          return {
+            id: event.id,
+            title: event.title,
+            category: event.category?.split(' / ')[0],
+            link: `/events/${event.id}`,
+            imageUrl: event.bannerUrl || event.imageUrl || '',
+            date: event.date,
+            endDate: event.endDate,
+            timeStatus,
+            locationCity: event.location?.city,
+          };
+        }).filter(s => s.imageUrl);
 
         const adminSlides = adminBanners.map(b => ({
           id: b.id,
@@ -169,6 +176,14 @@ const Index = () => {
                               GARANTIR MEU LUGAR
                             </Link>
                         </div>
+
+                        {/* Event Time Status Badge */}
+                        {heroBanners[currentSlide]?.timeStatus === 'happening_now' && (
+                          <div className="absolute top-6 left-6 z-10 flex items-center gap-2 bg-emerald-500 text-white px-5 py-2 rounded-full shadow-lg animate-pulse">
+                            <span className="w-2.5 h-2.5 bg-white rounded-full animate-ping" />
+                            <span className="text-[10px] font-black uppercase tracking-widest">AO VIVO</span>
+                          </div>
+                        )}
                       </motion.div>
                     </AnimatePresence>
 
@@ -205,8 +220,21 @@ const Index = () => {
                     {heroBanners[currentSlide]?.title}
                   </h1>
                   <div className="flex items-center justify-center gap-4 text-slate-500 font-medium text-sm italic">
-                    <div className="flex items-center gap-1"><MapPin className="w-4 h-4 text-indigo-600" /> Brasil</div>
-                    <div className="flex items-center gap-1"><Calendar className="w-4 h-4 text-indigo-600" /> Confira as Datas</div>
+                    {heroBanners[currentSlide]?.locationCity && (
+                      <div className="flex items-center gap-1"><MapPin className="w-4 h-4 text-indigo-600" /> {heroBanners[currentSlide].locationCity}</div>
+                    )}
+                    {!heroBanners[currentSlide]?.locationCity && (
+                      <div className="flex items-center gap-1"><MapPin className="w-4 h-4 text-indigo-600" /> Brasil</div>
+                    )}
+                    {heroBanners[currentSlide]?.date && (
+                      <div className="flex items-center gap-1">
+                        <Calendar className="w-4 h-4 text-indigo-600" />
+                        {new Date(heroBanners[currentSlide].date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </div>
+                    )}
+                    {!heroBanners[currentSlide]?.date && (
+                      <div className="flex items-center gap-1"><Calendar className="w-4 h-4 text-indigo-600" /> Confira as Datas</div>
+                    )}
                   </div>
                 </div>
 

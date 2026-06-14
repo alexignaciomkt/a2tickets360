@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import {
   User, Bell, Shield, Store, Palette, Loader2, AlertCircle, Globe,
   Instagram, Youtube, Twitter, Linkedin, Music2, ExternalLink, Camera, ImageIcon, Upload, Check,
-  Building2, Share2, LayoutGrid, Users
+  Building2, Share2, LayoutGrid, Users, Trash2, Star
 } from 'lucide-react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -203,6 +203,27 @@ const OrganizerSettings = () => {
     try {
       const finalData = { ...profileData };
       
+      // Auto-upload das imagens caso o usuário tenha esquecido de clicar em "Confirmar Troca"
+      if (tempBannerFile) {
+        const { url } = await organizerService.uploadImage(tempBannerFile, user.id, `settings_banner_url`);
+        finalData.banner_url = url;
+        setTempBannerFile(null);
+        setTempBannerPreview(null);
+      }
+      if (tempLogoFile) {
+        const { url } = await organizerService.uploadImage(tempLogoFile, user.id, `settings_logo_url`);
+        finalData.logo_url = url;
+        setTempLogoFile(null);
+        setTempLogoPreview(null);
+      }
+      if (tempAboutFile) {
+        const { url } = await organizerService.uploadImage(tempAboutFile, user.id, `settings_about_image`);
+        if (!finalData.settings) finalData.settings = {};
+        finalData.settings.about_image = url;
+        setTempAboutFile(null);
+        setTempAboutPreview(null);
+      }
+
       // Sincronizar Slug se necessário
       if (!finalData.slug || showSlugWarning) {
         let baseSlug = (profileData.company_name || 'produtora')
@@ -595,7 +616,7 @@ const OrganizerSettings = () => {
                         ...prev,
                         settings: {
                           ...prev.settings,
-                          testimonials: [...current, { name: '', role: '', text: '', avatar: '' }]
+                          testimonials: [...current, { name: '', role: '', text: '', avatar: '', stars: 5 }]
                         }
                       }));
                     }}
@@ -610,7 +631,7 @@ const OrganizerSettings = () => {
                     <Button 
                       variant="ghost" 
                       size="icon" 
-                      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-red-500 hover:text-red-600 hover:bg-red-50"
+                      className="absolute top-2 right-2 text-red-500 hover:text-red-600 hover:bg-red-50"
                       onClick={() => {
                         const current = [...profileData.settings.testimonials];
                         current.splice(idx, 1);
@@ -620,9 +641,9 @@ const OrganizerSettings = () => {
                         }));
                       }}
                     >
-                      <AlertCircle className="w-4 h-4" />
+                      <Trash2 className="w-4 h-4" />
                     </Button>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 pr-10">
                       <div className="space-y-1">
                         <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Nome do Cliente</label>
                         <input 
@@ -656,6 +677,48 @@ const OrganizerSettings = () => {
                         />
                       </div>
                     </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest flex items-center gap-1">URL da Foto (Avatar) <ImageIcon className="w-3 h-3" /></label>
+                        <input 
+                          type="url" 
+                          placeholder="https://sua-imagem.com/foto.jpg"
+                          className="w-full p-2.5 bg-white border-none rounded-xl font-bold text-sm shadow-sm"
+                          value={dep.avatar || ''}
+                          onChange={(e) => {
+                            const current = [...profileData.settings.testimonials];
+                            current[idx].avatar = e.target.value;
+                            setProfileData((prev: any) => ({
+                              ...prev,
+                              settings: { ...prev.settings, testimonials: current }
+                            }));
+                          }}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest flex items-center gap-1">Avaliação (1 a 5) <Star className="w-3 h-3" /></label>
+                        <select 
+                          className="w-full p-2.5 bg-white border-none rounded-xl font-bold text-sm shadow-sm"
+                          value={dep.stars || 5}
+                          onChange={(e) => {
+                            const current = [...profileData.settings.testimonials];
+                            current[idx].stars = parseInt(e.target.value, 10);
+                            setProfileData((prev: any) => ({
+                              ...prev,
+                              settings: { ...prev.settings, testimonials: current }
+                            }));
+                          }}
+                        >
+                          <option value={5}>5 Estrelas</option>
+                          <option value={4}>4 Estrelas</option>
+                          <option value={3}>3 Estrelas</option>
+                          <option value={2}>2 Estrelas</option>
+                          <option value={1}>1 Estrela</option>
+                        </select>
+                      </div>
+                    </div>
+
                     <div className="space-y-1">
                       <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Texto do Depoimento</label>
                       <textarea 
@@ -989,7 +1052,26 @@ const OrganizerSettings = () => {
 
                       <div className="space-y-4">
                         <h3 className="text-sm font-black uppercase tracking-wider text-gray-700 flex items-center gap-2">
-                          <Store className="w-4 h-4 text-primary" /> Estilo da Vitrine
+                          <LayoutGrid className="w-4 h-4 text-primary" /> Template da Vitrine
+                        </h3>
+                        <select 
+                          className="w-full p-3 bg-gray-50 border-none rounded-xl font-bold text-sm focus:ring-2 focus:ring-primary shadow-inner"
+                          value={profileData?.settings?.template || 'modern'}
+                          onChange={(e) => setProfileData((prev: any) => ({
+                            ...prev,
+                            settings: { ...prev?.settings, template: e.target.value }
+                          }))}
+                        >
+                          <option value="modern">Moderno (Padrão Ticketera)</option>
+                          <option value="classic">Clássico (Foco em Conteúdo)</option>
+                          <option value="minimal">Minimalista (Limpo e Direto)</option>
+                        </select>
+                        <p className="text-[10px] text-gray-400 font-medium">Define a estrutura visual da sua FanPage pública.</p>
+                      </div>
+
+                      <div className="space-y-4">
+                        <h3 className="text-sm font-black uppercase tracking-wider text-gray-700 flex items-center gap-2">
+                          <Store className="w-4 h-4 text-primary" /> Estilo de Botões
                         </h3>
                         <select 
                           className="w-full p-3 bg-gray-50 border-none rounded-xl font-bold text-sm focus:ring-2 focus:ring-primary shadow-inner"

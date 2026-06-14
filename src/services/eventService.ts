@@ -41,6 +41,23 @@ export interface Event {
     tickets: any[];
 }
 
+// Event time status for UI tags and visibility control
+export type EventTimeStatus = 'upcoming' | 'happening_now' | 'ended_recently' | 'archived';
+
+export function getEventTimeStatus(startDate: string, endDate?: string): EventTimeStatus {
+    const now = new Date();
+    const start = new Date(startDate);
+    const end = endDate ? new Date(endDate) : null;
+
+    if (now < start) return 'upcoming';
+    if (end && now > end) {
+        const hoursAfterEnd = (now.getTime() - end.getTime()) / (1000 * 60 * 60);
+        return hoursAfterEnd > 2 ? 'archived' : 'ended_recently';
+    }
+    // Event started but no end_date or hasn't ended yet
+    return 'happening_now';
+}
+
 class EventService {
     private mapEvent(d: any): Event {
         const organizer = d.organizer || d.user_profiles || {};
@@ -87,8 +104,8 @@ class EventService {
 
     async getPublicEvents(): Promise<Event[]> {
         try {
-            // Regra de Visibilidade: Eventos encerrados somem após 48 horas
-            const boundary = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+            // Regra de Visibilidade: Eventos encerrados somem após 2 horas
+            const boundary = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
 
             const { data, error } = await supabase
                 .from('events')
@@ -107,11 +124,13 @@ class EventService {
 
     async getFeaturedEvents(): Promise<Event[]> {
         try {
+            const nowISO = new Date().toISOString();
             const { data, error } = await supabase
                 .from('events')
                 .select('*, tickets(*)')
                 .eq('is_featured', true)
                 .eq('status', 'published')
+                .or(`featured_until.is.null,featured_until.gte.${nowISO}`)
                 .limit(10);
 
             if (error) throw error;

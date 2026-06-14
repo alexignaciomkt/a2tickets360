@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   MapPin,
@@ -14,7 +14,9 @@ import {
   ArrowRight,
   Clock,
   LayoutGrid,
-  ExternalLink
+  ExternalLink,
+  Quote,
+  Star
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -70,14 +72,26 @@ const ProducerFanPage = () => {
   };
 
   const [activeTestimonial, setActiveTestimonial] = useState(0);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Automatic Carrousel for Testimonials
   useEffect(() => {
     const testimonials = producerData?.settings?.testimonials || [];
     if (testimonials.length > 1) {
       const interval = setInterval(() => {
-        setActiveTestimonial(prev => (prev + 1) % testimonials.length);
-      }, 5000);
+        if (scrollContainerRef.current) {
+          const container = scrollContainerRef.current;
+          const scrollLeft = container.scrollLeft;
+          const maxScroll = container.scrollWidth - container.clientWidth;
+          const cardWidth = container.children[0]?.clientWidth || 0;
+          
+          if (scrollLeft >= maxScroll - 10) {
+            container.scrollTo({ left: 0, behavior: 'smooth' });
+          } else {
+            container.scrollTo({ left: scrollLeft + cardWidth + 24, behavior: 'smooth' }); // 24 is the gap
+          }
+        }
+      }, 4000);
       return () => clearInterval(interval);
     }
   }, [producerData?.settings?.testimonials]);
@@ -125,16 +139,26 @@ const ProducerFanPage = () => {
 
   const primaryColor = producerData.settings?.primaryColor || '#7C3AED';
   const buttonStyle = producerData.settings?.buttonStyle || 'rounded-2xl';
+  const template = producerData.settings?.template || 'modern';
+  
+  const isClassic = template === 'classic';
+  const isMinimal = template === 'minimal';
+  const titleFont = isClassic ? 'font-serif' : 'font-black';
+  const heroRounding = isClassic ? 'md:rounded-none' : isMinimal ? 'md:rounded-3xl' : 'md:rounded-b-[4rem]';
+  const sectionTitleClass = `text-2xl md:text-3xl ${isClassic ? 'font-bold font-serif tracking-normal' : isMinimal ? 'font-light tracking-widest' : 'font-black uppercase tracking-tight'} text-gray-900`;
 
+  const now = new Date();
+  
   const upcomingEvents = producerEvents.filter((e: any) => 
-    (e.status === 'published' || e.status === 'active')
+    (e.status === 'published' || e.status === 'active') && 
+    new Date(e.start_date || e.date) >= now
   ).sort((a, b) => new Date(a.start_date || a.date).getTime() - new Date(b.start_date || b.date).getTime());
 
   const pastEvents = producerEvents.filter((e: any) => 
-    new Date(e.start_date || e.date) < new Date()
+    new Date(e.start_date || e.date) < now
   ).sort((a, b) => new Date(b.start_date || b.date).getTime() - new Date(a.start_date || a.date).getTime());
 
-  const featuredEvent = upcomingEvents[0];
+  const featuredEvent = upcomingEvents.find(e => e.is_featured) || upcomingEvents[0];
   
   // Testimonials and Gallery from settings or fallback
   const testimonials = producerData.settings?.testimonials || [
@@ -216,7 +240,7 @@ const ProducerFanPage = () => {
       </nav>
 
       {/* ─── HERO & BRANDING ─── */}
-      <div id="home" className="max-w-[1400px] mx-auto relative overflow-hidden md:rounded-b-[4rem] shadow-2xl bg-black">
+      <div id="home" className={`max-w-[1400px] mx-auto relative overflow-hidden ${heroRounding} shadow-2xl bg-black ${isMinimal ? 'mt-8' : ''}`}>
         <img 
           src={producerData.banner_url || "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&q=80"} 
           className="w-full h-auto block" 
@@ -232,33 +256,41 @@ const ProducerFanPage = () => {
           {/* SEÇÃO 1: HERO / PRÓXIMO EVENTO */}
           {showEvents && featuredEvent && (
             <div className="relative group cursor-pointer" onClick={() => window.location.href = `/events/${featuredEvent.id}`}>
-              <div className={`overflow-hidden ${buttonStyle} shadow-2xl bg-white border border-gray-100 flex flex-col md:flex-row h-full md:h-[450px]`}>
-                <div className="md:w-3/5 relative h-72 md:h-full overflow-hidden">
-                  <img src={featuredEvent.banner_url || featuredEvent.imageUrl} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt="Feature" />
-                  <div className="absolute top-6 left-6">
-                    <Badge className="bg-white/90 text-gray-900 font-black px-4 py-2 rounded-xl backdrop-blur border-none shadow-xl uppercase tracking-widest">Em Destaque Agora</Badge>
-                  </div>
+              <div className={`relative overflow-hidden ${buttonStyle} shadow-2xl h-[400px] md:h-[500px] w-full border border-gray-100`}>
+                <img src={featuredEvent.banner_url || featuredEvent.imageUrl} className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" alt={featuredEvent.title} />
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent opacity-90" />
+                
+                <div className="absolute top-6 left-6 z-20">
+                  <Badge className="bg-black/30 text-white font-black px-4 py-2 rounded-xl backdrop-blur-md border border-white/10 shadow-xl uppercase tracking-widest flex items-center gap-2">
+                     <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+                     {featuredEvent.is_featured ? 'Em Destaque' : 'Próximo Evento'}
+                  </Badge>
                 </div>
-                <div className="md:w-2/5 p-8 md:p-12 flex flex-col justify-center">
-                   <h2 className="text-3xl md:text-4xl font-black tracking-tight text-gray-900 leading-[1.1] mb-4 group-hover:text-primary transition-colors" style={{ color: primaryColor }}>
-                     {featuredEvent.title}
-                   </h2>
-                   <div className="space-y-3 mb-8">
-                      <p className="flex items-center gap-3 text-gray-500 font-bold uppercase text-xs tracking-widest">
-                        <Calendar className="w-4 h-4" style={{ color: primaryColor }} />
-                        {new Date(featuredEvent.start_date || featuredEvent.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
-                      </p>
-                      <p className="flex items-center gap-3 text-gray-500 font-bold uppercase text-xs tracking-widest">
-                        <MapPin className="w-4 h-4" style={{ color: primaryColor }} />
-                        {featuredEvent.location_name || featuredEvent.locationName}
-                      </p>
+                
+                <div className="absolute bottom-0 left-0 right-0 p-8 md:p-12 flex flex-col md:flex-row md:items-end justify-between gap-6 z-20">
+                   <div className="md:w-2/3">
+                     <h2 className={`text-3xl md:text-5xl font-black text-white leading-[1.1] mb-4 group-hover:text-amber-400 transition-colors ${titleFont}`}>
+                       {featuredEvent.title}
+                     </h2>
+                     <div className="flex flex-wrap gap-4 text-white/90 font-medium text-sm">
+                        <span className="flex items-center gap-2 bg-black/30 px-3 py-1.5 rounded-lg backdrop-blur-md border border-white/10">
+                          <Calendar className="w-4 h-4 text-amber-400" />
+                          {new Date(featuredEvent.start_date || featuredEvent.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
+                        </span>
+                        <span className="flex items-center gap-2 bg-black/30 px-3 py-1.5 rounded-lg backdrop-blur-md border border-white/10">
+                          <MapPin className="w-4 h-4 text-amber-400" />
+                          {featuredEvent.location_name || featuredEvent.locationName}
+                        </span>
+                     </div>
                    </div>
-                   <Button 
-                     className={`w-full h-14 font-black uppercase tracking-widest text-sm shadow-xl hover:-translate-y-1 transition-all ${buttonStyle}`}
-                     style={{ backgroundColor: primaryColor }}
-                   >
-                     Garantir meu Ingresso <ArrowRight className="w-4 h-4 ml-2" />
-                   </Button>
+                   <div className="md:w-1/3 flex md:justify-end">
+                     <Button 
+                       className={`w-full md:w-auto h-14 px-8 font-black uppercase tracking-widest text-sm shadow-2xl hover:-translate-y-1 transition-all ${buttonStyle} text-white hover:text-white border-none`}
+                       style={{ backgroundColor: primaryColor }}
+                     >
+                       Garantir meu Ingresso <ArrowRight className="w-4 h-4 ml-2" />
+                     </Button>
+                   </div>
                 </div>
               </div>
             </div>
@@ -267,9 +299,9 @@ const ProducerFanPage = () => {
           {/* SEÇÃO 2: AGENDA DE EVENTOS */}
           {showEvents && (
             <section id="agenda" className="space-y-12">
-            <div className="flex flex-col items-center text-center space-y-4">
-              <Badge variant="outline" className="px-4 py-1.5 border-gray-200 text-gray-400 font-black uppercase tracking-widest text-[10px]">Calendário Oficial</Badge>
-              <h3 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-gray-900">{producerData.settings?.titles?.agenda || 'Agenda Completa'}</h3>
+            <div className={`flex flex-col items-center text-center space-y-4 ${isMinimal ? 'border-b border-gray-100 pb-8' : ''}`}>
+              {!isMinimal && <Badge variant="outline" className="px-4 py-1.5 border-gray-200 text-gray-400 font-black uppercase tracking-widest text-[10px]">Calendário Oficial</Badge>}
+              <h3 className={sectionTitleClass}>{producerData.settings?.titles?.agenda || 'Agenda Completa'}</h3>
             </div>
             
             {upcomingEvents.length === 0 && !featuredEvent ? (
@@ -426,48 +458,50 @@ const ProducerFanPage = () => {
           </section>
 
           {/* SEÇÃO 6: PROVA SOCIAL / DEPOIMENTOS (CARROSSEL AUTOMÁTICO) */}
-          <section id="depoimentos" className="bg-white rounded-[3rem] p-12 md:p-24 shadow-xl border border-gray-100 text-center space-y-12 overflow-hidden relative">
+          <section id="depoimentos" className="bg-white rounded-[3rem] py-16 md:py-24 shadow-xl border border-gray-100 text-center space-y-12 overflow-hidden relative">
              <div className="absolute top-0 left-0 w-full h-2 bg-primary/20" style={{ backgroundColor: primaryColor }} />
              
-             <div className="max-w-3xl mx-auto space-y-4">
+             <div className="max-w-3xl mx-auto space-y-4 px-4">
                 <Badge variant="outline" className="px-4 py-1.5 border-gray-200 text-gray-400 font-black uppercase tracking-widest text-[10px]">Prova Social</Badge>
-                <h3 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-gray-900">{producerData.settings?.titles?.testimonials || 'O que o público diz'}</h3>
+                <h3 className={sectionTitleClass}>{producerData.settings?.titles?.testimonials || 'O que o público diz'}</h3>
              </div>
 
-             <div className="relative max-w-4xl mx-auto min-h-[250px] flex flex-col justify-center">
-                {testimonials.map((dep: any, i: number) => (
-                  <div 
-                    key={i} 
-                    className={`transition-all duration-1000 absolute inset-0 flex flex-col items-center justify-center space-y-8 ${i === activeTestimonial ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`}
-                  >
-                    <p className="text-gray-600 text-xl md:text-3xl font-medium italic leading-relaxed max-w-2xl mx-auto">
-                       "{dep.text}"
-                    </p>
-                    <div className="flex items-center gap-4">
-                      <div className="w-16 h-16 rounded-full bg-white shadow-sm border border-gray-100 overflow-hidden">
-                        <img src={dep.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=user${i}${dep.name}`} className="w-full h-full" alt={dep.name} />
-                      </div>
-                      <div className="text-left">
-                        <p className="text-lg font-black text-gray-900">{dep.name}</p>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{dep.role}</p>
-                      </div>
+             <div className="max-w-[1400px] mx-auto px-4 relative">
+                <div 
+                  ref={scrollContainerRef}
+                  className="flex gap-6 overflow-x-auto snap-x snap-mandatory pb-12 hide-scrollbar -mx-4 px-4 scroll-smooth"
+                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                >
+                  {testimonials.map((dep: any, i: number) => (
+                    <div 
+                      key={i} 
+                      className="w-[85vw] md:w-[calc(50%-1.5rem)] lg:w-[calc(33.333%-1.5rem)] flex-shrink-0 snap-center flex flex-col"
+                    >
+                      <Card className={`flex flex-col h-full bg-gray-50/50 border-gray-100 shadow-sm p-8 text-left relative ${buttonStyle} hover:shadow-md transition-shadow`}>
+                         <div className="absolute top-6 right-8 text-gray-200/50 pointer-events-none">
+                           <Quote className="w-12 h-12" fill="currentColor" />
+                         </div>
+                         <div className="flex gap-1 mb-6 relative z-10">
+                           {Array.from({ length: 5 }).map((_, starIndex) => (
+                             <Star key={starIndex} className={`w-4 h-4 ${(dep.stars || 5) > starIndex ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`} />
+                           ))}
+                         </div>
+                         <p className="text-gray-600 text-base md:text-lg font-medium italic leading-relaxed mb-8 relative z-10 flex-grow">
+                            "{dep.text}"
+                         </p>
+                         <div className="flex items-center gap-4 mt-auto relative z-10">
+                           <div className={`w-12 h-12 bg-white shadow-sm border border-gray-200 overflow-hidden flex-shrink-0 ${buttonStyle === 'rounded-full' ? 'rounded-full' : 'rounded-xl'}`}>
+                             <img src={dep.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=user${i}${dep.name}`} className="w-full h-full object-cover" alt={dep.name} />
+                           </div>
+                           <div className="overflow-hidden">
+                             <p className="text-sm font-black text-gray-900 truncate">{dep.name}</p>
+                             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest truncate">{dep.role}</p>
+                           </div>
+                         </div>
+                      </Card>
                     </div>
-                  </div>
-                ))}
-                
-                {/* Dots for navigation */}
-                {testimonials.length > 1 && (
-                  <div className="absolute -bottom-10 left-0 right-0 flex justify-center gap-2">
-                    {testimonials.map((_: any, i: number) => (
-                      <button 
-                        key={i}
-                        onClick={() => setActiveTestimonial(i)}
-                        className={`w-2 h-2 rounded-full transition-all ${i === activeTestimonial ? 'w-8' : 'bg-gray-200'}`}
-                        style={{ backgroundColor: i === activeTestimonial ? primaryColor : undefined }}
-                      />
-                    ))}
-                  </div>
-                 )}
+                  ))}
+                </div>
               </div>
            </section>
 
