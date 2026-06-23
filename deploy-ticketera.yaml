@@ -35,6 +35,27 @@ services:
         # Configuração específica para Swarm (a qual rede o Traefik deve olhar)
         - "traefik.docker.network=network_swarm_public"
 
+  ticketera-api:
+    image: ghcr.io/alexignaciomkt/a2tickets360-api:latest
+    environment:
+      - NODE_ENV=production
+    networks:
+      - network_swarm_public
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == worker
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.ticketera-api.rule=Host(`api.a2tickets360.com.br`)"
+        - "traefik.http.routers.ticketera-api.entrypoints=websecure"
+        - "traefik.http.routers.ticketera-api.tls=true"
+        - "traefik.http.routers.ticketera-api.tls.certresolver=letsencryptresolver"
+        - "traefik.http.services.ticketera-api.loadbalancer.server.port=3000"
+        - "traefik.docker.network=network_swarm_public"
+
 networks:
   network_swarm_public:
     external: true
