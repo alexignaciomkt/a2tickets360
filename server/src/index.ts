@@ -96,9 +96,8 @@ app.get('/og/events/:id', async (c: Context) => {
     const SITE_URL = process.env.SITE_URL || 'https://a2tickets360.com.br';
 
     try {
-        const event = await db.query.events.findFirst({
-            where: eq(events.id, id),
-        });
+        const result = await db.execute(sql`SELECT title, description, banner_url as "imageUrl", start_date as "date", time, location_name as "locationName", city as "locationCity", state as "locationState" FROM events WHERE id = ${id}`);
+        const event = result.length > 0 ? result[0] : null;
 
         const title = event?.title || 'A2 Tickets 360º';
         const rawDesc = event?.description || 'Gestão completa de eventos e inteligência de mercado.';
