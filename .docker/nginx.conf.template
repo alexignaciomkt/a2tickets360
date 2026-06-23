@@ -29,21 +29,31 @@ server {
     root /usr/share/nginx/html;
     index index.html;
 
-    # ─── Crawler Interception for Event Pages ───
-    # When a social media crawler requests /events/:id, proxy to the
-    # Hono API which returns HTML with dynamic OG meta tags.
-    # Normal users get the SPA as usual.
-    location ~ ^/events/(.+)$ {
-        # Resolve DNS at runtime (required for Docker service discovery)
-        resolver 127.0.0.11 valid=30s;
-        set $og_upstream "${OG_API_UPSTREAM}";
+    # Resolve DNS at runtime (required for Docker service discovery)
+    resolver 127.0.0.11 valid=30s;
+    set $og_upstream "${OG_API_UPSTREAM}";
 
+    # ─── Crawler Interception for Event Pages ───
+    location ~ ^/events/(.+)$ {
+        error_page 418 = @crawler;
         if ($is_crawler = 1) {
-            proxy_pass $og_upstream/og/events/$1;
+            return 418;
         }
 
         # Normal users → SPA
         try_files $uri /index.html;
+    }
+
+    # Named location for crawler proxy to avoid "proxy_pass inside if" bugs
+    location @crawler {
+        # Rewrite the URL so it has the /og/ prefix
+        rewrite ^/events/(.+)$ /og/events/$1 break;
+        proxy_pass $og_upstream;
+        
+        # Pass headers just in case
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     }
 
     # ─── Default SPA Handler ───
