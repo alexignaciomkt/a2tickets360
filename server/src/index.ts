@@ -2,7 +2,16 @@ import { Hono, Context } from 'hono';
 import { cors } from 'hono/cors';
 import { db } from './db';
 import * as schema from './db/schema';
-import { eq } from 'drizzle-orm';
+
+const {
+    admins, organizers: organizersTable, eventCategories, events, tickets, sales, staff,
+    checkins, supplierCategories, suppliers, supplierContracts, quotes, quoteResponses,
+    candidates, staffProposals, sponsorTypes, sponsors, sponsorInstallments, sponsorDeliverables,
+    standCategories, stands, visitors, exhibitorStaff, exhibitorLogistics, exhibitorLeads,
+    aiChatLogs, syncQueue, legalPages, productCategories, products, productVariants, productOrders,
+    organizerPosts
+} = schema;
+import { eq, or, and, isNull, sql, inArray } from 'drizzle-orm';
 import dotenv from 'dotenv';
 import Redis from 'ioredis';
 import { serveStatic } from '@hono/node-server/serve-static';
