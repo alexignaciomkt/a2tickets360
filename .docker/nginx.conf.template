@@ -1,0 +1,66 @@
+## OG_API_UPSTREAM
+## ─────────────────────────────────────────────────
+## Configure this via Docker build-arg or env:
+##   - Docker Swarm service: http://ticketera-api:3000
+##   - Docker Compose:       http://api:3000
+##   - External server:      http://api.a2tickets360.com.br
+## ─────────────────────────────────────────────────
+
+# Map crawler user-agents for efficient detection
+map $http_user_agent $is_crawler {
+    default                 0;
+    ~*WhatsApp              1;
+    ~*facebookexternalhit   1;
+    ~*Facebot               1;
+    ~*Twitterbot            1;
+    ~*LinkedInBot           1;
+    ~*Slackbot              1;
+    ~*TelegramBot           1;
+    ~*Discordbot            1;
+    ~*Googlebot             1;
+    ~*bingbot               1;
+    ~*Pinterestbot          1;
+}
+
+server {
+    listen 80;
+    server_name localhost;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # ─── Crawler Interception for Event Pages ───
+    # When a social media crawler requests /events/:id, proxy to the
+    # Hono API which returns HTML with dynamic OG meta tags.
+    # Normal users get the SPA as usual.
+    location ~ ^/events/(.+)$ {
+        # Resolve DNS at runtime (required for Docker service discovery)
+        resolver 127.0.0.11 valid=30s;
+        set $og_upstream "${OG_API_UPSTREAM}";
+
+        if ($is_crawler = 1) {
+            proxy_pass $og_upstream/og/events/$1;
+        }
+
+        # Normal users → SPA
+        try_files $uri /index.html;
+    }
+
+    # ─── Default SPA Handler ───
+    location / {
+        try_files $uri $uri/ /index.html;
+
+        # Security headers
+        add_header X-Frame-Options "SAMEORIGIN";
+        add_header X-XSS-Protection "1; mode=block";
+        add_header X-Content-Type-Options "nosniff";
+    }
+
+    # ─── Static Assets Cache (Vite hashed files) ───
+    location ~* \.(?:css|js|jpg|jpeg|gif|png|ico|svg|woff|woff2|ttf|eot)$ {
+        try_files $uri =404;
+        expires 1y;
+        access_log off;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+    }
+}

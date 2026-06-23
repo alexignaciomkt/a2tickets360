@@ -81,7 +81,7 @@ const SupplierDetails = () => {
                             </div>
                             <div>
                                 <div className="flex items-center gap-2">
-                                    <h1 className="text-2xl font-black text-gray-900 uppercase tracking-tighter">{supplier.name}</h1>
+                                    <h1 className="text-2xl font-black text-gray-900 uppercase tracking-tight">{supplier.name}</h1>
                                     <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-[10px] font-black uppercase tracking-widest">Ativo</span>
                                 </div>
                                 <div className="flex flex-wrap items-center gap-4 mt-1 text-gray-500 font-medium text-sm">
@@ -117,7 +117,7 @@ const SupplierDetails = () => {
                             </div>
                             <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">Volume de Negócios</h3>
                         </div>
-                        <div className="text-2xl font-black text-gray-900 tracking-tighter">
+                        <div className="text-2xl font-black text-gray-900 tracking-tight">
                             R$ {supplier.totalSpent.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </div>
                         <p className="text-xs text-gray-500 mt-2 font-medium">Investimento total acumulado</p>
@@ -130,7 +130,7 @@ const SupplierDetails = () => {
                             </div>
                             <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">Status de Atendimento</h3>
                         </div>
-                        <div className="text-2xl font-black text-gray-900 tracking-tighter">PREMIUM</div>
+                        <div className="text-2xl font-black text-gray-900 tracking-tight">PREMIUM</div>
                         <p className="text-xs text-gray-500 mt-2 font-medium">Baseado em 12 contratos</p>
                     </div>
 
@@ -141,7 +141,7 @@ const SupplierDetails = () => {
                             </div>
                             <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">Última Entrega</h3>
                         </div>
-                        <div className="text-xl font-black text-gray-900 tracking-tighter uppercase">{supplier.lastEvent || 'N/A'}</div>
+                        <div className="text-xl font-black text-gray-900 tracking-tight uppercase">{supplier.lastEvent || 'N/A'}</div>
                         <p className="text-xs text-gray-500 mt-2 font-medium">Janeiro, 2025</p>
                     </div>
                 </div>
@@ -182,7 +182,7 @@ const SupplierDetails = () => {
                                                 <FileText className="w-5 h-5" />
                                             </div>
                                             <div>
-                                                <div className="text-sm font-black text-gray-900 uppercase tracking-tighter">Contrato de Prestação de Serviço - Evento {i}</div>
+                                                <div className="text-sm font-black text-gray-900 uppercase tracking-tight">Contrato de Prestação de Serviço - Evento {i}</div>
                                                 <div className="text-xs text-gray-500 font-medium">Assinado em 12/01/2025 • Validade: Dez/2025</div>
                                             </div>
                                         </div>

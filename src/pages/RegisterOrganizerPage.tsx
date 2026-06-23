@@ -219,7 +219,7 @@ const RegisterOrganizerPage = () => {
                     <span className="text-xs font-bold uppercase tracking-widest text-indigo-300">Área do Produtor</span>
                   </div>
 
-                  <h1 className="text-5xl font-black text-white italic uppercase tracking-tighter leading-none mb-6">
+                  <h1 className="text-5xl font-black text-white italic uppercase tracking-tight leading-none mb-6">
                     Sua Produtora <br />
                     <span className="text-indigo-400">com Gestão de Elite.</span>
                   </h1>
@@ -398,7 +398,7 @@ const RegisterOrganizerPage = () => {
               <PartyPopper className="w-10 h-10 text-indigo-400" />
             </div>
             <DialogHeader className="space-y-4">
-              <DialogTitle className="text-3xl font-black text-white italic uppercase tracking-tighter leading-none">
+              <DialogTitle className="text-3xl font-black text-white italic uppercase tracking-tight leading-none">
                 Bem-vindo à <br />
                 <span className="text-indigo-400">A2 Tickets 360º!</span>
               </DialogTitle>

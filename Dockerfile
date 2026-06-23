@@ -1,32 +1,37 @@
-# Estágio 1: Build da aplicação React/Vite
+# Stage 1: Build the React/Vite application
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copia os arquivos de dependência
+# Copy dependency files
 COPY package.json package-lock.json ./
 
-# Instala as dependências (ci é mais rápido e confiável)
+# Install dependencies (ci is faster and more reliable)
 RUN npm ci
 
-# Copia o restante do código
+# Copy the rest of the code
 COPY . .
 
-# Roda o build (gera a pasta dist/)
+# Build (generates dist/)
 RUN npm run build
 
-# Estágio 2: Servidor Web Nginx
+# Stage 2: Nginx web server with crawler detection
 FROM nginx:alpine
 
-# Remove o Nginx padrão
+# Remove default Nginx content
 RUN rm -rf /usr/share/nginx/html/*
 
-# Copia as configurações customizadas para SPA
-COPY .docker/nginx.conf /etc/nginx/conf.d/default.conf
+# Copy the nginx template (NOT the final config — processed at runtime)
+COPY .docker/nginx.conf.template /etc/nginx/templates/default.conf.template
 
-# Copia os arquivos gerados no estágio de build
+# Copy the built files from the builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Default API upstream — override via environment variable in docker-compose/swarm
+ENV OG_API_UPSTREAM=http://ticketera-api:3000
 
 EXPOSE 80
 
+# nginx:alpine image automatically processes /etc/nginx/templates/*.template
+# files using envsubst and outputs to /etc/nginx/conf.d/
 CMD ["nginx", "-g", "daemon off;"]

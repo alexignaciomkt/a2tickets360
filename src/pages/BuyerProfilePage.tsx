@@ -144,7 +144,7 @@ const BuyerProfilePage = () => {
                                                         <div className="flex-1 p-4 flex flex-col justify-between">
                                                             <div>
                                                                 <h4 className="font-black text-gray-900 leading-tight mb-1">{ticket.eventTitle}</h4>
-                                                                <p className="text-[10px] font-bold text-[#FF6B00] uppercase tracking-tighter">{ticket.ticketName}</p>
+                                                                <p className="text-[10px] font-bold text-[#FF6B00] uppercase tracking-tight">{ticket.ticketName}</p>
                                                             </div>
                                                             <div className="flex items-center justify-between">
                                                                 <Badge variant="secondary" className="bg-green-50 text-green-600 font-bold border-none text-[10px]">VÁLIDO</Badge>
@@ -222,7 +222,7 @@ const BuyerProfilePage = () => {
                                 <div className="absolute -right-20 -top-20 w-64 h-64 bg-pink-500/10 rounded-full blur-3xl"></div>
                                 <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
                                     <div>
-                                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-full text-[10px] font-bold uppercase tracking-tighter mb-4">
+                                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-full text-[10px] font-bold uppercase tracking-tight mb-4">
                                             <ImageIcon className="w-3 h-3" /> Insta A2 Tickets 360
                                         </div>
                                         <h3 className="text-2xl font-black text-gray-900 mb-2">Suas memórias em foco</h3>

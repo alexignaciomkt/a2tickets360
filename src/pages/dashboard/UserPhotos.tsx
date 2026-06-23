@@ -156,7 +156,7 @@ const UserPhotos = () => {
             <div className="flex-1 space-y-8 text-center md:text-left">
               <div className="space-y-2">
                  <div className="flex flex-col md:flex-row items-center gap-4">
-                    <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter leading-none">João da Silva Node</h2>
+                    <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight leading-none">João da Silva Node</h2>
                     <div className="px-4 py-1.5 bg-slate-900 rounded-full text-[8px] font-black text-white uppercase tracking-[0.2em] shadow-lg">Verified Identity</div>
                  </div>
                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.2em]">Matrix ID: @JOAOSILVA_ALPHA</p>

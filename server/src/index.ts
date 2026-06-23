@@ -78,6 +78,95 @@ app.get('/api/health', (c: Context) => {
     });
 });
 
+// =================================================================
+// OG Meta Tags Route — Dynamic social previews for crawlers
+// (WhatsApp, Facebook, Twitter, LinkedIn, Telegram, etc.)
+// =================================================================
+app.get('/og/events/:id', async (c: Context) => {
+    const id = c.req.param('id');
+    const SITE_URL = process.env.SITE_URL || 'https://a2tickets360.com.br';
+
+    try {
+        const event = await db.query.events.findFirst({
+            where: eq(events.id, id),
+        });
+
+        const title = event?.title || 'A2 Tickets 360º';
+        const rawDesc = event?.description || 'Gestão completa de eventos e inteligência de mercado.';
+        // Strip HTML tags and limit to 200 chars for OG description
+        const description = rawDesc.replace(/<[^>]*>/g, '').substring(0, 200);
+        const image = event?.imageUrl || `${SITE_URL}/logo_512x512.png`;
+        const eventUrl = `${SITE_URL}/events/${id}`;
+
+        // Build location string if available
+        const locationParts = [event?.locationName, event?.locationCity, event?.locationState].filter(Boolean);
+        const location = locationParts.length > 0 ? locationParts.join(' · ') : '';
+
+        // Format date if available
+        let dateFormatted = '';
+        if (event?.date) {
+            try {
+                const d = new Date(event.date);
+                dateFormatted = d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+                if (event.time) dateFormatted += ` às ${event.time}`;
+            } catch { dateFormatted = event.date; }
+        }
+
+        // Build a richer description with date and location
+        const richDesc = [description, dateFormatted, location].filter(Boolean).join(' | ');
+
+        const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <title>${title} — A2 Tickets 360º</title>
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="${title}" />
+    <meta property="og:description" content="${richDesc}" />
+    <meta property="og:image" content="${image}" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:url" content="${eventUrl}" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="A2 Tickets 360º" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${title}" />
+    <meta name="twitter:description" content="${richDesc}" />
+    <meta name="twitter:image" content="${image}" />
+
+    <!-- Redirect humans to the real SPA page -->
+    <meta http-equiv="refresh" content="0;url=${eventUrl}" />
+    <link rel="canonical" href="${eventUrl}" />
+</head>
+<body>
+    <p>Redirecionando para <a href="${eventUrl}">${title}</a>...</p>
+</body>
+</html>`;
+
+        return c.html(html);
+    } catch (error: any) {
+        // Fallback — return default OG tags on error
+        const fallbackHtml = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <title>A2 Tickets 360º</title>
+    <meta property="og:title" content="A2 Tickets 360º" />
+    <meta property="og:description" content="Gestão completa de eventos e inteligência de mercado." />
+    <meta property="og:image" content="${SITE_URL}/logo_512x512.png" />
+    <meta property="og:url" content="${SITE_URL}/events/${id}" />
+    <meta property="og:type" content="website" />
+    <meta http-equiv="refresh" content="0;url=${SITE_URL}/events/${id}" />
+</head>
+<body><p>Redirecionando...</p></body>
+</html>`;
+        return c.html(fallbackHtml);
+    }
+});
+
 // Storage Config
 const UPLOADS_DIR = join(process.cwd(), 'uploads');
 if (!existsSync(UPLOADS_DIR)) {

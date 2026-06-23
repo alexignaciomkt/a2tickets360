@@ -121,7 +121,7 @@ const EventSuccessPage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
                     {/* Status & Message Area */}
                     <div className="md:col-span-12 space-y-4 text-center">
-                        <h1 className="text-4xl font-black text-gray-900 tracking-tighter uppercase relative">
+                        <h1 className="text-4xl font-black text-gray-900 tracking-tight uppercase relative">
                             <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-emerald-600">
                                {event.status === 'published' ? 'Evento Publicado!' : 'Evento Enviado para Análise!'}
                             </span>
@@ -264,7 +264,7 @@ const EventSuccessPage = () => {
                     <div className="md:col-span-5 space-y-6">
                         <div className="bg-indigo-600 rounded-[2.5rem] p-8 text-white shadow-xl shadow-indigo-200">
                             <Sparkles className="w-8 h-8 mb-4 text-indigo-100" />
-                            <h3 className="text-xl font-black uppercase tracking-tighter mb-4">Aumente suas vendas</h3>
+                            <h3 className="text-xl font-black uppercase tracking-tight mb-4">Aumente suas vendas</h3>
                             <p className="text-indigo-100/80 text-sm font-medium mb-8 leading-relaxed">
                                 Comece a divulgar seu link agora mesmo! O checkout estará ativo assim que a análise for concluída.
                             </p>
@@ -287,7 +287,7 @@ const EventSuccessPage = () => {
                                  <div className="p-3 bg-white rounded-2xl text-gray-400 group-hover:text-indigo-600 transition-colors">
                                      <PanelLeft className="w-5 h-5" />
                                  </div>
-                                 <h4 className="font-black text-gray-900 uppercase tracking-tighter">Próximos Passos</h4>
+                                 <h4 className="font-black text-gray-900 uppercase tracking-tight">Próximos Passos</h4>
                              </div>
                              <ul className="space-y-4">
                                  {[

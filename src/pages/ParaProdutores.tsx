@@ -77,7 +77,7 @@ const ParaProdutores: React.FC = () => {
                 {/* Vantagens Competitivas */}
                 <section className="py-24 max-w-7xl mx-auto px-4">
                     <div className="text-center mb-20">
-                        <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-6 uppercase tracking-tighter">Por que escolher a A2 Tickets 360?</h2>
+                        <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-6 uppercase tracking-tight">Por que escolher a A2 Tickets 360?</h2>
                         <p className="text-xl text-gray-500 font-medium">Focamos na sua lucratividade e no controle total do seu negócio.</p>
                     </div>
 
@@ -109,7 +109,7 @@ const ParaProdutores: React.FC = () => {
                                 <div className={`w-16 h-16 ${item.bg} ${item.color} rounded-2xl flex items-center justify-center mb-8 group-hover:scale-110 transition shadow-inner`}>
                                     <item.icon className="w-8 h-8" />
                                 </div>
-                                <h3 className="text-2xl font-black text-gray-900 mb-4 uppercase tracking-tighter">{item.title}</h3>
+                                <h3 className="text-2xl font-black text-gray-900 mb-4 uppercase tracking-tight">{item.title}</h3>
                                 <p className="text-gray-500 font-medium leading-relaxed">{item.desc}</p>
                             </div>
                         ))}
@@ -120,7 +120,7 @@ const ParaProdutores: React.FC = () => {
                 <section className="py-24 bg-gray-950 text-white relative">
                     <div className="max-w-7xl mx-auto px-4 flex flex-col lg:flex-row items-center gap-20">
                         <div className="lg:w-1/2">
-                            <h2 className="font-black mb-8 leading-none tracking-tighter flex flex-col gap-2">
+                            <h2 className="font-black mb-8 leading-none tracking-tight flex flex-col gap-2">
                                 <span className="text-3xl md:text-4xl text-gray-400">Um verdadeiro</span>
                                 <span className="text-5xl md:text-7xl text-indigo-400 uppercase drop-shadow-md">ECOSSISTEMA.</span>
                             </h2>
@@ -191,7 +191,7 @@ const ParaProdutores: React.FC = () => {
                     <div className="max-w-7xl mx-auto px-4 flex flex-col lg:flex-row items-center gap-16">
                         <div className="lg:w-1/2">
                             <span className="text-indigo-600 font-black text-xs uppercase tracking-widest mb-4 block">Novidade Exclusiva</span>
-                            <h2 className="font-black text-gray-900 leading-[0.85] tracking-tighter mb-10 flex flex-col gap-1 uppercase">
+                            <h2 className="font-black text-gray-900 leading-[0.85] tracking-tight mb-10 flex flex-col gap-1 uppercase">
                                 <span className="text-2xl md:text-4xl">Encontre o</span>
                                 <span className="text-5xl md:text-8xl text-indigo-600 drop-shadow-sm">Staff Ideal</span>
                                 <span className="text-3xl md:text-5xl">em segundos.</span>
@@ -267,7 +267,7 @@ const ParaProdutores: React.FC = () => {
                 {/* Final CTA */}
                 <section className="py-32 px-4">
                     <div className="max-w-5xl mx-auto bg-indigo-600 rounded-[4rem] p-16 md:p-24 text-center text-white relative overflow-hidden shadow-2xl animate-float">
-                        <h2 className="text-4xl md:text-7xl font-black mb-10 relative z-10 leading-tight uppercase tracking-tighter">Pronto para o<br />próximo nível?</h2>
+                        <h2 className="text-4xl md:text-7xl font-black mb-10 relative z-10 leading-tight uppercase tracking-tight">Pronto para o<br />próximo nível?</h2>
                         <p className="text-xl md:text-2xl text-indigo-100 mb-16 relative z-10 font-medium">Junte-se a centenas de produtores que já economizam tempo e dinheiro com a A2 Tickets 360.</p>
                         <Link
                             to="/register-organizer"

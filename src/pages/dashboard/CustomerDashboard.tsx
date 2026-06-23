@@ -194,7 +194,7 @@ const CustomerDashboard = () => {
               <div className="bg-white rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-6 shadow-sm">
                 <Ticket className="h-10 w-10 text-indigo-300" />
               </div>
-              <h3 className="text-2xl font-black text-gray-900 mb-2 uppercase tracking-tighter">Nenhum ingresso ainda</h3>
+              <h3 className="text-2xl font-black text-gray-900 mb-2 uppercase tracking-tight">Nenhum ingresso ainda</h3>
               <p className="text-gray-500 font-medium max-w-sm mx-auto mb-10">
                 Você ainda não adquiriu ingressos para nenhum evento. Que tal descobrir novas experiências agora?
               </p>

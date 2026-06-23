@@ -20,7 +20,7 @@ const LoginPage = () => {
         <div className="container mx-auto px-4 relative z-10 flex flex-col items-center">
           <div className="max-w-md w-full">
             <div className="text-center mb-10">
-              <h1 className="text-5xl font-black text-white italic uppercase tracking-tighter mb-2 leading-none">
+              <h1 className="text-5xl font-black text-white italic uppercase tracking-tight mb-2 leading-none">
                 ACESSAR <br />
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-indigo-400">SISTEMA.</span>
               </h1>

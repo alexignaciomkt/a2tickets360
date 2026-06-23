@@ -16,7 +16,9 @@ import {
   LayoutGrid,
   ExternalLink,
   Quote,
-  Star
+  Star,
+  Users,
+  Briefcase
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -33,6 +35,7 @@ const ProducerFanPage = () => {
   const [producerEvents, setProducerEvents] = useState<any[]>([]);
   const [producerProducts, setProducerProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showWorkModal, setShowWorkModal] = useState(false);
 
   // Visitor tracking
   useEffect(() => {
@@ -105,11 +108,11 @@ const ProducerFanPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#F8F9FA] space-y-4">
+      <div className="min-h-screen bg-zinc-950 space-y-4">
         <Skeleton className="h-[400px] w-full" />
         <div className="max-w-6xl mx-auto px-4 -mt-20">
            <div className="flex flex-col items-center gap-4">
-              <Skeleton className="h-40 w-40 rounded-3xl border-8 border-[#F8F9FA]" />
+              <Skeleton className="h-40 w-40 rounded-3xl border-8 border-zinc-950" />
               <Skeleton className="h-10 w-64" />
               <Skeleton className="h-4 w-40" />
            </div>
@@ -120,16 +123,16 @@ const ProducerFanPage = () => {
 
   if (!producerData) {
     return (
-      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center p-4">
-        <Card className="max-w-md w-full p-10 text-center space-y-6 shadow-2xl border-none rounded-[2rem]">
-          <div className="bg-gray-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto">
-            <Info className="w-10 h-10 text-gray-400" />
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
+        <Card className="max-w-md w-full p-10 text-center space-y-6 shadow-2xl border-none rounded-[2rem] bg-zinc-900/50 backdrop-blur-md">
+          <div className="bg-zinc-900/10 w-20 h-20 rounded-full flex items-center justify-center mx-auto border border-white/5">
+            <Info className="w-10 h-10 text-zinc-500" />
           </div>
           <div>
-            <h2 className="text-2xl font-black uppercase tracking-tight">Vitrine não encontrada</h2>
-            <p className="text-gray-500 font-medium mt-2">Esta URL não pertence a uma produtora ativa na Ticketera.</p>
+            <h2 className="text-2xl font-black uppercase tracking-tight text-white">Vitrine não encontrada</h2>
+            <p className="text-zinc-400 font-medium mt-2">Esta URL não pertence a uma produtora ativa na Ticketera.</p>
           </div>
-          <Button variant="default" className="w-full font-black uppercase tracking-widest h-12 rounded-2xl" asChild>
+          <Button variant="default" className="w-full font-black uppercase tracking-widest h-12 rounded-2xl bg-white text-black hover:bg-zinc-200" asChild>
             <Link to="/">Explorar Eventos</Link>
           </Button>
         </Card>
@@ -145,7 +148,7 @@ const ProducerFanPage = () => {
   const isMinimal = template === 'minimal';
   const titleFont = isClassic ? 'font-serif' : 'font-black';
   const heroRounding = isClassic ? 'md:rounded-none' : isMinimal ? 'md:rounded-3xl' : 'md:rounded-b-[4rem]';
-  const sectionTitleClass = `text-2xl md:text-3xl ${isClassic ? 'font-bold font-serif tracking-normal' : isMinimal ? 'font-light tracking-widest' : 'font-black uppercase tracking-tight'} text-gray-900`;
+  const sectionTitleClass = `text-2xl md:text-3xl ${isClassic ? 'font-bold font-serif tracking-normal' : isMinimal ? 'font-light tracking-widest' : 'font-black uppercase tracking-tight'} text-white`;
 
   const now = new Date();
   
@@ -176,14 +179,14 @@ const ProducerFanPage = () => {
 
   if (!showPage) {
     return (
-      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center p-4">
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
         <Card className="max-w-md w-full p-10 text-center space-y-6 shadow-2xl border-none rounded-[2rem]">
           <div className="bg-amber-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto">
             <Info className="w-10 h-10 text-amber-600" />
           </div>
           <div>
             <h2 className="text-2xl font-black uppercase tracking-tight">Vitrine Temporariamente Indisponível</h2>
-            <p className="text-gray-500 font-medium mt-2">O produtor optou por manter esta vitrine privada no momento.</p>
+            <p className="text-zinc-400 font-medium mt-2">O produtor optou por manter esta vitrine privada no momento.</p>
           </div>
           <Button variant="default" className="w-full font-black uppercase tracking-widest h-12 rounded-2xl" asChild>
             <Link to="/">Voltar ao Início</Link>
@@ -194,14 +197,26 @@ const ProducerFanPage = () => {
   }
 
   return (
-    <div className="bg-[#F8F9FA] min-h-screen font-sans pt-16">
+    <div className="bg-zinc-950 min-h-screen font-sans pt-16 relative">
+      {/* Neon Ink Background with Glassmorphism Overlay */}
+      <div 
+        className="fixed inset-0 z-0 pointer-events-none mix-blend-screen opacity-70"
+        style={{ 
+          backgroundImage: 'url("/background site.png")',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundAttachment: 'fixed'
+        }}
+      />
+      <div className="fixed inset-0 z-0 pointer-events-none bg-zinc-950/40 backdrop-blur-[50px]" />
+      <div className="relative z-10">
       {/* ─── NAVBAR FIXA ─── */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-xl border-b border-gray-100 shadow-sm px-6 h-16 flex items-center justify-between">
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-zinc-900/80 backdrop-blur-xl border-b border-white/10 shadow-sm px-6 h-16 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className={`w-8 h-8 ${buttonStyle} overflow-hidden shadow-sm`}>
             <img src={producerData.logo_url} className="w-full h-full object-cover" />
           </div>
-          <span className="font-black uppercase tracking-widest text-[10px] text-gray-900">{producerData.company_name}</span>
+          <span className="font-black uppercase tracking-widest text-[10px] text-white">{producerData.company_name}</span>
         </div>
         <div className="hidden md:flex items-center gap-6">
           {[
@@ -214,7 +229,7 @@ const ProducerFanPage = () => {
             <button 
               key={item.id}
               onClick={() => scrollToSection(item.id)}
-              className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 hover:text-gray-900 transition-colors"
+              className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 hover:text-white transition-colors"
             >
               {item.label}
             </button>
@@ -224,6 +239,7 @@ const ProducerFanPage = () => {
           <Button 
             variant="ghost" 
             size="sm" 
+            onClick={() => setShowWorkModal(true)}
             className={`hidden md:flex font-black uppercase text-[10px] tracking-widest ${buttonStyle}`}
           >
             Trabalhe Conosco
@@ -240,13 +256,17 @@ const ProducerFanPage = () => {
       </nav>
 
       {/* ─── HERO & BRANDING ─── */}
-      <div id="home" className={`max-w-[1400px] mx-auto relative overflow-hidden ${heroRounding} shadow-2xl bg-black ${isMinimal ? 'mt-8' : ''}`}>
-        <img 
-          src={producerData.banner_url || "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&q=80"} 
-          className="w-full h-auto block" 
-          alt="Cover" 
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
+      <div id="home" className={`max-w-[1400px] mx-auto px-[50px] relative z-10 ${isMinimal ? 'mt-8' : 'mt-6'}`}>
+        <div className={`relative overflow-hidden ${heroRounding} shadow-[0_0_40px_rgba(0,0,0,0.5)] bg-black group`}>
+          <img 
+            src={producerData.banner_url || "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&q=80"} 
+            className="w-full h-auto block transition-transform duration-1000 group-hover:scale-105" 
+            alt="Cover" 
+          />
+          {/* 50% transparency overlay */}
+          <div className="absolute inset-0 bg-black/50 pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-transparent to-transparent pointer-events-none opacity-80" />
+        </div>
       </div>
 
       <div className="max-w-6xl mx-auto px-4 relative z-10 mt-12 md:mt-16">
@@ -256,7 +276,7 @@ const ProducerFanPage = () => {
           {/* SEÇÃO 1: HERO / PRÓXIMO EVENTO */}
           {showEvents && featuredEvent && (
             <div className="relative group cursor-pointer" onClick={() => window.location.href = `/events/${featuredEvent.id}`}>
-              <div className={`relative overflow-hidden ${buttonStyle} shadow-2xl h-[400px] md:h-[500px] w-full border border-gray-100`}>
+              <div className={`relative overflow-hidden ${buttonStyle} shadow-2xl h-[400px] md:h-[500px] w-full border border-white/10`}>
                 <img src={featuredEvent.banner_url || featuredEvent.imageUrl} className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" alt={featuredEvent.title} />
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent opacity-90" />
                 
@@ -299,15 +319,15 @@ const ProducerFanPage = () => {
           {/* SEÇÃO 2: AGENDA DE EVENTOS */}
           {showEvents && (
             <section id="agenda" className="space-y-12">
-            <div className={`flex flex-col items-center text-center space-y-4 ${isMinimal ? 'border-b border-gray-100 pb-8' : ''}`}>
-              {!isMinimal && <Badge variant="outline" className="px-4 py-1.5 border-gray-200 text-gray-400 font-black uppercase tracking-widest text-[10px]">Calendário Oficial</Badge>}
+            <div className={`flex flex-col items-center text-center space-y-4 ${isMinimal ? 'border-b border-white/10 pb-8' : ''}`}>
+              {!isMinimal && <Badge variant="outline" className="px-4 py-1.5 border-white/5 text-zinc-500 font-black uppercase tracking-widest text-[10px]">Calendário Oficial</Badge>}
               <h3 className={sectionTitleClass}>{producerData.settings?.titles?.agenda || 'Agenda Completa'}</h3>
             </div>
             
             {upcomingEvents.length === 0 && !featuredEvent ? (
-               <div className="py-20 text-center bg-white rounded-[2rem] border border-dashed border-gray-200">
+               <div className="py-20 text-center bg-zinc-900 rounded-[2rem] border border-dashed border-white/5">
                   <Calendar className="w-12 h-12 text-gray-200 mx-auto mb-4" />
-                  <p className="text-gray-400 font-black uppercase tracking-widest">Nenhum evento futuro agendado</p>
+                  <p className="text-zinc-500 font-black uppercase tracking-widest">Nenhum evento futuro agendado</p>
                </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -318,17 +338,17 @@ const ProducerFanPage = () => {
                         <img src={event.banner_url || event.imageUrl} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt={event.title} />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60 group-hover:opacity-40 transition-opacity" />
                         <div className="absolute bottom-4 left-4 right-4">
-                           <Badge className="bg-white/20 backdrop-blur-md text-white border-none font-black text-[10px] uppercase tracking-widest px-3 py-1 mb-2">Vendas Abertas</Badge>
+                           <Badge className="bg-zinc-900/20 backdrop-blur-md text-white border-none font-black text-[10px] uppercase tracking-widest px-3 py-1 mb-2">Vendas Abertas</Badge>
                            <h4 className="text-xl font-black text-white leading-tight">{event.title}</h4>
                         </div>
                       </div>
-                      <CardContent className="p-6 bg-white">
+                      <CardContent className="p-6 bg-zinc-900">
                          <div className="flex items-center justify-between">
                             <div className="space-y-1">
-                              <p className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em]">{event.category || 'Premium'}</p>
-                              <p className="text-sm font-bold text-gray-900">{new Date(event.start_date || event.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })} • {event.city || 'Brasil'}</p>
+                              <p className="text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em]">{event.category || 'Premium'}</p>
+                              <p className="text-sm font-bold text-white">{new Date(event.start_date || event.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })} • {event.city || 'Brasil'}</p>
                             </div>
-                            <div className="w-10 h-10 rounded-full flex items-center justify-center bg-gray-50 group-hover:bg-primary/10 transition-colors" style={{ color: primaryColor }}>
+                            <div className="w-10 h-10 rounded-full flex items-center justify-center bg-zinc-900/5 group-hover:bg-primary/10 transition-colors" style={{ color: primaryColor }}>
                                <ArrowRight className="w-5 h-5" />
                             </div>
                          </div>
@@ -342,36 +362,49 @@ const ProducerFanPage = () => {
         )}
 
           {/* SEÇÃO 3: SOBRE A MARCA */}
-          <section id="sobre" className="grid grid-cols-1 md:grid-cols-12 gap-16 items-center">
-            <div className="md:col-span-5 relative">
-              <div className={`aspect-square ${buttonStyle} overflow-hidden shadow-2xl relative border-8 border-white`}>
-                <img 
-                  src={producerData.settings?.about_image || producerData.logo_url} 
-                  className="w-full h-full object-cover" 
-                  alt="Sobre"
-                />
-                <div className="absolute inset-0 bg-primary/5 mix-blend-overlay" style={{ backgroundColor: primaryColor }} />
-              </div>
-            </div>
-            <div className="md:col-span-7 space-y-8 text-left">
-              <div className="space-y-4">
-                <Badge variant="outline" className="px-4 py-1.5 border-gray-200 text-gray-400 font-black uppercase tracking-widest text-[10px]">Nossa Identidade</Badge>
-                <h3 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-gray-900 leading-tight">{producerData.settings?.titles?.about || 'A história por trás da produtora'}</h3>
-              </div>
-              <div 
-                className="text-gray-600 text-lg md:text-xl leading-relaxed font-medium prose prose-slate max-w-none prose-p:leading-relaxed prose-strong:text-gray-900"
-                dangerouslySetInnerHTML={{ 
-                  __html: producerData.bio || "Esta produtora ainda não definiu sua biografia oficial, mas sua paixão por criar momentos inesquecíveis é o que nos move todos os dias." 
-                }}
-              />
-              <div className="grid grid-cols-2 gap-8 pt-8 border-t border-gray-100">
-                <div className="space-y-1">
-                  <p className="text-3xl font-black text-gray-900">{producerEvents.length}+</p>
-                  <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Eventos Realizados</p>
+          <section id="sobre" className="relative group transition-all duration-500 rounded-[3px] p-[1px] mx-4 md:mx-0">
+            {/* Gradient Border matched to producer primary color */}
+            <div className="absolute inset-0 rounded-[3px] bg-gradient-to-br opacity-50 group-hover:opacity-100 transition-opacity duration-500" style={{ backgroundImage: `linear-gradient(to bottom right, ${primaryColor}, transparent, ${primaryColor}40)` }} />
+            
+            {/* Inner Content with Glassmorphism and Neon Hover */}
+            <div 
+              className="relative rounded-[2px] bg-zinc-950/80 backdrop-blur-xl p-8 md:p-12 transition-all duration-500"
+              style={{ boxShadow: `0 0 0 rgba(0,0,0,0)` }}
+              onMouseEnter={(e) => e.currentTarget.style.boxShadow = `0 0 30px ${primaryColor}40`}
+              onMouseLeave={(e) => e.currentTarget.style.boxShadow = `0 0 0 rgba(0,0,0,0)`}
+            >
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-16 items-center">
+                <div className="md:col-span-5 relative">
+                  <div className={`aspect-square rounded-[3px] overflow-hidden shadow-2xl relative border-2 border-white/5`}>
+                    <img 
+                      src={producerData.settings?.about_image || producerData.logo_url} 
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
+                      alt="Sobre"
+                    />
+                    <div className="absolute inset-0 mix-blend-overlay opacity-30" style={{ backgroundColor: primaryColor }} />
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <p className="text-3xl font-black text-gray-900">100%</p>
-                  <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Satisfação Garantida</p>
+                <div className="md:col-span-7 space-y-8 text-left">
+                  <div className="space-y-4">
+                    <Badge variant="outline" className="px-4 py-1.5 border-white/5 text-zinc-400 font-black uppercase tracking-widest text-[10px] bg-zinc-900/50 backdrop-blur-sm">Quem Somos</Badge>
+                    <h3 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-white leading-tight">{producerData.settings?.titles?.about || 'A história por trás da produtora'}</h3>
+                  </div>
+                  <div 
+                    className="text-zinc-300 text-lg leading-relaxed font-medium prose prose-slate max-w-none prose-p:leading-relaxed prose-strong:text-white"
+                    dangerouslySetInnerHTML={{ 
+                      __html: producerData.bio || "Esta produtora ainda não definiu sua biografia oficial, mas sua paixão por criar momentos inesquecíveis é o que nos move todos os dias." 
+                    }}
+                  />
+                  <div className="grid grid-cols-2 gap-8 pt-8 border-t border-white/10">
+                    <div className="space-y-1">
+                      <p className="text-3xl font-black text-white">{producerEvents.length}+</p>
+                      <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Eventos Realizados</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-3xl font-black text-white">100%</p>
+                      <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Satisfação Garantida</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -381,25 +414,25 @@ const ProducerFanPage = () => {
           {showStore && producerProducts.length > 0 && (
             <section id="loja" className="space-y-12">
               <div className="flex flex-col items-center text-center space-y-4">
-                <Badge variant="outline" className="px-4 py-1.5 border-gray-200 text-gray-400 font-black uppercase tracking-widest text-[10px]">Loja Oficial</Badge>
-                <h3 className="text-3xl md:text-4xl font-black uppercase tracking-tight text-gray-900">Itens Exclusivos</h3>
+                <Badge variant="outline" className="px-4 py-1.5 border-white/5 text-zinc-500 font-black uppercase tracking-widest text-[10px]">Loja Oficial</Badge>
+                <h3 className="text-3xl md:text-4xl font-black uppercase tracking-tight text-white">Itens Exclusivos</h3>
               </div>
               
               <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
                 {producerProducts.map(product => (
                   <Link key={product.id} to={`/checkout/product/${product.id}`} className="group">
-                    <div className={`bg-white p-3 border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-500 ${buttonStyle} overflow-hidden`}>
-                       <div className="aspect-square rounded-2xl overflow-hidden bg-gray-50 mb-4 relative">
+                    <div className={`bg-zinc-900 p-3 border border-white/10 shadow-sm hover:shadow-xl transition-all duration-500 ${buttonStyle} overflow-hidden`}>
+                       <div className="aspect-square rounded-2xl overflow-hidden bg-zinc-900/5 mb-4 relative">
                           <img src={product.imageUrl} className="w-full h-full object-cover transition-transform group-hover:scale-110" alt={product.name} />
                           <div className="absolute top-2 right-2">
-                             <Button size="icon" className="w-8 h-8 rounded-full bg-white/90 text-gray-900 hover:bg-white shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                             <Button size="icon" className="w-8 h-8 rounded-full bg-zinc-900/90 text-white hover:bg-zinc-900 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
                                 <ShoppingBag className="w-4 h-4" />
                              </Button>
                           </div>
                        </div>
                        <div className="px-2 pb-2">
-                          <h4 className="text-sm font-black text-gray-900 group-hover:text-primary transition-colors line-clamp-1" style={{ color: primaryColor }}>{product.name}</h4>
-                          <p className="text-lg font-black text-gray-900 mt-1">R$ {parseFloat(product.price).toFixed(2)}</p>
+                          <h4 className="text-sm font-black text-white group-hover:text-primary transition-colors line-clamp-1" style={{ color: primaryColor }}>{product.name}</h4>
+                          <p className="text-lg font-black text-white mt-1">R$ {parseFloat(product.price).toFixed(2)}</p>
                        </div>
                     </div>
                   </Link>
@@ -411,8 +444,8 @@ const ProducerFanPage = () => {
           {/* SEÇÃO 5: GALERIA DE MEMÓRIAS */}
           <section id="memorias" className="space-y-16">
             <div className="flex flex-col items-center text-center space-y-4">
-              <Badge variant="outline" className="px-4 py-1.5 border-gray-200 text-gray-400 font-black uppercase tracking-widest text-[10px]">Galeria de Memórias</Badge>
-              <h3 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-gray-900">{producerData.settings?.titles?.gallery || 'Momentos Inesquecíveis'}</h3>
+              <Badge variant="outline" className="px-4 py-1.5 border-white/5 text-zinc-500 font-black uppercase tracking-widest text-[10px]">Galeria de Memórias</Badge>
+              <h3 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-white">{producerData.settings?.titles?.gallery || 'Momentos Inesquecíveis'}</h3>
             </div>
 
             {galleryImages.length > 0 ? (
@@ -424,9 +457,9 @@ const ProducerFanPage = () => {
                   ))}
                </div>
             ) : pastEvents.length === 0 ? (
-              <div className="py-20 text-center bg-white rounded-[2rem] border border-dashed border-gray-200">
+              <div className="py-20 text-center bg-zinc-900 rounded-[2rem] border border-dashed border-white/5">
                  <Clock className="w-12 h-12 text-gray-200 mx-auto mb-4" />
-                 <p className="text-gray-400 font-black uppercase tracking-widest">Nenhuma memória registrada ainda</p>
+                 <p className="text-zinc-500 font-black uppercase tracking-widest">Nenhuma memória registrada ainda</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
@@ -440,12 +473,12 @@ const ProducerFanPage = () => {
                       </div>
                       <div className="flex justify-between items-start px-2">
                          <div>
-                            <h4 className="text-xl font-black text-gray-900 uppercase tracking-tight">{event.title}</h4>
-                            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">{new Date(event.start_date || event.date).getFullYear()} • {event.location_name || event.locationName}</p>
+                            <h4 className="text-xl font-black text-white uppercase tracking-tight">{event.title}</h4>
+                            <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mt-1">{new Date(event.start_date || event.date).getFullYear()} • {event.location_name || event.locationName}</p>
                          </div>
                          <div className="flex -space-x-3">
                             {[1,2,3].map(i => (
-                              <div key={i} className="w-10 h-10 rounded-full border-2 border-[#F8F9FA] bg-gray-100 overflow-hidden shadow-sm">
+                              <div key={i} className="w-10 h-10 rounded-full border-2 border-zinc-950 bg-zinc-900/10 overflow-hidden shadow-sm">
                                  <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${event.id}${i}`} className="w-full h-full object-cover" />
                               </div>
                             ))}
@@ -458,11 +491,11 @@ const ProducerFanPage = () => {
           </section>
 
           {/* SEÇÃO 6: PROVA SOCIAL / DEPOIMENTOS (CARROSSEL AUTOMÁTICO) */}
-          <section id="depoimentos" className="bg-white rounded-[3rem] py-16 md:py-24 shadow-xl border border-gray-100 text-center space-y-12 overflow-hidden relative">
+          <section id="depoimentos" className="bg-zinc-900 rounded-[3rem] py-16 md:py-24 shadow-xl border border-white/10 text-center space-y-12 overflow-hidden relative">
              <div className="absolute top-0 left-0 w-full h-2 bg-primary/20" style={{ backgroundColor: primaryColor }} />
              
              <div className="max-w-3xl mx-auto space-y-4 px-4">
-                <Badge variant="outline" className="px-4 py-1.5 border-gray-200 text-gray-400 font-black uppercase tracking-widest text-[10px]">Prova Social</Badge>
+                <Badge variant="outline" className="px-4 py-1.5 border-white/5 text-zinc-500 font-black uppercase tracking-widest text-[10px]">Prova Social</Badge>
                 <h3 className={sectionTitleClass}>{producerData.settings?.titles?.testimonials || 'O que o público diz'}</h3>
              </div>
 
@@ -477,7 +510,7 @@ const ProducerFanPage = () => {
                       key={i} 
                       className="w-[85vw] md:w-[calc(50%-1.5rem)] lg:w-[calc(33.333%-1.5rem)] flex-shrink-0 snap-center flex flex-col"
                     >
-                      <Card className={`flex flex-col h-full bg-gray-50/50 border-gray-100 shadow-sm p-8 text-left relative ${buttonStyle} hover:shadow-md transition-shadow`}>
+                      <Card className={`flex flex-col h-full bg-zinc-900/5/50 border-white/10 shadow-sm p-8 text-left relative ${buttonStyle} hover:shadow-md transition-shadow`}>
                          <div className="absolute top-6 right-8 text-gray-200/50 pointer-events-none">
                            <Quote className="w-12 h-12" fill="currentColor" />
                          </div>
@@ -486,16 +519,16 @@ const ProducerFanPage = () => {
                              <Star key={starIndex} className={`w-4 h-4 ${(dep.stars || 5) > starIndex ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`} />
                            ))}
                          </div>
-                         <p className="text-gray-600 text-base md:text-lg font-medium italic leading-relaxed mb-8 relative z-10 flex-grow">
+                         <p className="text-zinc-300 text-base md:text-lg font-medium italic leading-relaxed mb-8 relative z-10 flex-grow">
                             "{dep.text}"
                          </p>
                          <div className="flex items-center gap-4 mt-auto relative z-10">
-                           <div className={`w-12 h-12 bg-white shadow-sm border border-gray-200 overflow-hidden flex-shrink-0 ${buttonStyle === 'rounded-full' ? 'rounded-full' : 'rounded-xl'}`}>
+                           <div className={`w-12 h-12 bg-zinc-900 shadow-sm border border-white/5 overflow-hidden flex-shrink-0 ${buttonStyle === 'rounded-full' ? 'rounded-full' : 'rounded-xl'}`}>
                              <img src={dep.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=user${i}${dep.name}`} className="w-full h-full object-cover" alt={dep.name} />
                            </div>
                            <div className="overflow-hidden">
-                             <p className="text-sm font-black text-gray-900 truncate">{dep.name}</p>
-                             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest truncate">{dep.role}</p>
+                             <p className="text-sm font-black text-white truncate">{dep.name}</p>
+                             <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest truncate">{dep.role}</p>
                            </div>
                          </div>
                       </Card>
@@ -506,26 +539,26 @@ const ProducerFanPage = () => {
            </section>
 
            {/* FOOTER DO PRODUTOR */}
-          <footer id="contato" className="pt-20 border-t border-gray-200">
+          <footer id="contato" className="pt-20 border-t border-white/5">
              <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
                 <div className="md:col-span-2 space-y-6">
                    <div className="flex items-center gap-4">
                       <div className={`w-12 h-12 ${buttonStyle} overflow-hidden shadow-lg`}>
                         <img src={producerData.logo_url} className="w-full h-full object-cover" />
                       </div>
-                      <h4 className="text-xl font-black uppercase tracking-tight text-gray-900">{producerData.company_name}</h4>
+                      <h4 className="text-xl font-black uppercase tracking-tight text-white">{producerData.company_name}</h4>
                    </div>
-                   <p className="text-gray-500 font-medium max-w-sm">
+                   <p className="text-zinc-400 font-medium max-w-sm">
                       Siga nossas redes e fique por dentro de todos os eventos exclusivos. Sua próxima grande memória começa aqui.
                    </p>
                    <div className="flex gap-4">
                       {producerData.instagram_url && (
-                        <a href={producerData.instagram_url} className="w-10 h-10 rounded-full bg-white shadow-sm border border-gray-100 flex items-center justify-center hover:text-pink-500 transition-colors">
+                        <a href={producerData.instagram_url} className="w-10 h-10 rounded-full bg-zinc-900 shadow-sm border border-white/10 flex items-center justify-center hover:text-pink-500 transition-colors">
                           <Instagram className="w-5 h-5" />
                         </a>
                       )}
                       {producerData.facebook_url && (
-                        <a href={producerData.facebook_url} className="w-10 h-10 rounded-full bg-white shadow-sm border border-gray-100 flex items-center justify-center hover:text-blue-600 transition-colors">
+                        <a href={producerData.facebook_url} className="w-10 h-10 rounded-full bg-zinc-900 shadow-sm border border-white/10 flex items-center justify-center hover:text-blue-600 transition-colors">
                           <Facebook className="w-5 h-5" />
                         </a>
                       )}
@@ -533,7 +566,7 @@ const ProducerFanPage = () => {
                 </div>
 
                 <div className="space-y-6">
-                   <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Links Rápidos</p>
+                   <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Links Rápidos</p>
                     <ul className="space-y-3">
                       {[
                         { id: 'agenda', show: showEvents },
@@ -544,7 +577,7 @@ const ProducerFanPage = () => {
                         <li key={item.id}>
                           <button 
                             onClick={() => scrollToSection(item.id)}
-                            className="text-sm font-bold text-gray-600 hover:text-gray-900 transition-colors capitalize"
+                            className="text-sm font-bold text-zinc-300 hover:text-white transition-colors capitalize"
                           >
                             {item.id}
                           </button>
@@ -554,11 +587,11 @@ const ProducerFanPage = () => {
                 </div>
 
                 <div className="space-y-6">
-                   <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Suporte & Canal</p>
+                   <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Suporte & Canal</p>
                    <div className={`p-6 rounded-[2rem] bg-gray-900 text-white space-y-4`}>
                       <p className="text-xs font-bold leading-relaxed opacity-80">Dúvidas sobre ingressos ou eventos?</p>
                       <Button 
-                        className={`w-full h-10 text-[10px] font-black uppercase tracking-widest bg-white text-gray-900 hover:bg-gray-100 rounded-xl`}
+                        className={`w-full h-10 text-[10px] font-black uppercase tracking-widest bg-zinc-900 text-white hover:bg-zinc-900/10 rounded-xl`}
                       >
                         Falar no WhatsApp
                       </Button>
@@ -566,17 +599,62 @@ const ProducerFanPage = () => {
                 </div>
              </div>
 
-             <div className="mt-20 pt-8 border-t border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
-                <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest italic">
+             <div className="mt-20 pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4">
+                <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest italic">
                    Powered by <span className="text-indigo-600">Ticketera</span> • © {new Date().getFullYear()} {producerData.company_name}
                 </p>
-                <div className="flex gap-6 text-[10px] font-black uppercase text-gray-400 tracking-widest">
-                   <Link to="/terms" className="hover:text-gray-900">Termos</Link>
-                   <Link to="/privacy" className="hover:text-gray-900">Privacidade</Link>
+                <div className="flex gap-6 text-[10px] font-black uppercase text-zinc-500 tracking-widest">
+                   <Link to="/terms" className="hover:text-white">Termos</Link>
+                   <Link to="/privacy" className="hover:text-white">Privacidade</Link>
                 </div>
              </div>
           </footer>
         </div>
+      </div>
+
+      {/* Work With Us Modal */}
+      {showWorkModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowWorkModal(false)} />
+          <div className="bg-zinc-900 border border-white/10 rounded-3xl p-8 max-w-2xl w-full relative z-10 animate-fade-in shadow-2xl">
+            <button 
+              onClick={() => setShowWorkModal(false)}
+              className="absolute top-6 right-6 text-zinc-500 hover:text-white transition-colors"
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+            
+            <div className="text-center mb-8">
+              <h3 className="text-2xl font-black uppercase tracking-tight text-white mb-2">Junte-se à nossa equipe</h3>
+              <p className="text-zinc-400 font-medium text-sm">Escolha como você quer colaborar com nossos eventos.</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Link to="/promoter/about" className="group relative overflow-hidden rounded-2xl border-2 border-white/10 bg-zinc-900/5 hover:border-indigo-500 hover:bg-indigo-50 transition-all p-6 text-center flex flex-col items-center">
+                <div className="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                  <Users className="w-8 h-8" />
+                </div>
+                <h4 className="text-lg font-black uppercase tracking-widest text-white mb-2">Promoter</h4>
+                <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest">Seja recompensado por divulgar</p>
+                <div className="mt-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span className="text-xs text-indigo-600 font-black uppercase tracking-widest flex items-center gap-1">Conheça o Programa <ChevronRight className="w-4 h-4" /></span>
+                </div>
+              </Link>
+
+              <Link to="/work-with-us?role=staff" className="group relative overflow-hidden rounded-2xl border-2 border-white/10 bg-zinc-900/5 hover:border-purple-500 hover:bg-purple-50 transition-all p-6 text-center flex flex-col items-center">
+                <div className="w-16 h-16 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                  <Briefcase className="w-8 h-8" />
+                </div>
+                <h4 className="text-lg font-black uppercase tracking-widest text-white mb-2">Staff</h4>
+                <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest">Trabalhe na operação do evento</p>
+                <div className="mt-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span className="text-xs text-purple-600 font-black uppercase tracking-widest flex items-center gap-1">Quero me Inscrever <ChevronRight className="w-4 h-4" /></span>
+                </div>
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
     </div>
   );

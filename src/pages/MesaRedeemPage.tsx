@@ -130,7 +130,7 @@ const MesaRedeemPage = () => {
                  <Ticket className="w-10 h-10 text-indigo-600" />
               </div>
               <div className="text-center">
-                <h2 className="text-3xl font-black text-gray-900 uppercase tracking-tighter">Resgate de Mesa</h2>
+                <h2 className="text-3xl font-black text-gray-900 uppercase tracking-tight">Resgate de Mesa</h2>
                 <p className="text-gray-500 font-medium mt-2">Insira o código enviado pelo dono da mesa para gerar seu ingresso individual.</p>
               </div>
               <form onSubmit={validateToken} className="space-y-4">
@@ -162,7 +162,7 @@ const MesaRedeemPage = () => {
                  </div>
               </div>
               
-              <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tighter">Seus Dados</h2>
+              <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tight">Seus Dados</h2>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Nome Completo</label>
@@ -209,7 +209,7 @@ const MesaRedeemPage = () => {
               <div className="bg-green-500 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-8 shadow-xl shadow-green-100">
                  <CheckCircle className="w-12 h-12 text-white" />
               </div>
-              <h2 className="text-3xl font-black text-gray-900 uppercase tracking-tighter">Sucesso!</h2>
+              <h2 className="text-3xl font-black text-gray-900 uppercase tracking-tight">Sucesso!</h2>
               <p className="text-gray-500 font-medium mt-4">Seu ingresso individual foi gerado e vinculado à mesa. Você já pode visualizá-lo em seus ingressos.</p>
               <button 
                 onClick={() => navigate('/my-tickets')}

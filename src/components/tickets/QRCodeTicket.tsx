@@ -17,7 +17,7 @@ const QRCodeTicket = ({ ticket, userName, userPhoto }: QRCodeTicketProps) => {
         <div className="absolute top-0 right-0 p-4 opacity-10">
             <ShieldCheck className="w-20 h-20" />
         </div>
-        <h3 className="text-2xl font-black truncate uppercase tracking-tighter">{ticket.eventTitle || ticket.events?.title || 'Evento'}</h3>
+        <h3 className="text-2xl font-black truncate uppercase tracking-tight">{ticket.eventTitle || ticket.events?.title || 'Evento'}</h3>
         <p className="text-xs font-black uppercase tracking-widest opacity-80">{ticket.ticketName || ticket.tickets?.name || 'Ingresso Individual'}</p>
       </div>
       

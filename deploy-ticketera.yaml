@@ -4,6 +4,9 @@ services:
   app:
     # A imagem será baixada diretamente do GitHub Container Registry
     image: ghcr.io/alexignaciomkt/a2tickets360:latest
+    environment:
+      # API upstream for OG meta tag proxying (adjust to match your API service name/address)
+      - OG_API_UPSTREAM=http://ticketera-api:3000
     networks:
       - network_swarm_public
     deploy:

@@ -54,7 +54,7 @@ const SocialShareCard: React.FC<SocialShareCardProps> = ({ event, cardRef }) => 
         {/* Event Details */}
         <div className="space-y-6">
           <div className="space-y-2">
-            <h2 className="text-3xl font-black text-white uppercase tracking-tighter leading-none">
+            <h2 className="text-3xl font-black text-white uppercase tracking-tight leading-none">
               {event.title}
             </h2>
             <div className="flex flex-wrap gap-4 text-indigo-300 font-bold uppercase text-[10px] tracking-widest">
@@ -73,7 +73,7 @@ const SocialShareCard: React.FC<SocialShareCardProps> = ({ event, cardRef }) => 
           <div className="bg-white rounded-[2rem] p-6 flex items-center justify-between shadow-2xl">
             <div className="space-y-1">
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Scaneie para</p>
-              <p className="text-xl font-black text-slate-900 uppercase tracking-tighter leading-tight">Garantir Seu Ingresso</p>
+              <p className="text-xl font-black text-slate-900 uppercase tracking-tight leading-tight">Garantir Seu Ingresso</p>
               <div className="pt-2">
                  <span className="bg-indigo-100 text-indigo-600 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest">Vendas Abertas</span>
               </div>

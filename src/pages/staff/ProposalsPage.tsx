@@ -58,7 +58,7 @@ const ProposalsPage = () => {
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
-                        <h1 className="text-3xl font-black text-white uppercase tracking-tighter italic">Minhas Propostas</h1>
+                        <h1 className="text-3xl font-black text-white uppercase tracking-tight italic">Minhas Propostas</h1>
                         <p className="text-gray-500 font-medium lowercase">Gerencie seus convites de trabalho e oportunidades.</p>
                     </div>
                     <div className="relative w-full md:w-64">

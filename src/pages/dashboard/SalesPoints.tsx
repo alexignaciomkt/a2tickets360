@@ -136,7 +136,7 @@ const SalesPoints = () => {
       <CardContent className="p-7 flex items-center justify-between">
         <div className="space-y-1">
           <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 leading-none">{title}</p>
-          <h3 className="text-xl font-black tracking-tighter text-slate-900 leading-none tabular-nums">{value}</h3>
+          <h3 className="text-xl font-black tracking-tight text-slate-900 leading-none tabular-nums">{value}</h3>
           <p className="text-[8px] font-bold text-slate-300 uppercase tracking-widest leading-none mt-1">{sub}</p>
         </div>
         <div className={`w-11 h-11 rounded-[1.2rem] flex items-center justify-center transition-all group-hover:scale-110 shadow-sm border border-white/10 ${
@@ -158,7 +158,7 @@ const SalesPoints = () => {
           {/* Header Section */}
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-8">
              <div className="space-y-1.5">
-                <h1 className="text-xl md:text-2xl font-black text-slate-900 uppercase tracking-tighter leading-none">POS Network (PDV)</h1>
+                <h1 className="text-xl md:text-2xl font-black text-slate-900 uppercase tracking-tight leading-none">POS Network (PDV)</h1>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 leading-none">
                   Gestão de rede de pontos de venda, terminais de pagamento e performance física.
                 </p>

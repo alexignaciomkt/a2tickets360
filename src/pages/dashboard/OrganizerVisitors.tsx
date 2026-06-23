@@ -239,7 +239,7 @@ const OrganizerVisitors = ({ overrideEventId, hideHeader }: OrganizerVisitorsPro
         {!hideHeader && (
           <div className="bg-white rounded-2xl shadow-sm p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-gray-100">
             <div>
-              <h1 className="text-2xl font-black text-gray-900 uppercase tracking-tighter">Gestão de Visitantes</h1>
+              <h1 className="text-2xl font-black text-gray-900 uppercase tracking-tight">Gestão de Visitantes</h1>
               <p className="text-sm text-gray-500 mt-1 font-medium">
                 Relatório completo de inscritos — pronto para download de mailing.
               </p>

@@ -53,7 +53,7 @@ export default function ExhibitorDashboard() {
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div>
-                    <h1 className="text-3xl font-black uppercase tracking-tighter italic">Painel do Expositor</h1>
+                    <h1 className="text-3xl font-black uppercase tracking-tight italic">Painel do Expositor</h1>
                     <p className="text-gray-500 font-bold uppercase tracking-widest text-[10px]">Gerencie seu estande e capture leads em tempo real</p>
                 </div>
                 <div className="flex bg-gray-100 p-1 rounded-2xl border border-gray-200">
@@ -99,7 +99,7 @@ export default function ExhibitorDashboard() {
                                         <div className="flex items-center gap-4 mb-6">
                                             <img src={member.photo} alt={member.name} className="w-14 h-14 rounded-xl object-cover border-2 border-white shadow-md" />
                                             <div>
-                                                <h4 className="font-black uppercase tracking-tighter text-sm">{member.name}</h4>
+                                                <h4 className="font-black uppercase tracking-tight text-sm">{member.name}</h4>
                                                 <p className="text-[9px] text-gray-500 uppercase tracking-widest font-bold">{member.role}</p>
                                             </div>
                                         </div>
@@ -178,7 +178,7 @@ export default function ExhibitorDashboard() {
                             </div>
                         </div>
                         <div className="bg-primary p-8 rounded-3xl text-white flex flex-col justify-center shadow-xl shadow-primary/20">
-                            <h3 className="text-2xl font-black mb-4 uppercase tracking-tighter italic">Suporte Especializado</h3>
+                            <h3 className="text-2xl font-black mb-4 uppercase tracking-tight italic">Suporte Especializado</h3>
                             <p className="text-white/80 text-sm font-medium mb-6">Dúvidas técnicas sobre seu estande? Nossa equipe de área está pronta para ajudar.</p>
                             <button className="w-full py-4 bg-white text-primary rounded-xl font-black uppercase tracking-widest hover:bg-gray-100 transition-all flex items-center justify-center gap-2 text-xs">
                                 <Zap size={16} /> Falar com Gerente de Área
@@ -200,7 +200,7 @@ export default function ExhibitorDashboard() {
                                 <div className={`w-24 h-24 mx-auto bg-gray-50 rounded-2xl flex items-center justify-center mb-6 border border-gray-100 ${isScanning ? 'animate-pulse' : ''}`}>
                                     <Camera size={48} className={isScanning ? 'text-primary' : 'text-gray-200'} />
                                 </div>
-                                <h2 className="text-2xl font-black mb-2 uppercase tracking-tighter italic">Lead Retrieval</h2>
+                                <h2 className="text-2xl font-black mb-2 uppercase tracking-tight italic">Lead Retrieval</h2>
                                 <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-8">Capture dados dos visitantes pelo QR Code</p>
                                 <button
                                     onClick={handleScan}
@@ -224,7 +224,7 @@ export default function ExhibitorDashboard() {
                                             </div>
                                             <div>
                                                 <p className="text-[10px] text-primary font-black uppercase tracking-widest">Lead Capturado!</p>
-                                                <h4 className="text-xl font-black uppercase tracking-tighter">{scannedLead.name}</h4>
+                                                <h4 className="text-xl font-black uppercase tracking-tight">{scannedLead.name}</h4>
                                                 <p className="text-xs text-gray-500 font-bold">{scannedLead.role} @ {scannedLead.company}</p>
                                             </div>
                                         </div>
@@ -250,7 +250,7 @@ export default function ExhibitorDashboard() {
                                         <div className="flex items-center gap-4">
                                             <Database size={20} className="text-gray-300" />
                                             <div>
-                                                <h4 className="font-black uppercase tracking-tighter text-sm">{lead.name}</h4>
+                                                <h4 className="font-black uppercase tracking-tight text-sm">{lead.name}</h4>
                                                 <p className="text-[9px] text-gray-400 font-bold uppercase">{lead.role} • {lead.company}</p>
                                             </div>
                                         </div>

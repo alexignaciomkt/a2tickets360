@@ -87,7 +87,7 @@ const StaffPortalLayout = ({ children }: StaffPortalLayoutProps) => {
                                         JP
                                     </div>
                                     <div>
-                                        <p className="text-xs font-black uppercase tracking-tighter">João Porto</p>
+                                        <p className="text-xs font-black uppercase tracking-tight">João Porto</p>
                                         <div className="flex items-center gap-1 text-[10px] text-yellow-500">
                                             <Award className="w-3 h-3 fill-current" />
                                             <span>4.9 Star Staff</span>

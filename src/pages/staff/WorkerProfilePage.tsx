@@ -26,7 +26,7 @@ const WorkerProfilePage = () => {
         <StaffPortalLayout>
             <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20">
                 <div className="flex items-center justify-between">
-                    <h1 className="text-3xl font-black text-white uppercase tracking-tighter italic">Meu Perfil Profissional</h1>
+                    <h1 className="text-3xl font-black text-white uppercase tracking-tight italic">Meu Perfil Profissional</h1>
                     <Button className="bg-primary hover:bg-primary/90 text-white font-black uppercase tracking-widest text-xs px-6 rounded-2xl">
                         <Save className="w-4 h-4 mr-2" /> Salvar Alterações
                     </Button>
@@ -64,7 +64,7 @@ const WorkerProfilePage = () => {
                         </Card>
 
                         <Card className="bg-[#0A0A0A] border-white/5 rounded-3xl p-6 space-y-4">
-                            <h4 className="text-sm font-black text-white uppercase tracking-tighter">Redes Profissionais</h4>
+                            <h4 className="text-sm font-black text-white uppercase tracking-tight">Redes Profissionais</h4>
                             <div className="space-y-3">
                                 <div className="flex items-center gap-3">
                                     <div className="p-2 bg-blue-500/10 rounded-lg text-blue-500">
@@ -94,7 +94,7 @@ const WorkerProfilePage = () => {
                     <div className="md:col-span-2 space-y-6">
                         <Card className="bg-[#0A0A0A] border-white/5 rounded-3xl p-6 space-y-6">
                             <div className="space-y-4">
-                                <Label className="text-sm font-black text-white uppercase tracking-tighter">Biografia Operacional</Label>
+                                <Label className="text-sm font-black text-white uppercase tracking-tight">Biografia Operacional</Label>
                                 <Textarea
                                     placeholder="Conte sua experiência no campo..."
                                     className="bg-white/5 border-white/10 min-h-[150px] rounded-2xl text-gray-300 focus:border-primary/50 transition-all font-medium leading-relaxed"
@@ -116,7 +116,7 @@ const WorkerProfilePage = () => {
 
                         <Card className="bg-[#0A0A0A] border-white/5 rounded-3xl p-6 space-y-6">
                             <div className="flex items-center justify-between">
-                                <h4 className="text-sm font-black text-white uppercase tracking-tighter flex items-center gap-2">
+                                <h4 className="text-sm font-black text-white uppercase tracking-tight flex items-center gap-2">
                                     <Award className="w-5 h-5 text-primary" />
                                     Certificações & Treinamentos
                                 </h4>

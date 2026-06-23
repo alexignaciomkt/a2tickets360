@@ -48,7 +48,7 @@ export default function SupportBot() {
                                     <Bot size={24} />
                                 </div>
                                 <div>
-                                    <h3 className="font-bold uppercase tracking-tighter text-sm">Suporte A2</h3>
+                                    <h3 className="font-bold uppercase tracking-tight text-sm">Suporte A2</h3>
                                     <p className="text-[10px] text-white/60 uppercase font-bold tracking-widest">Online agora</p>
                                 </div>
                             </div>

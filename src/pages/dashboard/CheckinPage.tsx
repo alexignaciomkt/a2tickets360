@@ -156,7 +156,7 @@ const CheckinPage = () => {
                 <Target className="w-6 h-6 text-emerald-400" />
              </div>
              <div className="space-y-1">
-                <h1 className="text-xl font-black uppercase tracking-tighter leading-none">Access Control Hub</h1>
+                <h1 className="text-xl font-black uppercase tracking-tight leading-none">Access Control Hub</h1>
                 <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">A2 Tickets 360 Kernel • Root Operator</p>
              </div>
           </div>
@@ -254,7 +254,7 @@ const CheckinPage = () => {
                     </div>
                     
                     <div className="space-y-2">
-                       <h2 className={`text-2xl font-black uppercase tracking-tighter leading-none ${
+                       <h2 className={`text-2xl font-black uppercase tracking-tight leading-none ${
                          scanStatus === 'valid' ? 'text-emerald-600' : 
                          scanStatus === 'used' ? 'text-amber-600' : 'text-rose-600'
                        }`}>
@@ -298,7 +298,7 @@ const CheckinPage = () => {
                     </div>
                     <div className="flex-1 space-y-3 text-center md:text-left pt-2">
                        <Badge className="bg-slate-900 text-white font-black text-[8px] uppercase tracking-widest px-4 py-1.5 rounded-full mb-2">Authenticated Asset</Badge>
-                       <h4 className="text-3xl font-black text-slate-900 uppercase tracking-tighter leading-none">{visitorData?.name || 'ROOT_ACCESS_NODE'}</h4>
+                       <h4 className="text-3xl font-black text-slate-900 uppercase tracking-tight leading-none">{visitorData?.name || 'ROOT_ACCESS_NODE'}</h4>
                        <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{visitorData?.email || 'SYSTEM_MAIL_GEN'}</p>
                     </div>
                   </div>

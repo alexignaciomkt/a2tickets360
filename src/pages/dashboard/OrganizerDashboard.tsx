@@ -170,7 +170,7 @@ const OrganizerDashboard = () => {
       <CardContent className="p-5 flex items-center justify-between">
         <div className="flex flex-col gap-1">
           <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400 leading-none">{title}</p>
-          <h3 className="text-2xl font-black text-slate-900 tracking-tighter leading-none tabular-nums">
+          <h3 className="text-2xl font-black text-slate-900 tracking-tight leading-none tabular-nums">
             {isLoading ? '---' : value}
             {suffix && <span className="text-sm font-bold text-slate-400 ml-1">{suffix}</span>}
           </h3>
@@ -213,7 +213,7 @@ const OrganizerDashboard = () => {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-1 relative z-20">
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-3">
-               <h1 className="text-lg font-black text-slate-900 uppercase tracking-tighter leading-none">Relatório Executivo</h1>
+               <h1 className="text-lg font-black text-slate-900 uppercase tracking-tight leading-none">Relatório Executivo</h1>
                <Badge className="bg-indigo-50 text-indigo-700 hover:bg-indigo-50 border-none font-black text-[9px] uppercase tracking-wider px-2 py-0.5 rounded shadow-inner">Dashboard</Badge>
             </div>
             <p className="text-[11px] font-medium text-slate-500 tracking-tight leading-none">Visão consolidada do seu negócio em tempo real.</p>

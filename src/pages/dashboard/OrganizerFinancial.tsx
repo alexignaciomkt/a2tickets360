@@ -117,7 +117,7 @@ const OrganizerFinancial = () => {
         {/* Header */}
         <div className="bg-white rounded-2xl shadow-sm p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-gray-100">
           <div>
-            <h1 className="text-2xl font-black text-gray-900 uppercase tracking-tighter">Área Financeira</h1>
+            <h1 className="text-2xl font-black text-gray-900 uppercase tracking-tight">Área Financeira</h1>
             <p className="text-sm text-gray-500 mt-1 font-medium">Gerencie suas receitas, repasses e informações bancárias</p>
           </div>
           <Button className="bg-gray-900 text-white text-[10px] font-black uppercase tracking-widest px-5 py-3 rounded-xl hover:bg-gray-700 transition-colors shadow-sm">
@@ -170,10 +170,10 @@ const OrganizerFinancial = () => {
         {/* Tabs */}
         <Tabs defaultValue="transactions" className="space-y-6">
           <TabsList className="bg-gray-100 p-1 rounded-xl w-full grid grid-cols-4 h-auto">
-            <TabsTrigger value="transactions" className="font-bold text-[10px] uppercase tracking-tighter rounded-lg">Transações</TabsTrigger>
-            <TabsTrigger value="expenses" className="font-bold text-[10px] uppercase tracking-tighter rounded-lg">Despesas</TabsTrigger>
-            <TabsTrigger value="payouts" className="font-bold text-[10px] uppercase tracking-tighter rounded-lg">Repasses</TabsTrigger>
-            <TabsTrigger value="events" className="font-bold text-[10px] uppercase tracking-tighter rounded-lg">Por Evento</TabsTrigger>
+            <TabsTrigger value="transactions" className="font-bold text-[10px] uppercase tracking-tight rounded-lg">Transações</TabsTrigger>
+            <TabsTrigger value="expenses" className="font-bold text-[10px] uppercase tracking-tight rounded-lg">Despesas</TabsTrigger>
+            <TabsTrigger value="payouts" className="font-bold text-[10px] uppercase tracking-tight rounded-lg">Repasses</TabsTrigger>
+            <TabsTrigger value="events" className="font-bold text-[10px] uppercase tracking-tight rounded-lg">Por Evento</TabsTrigger>
           </TabsList>
 
           {/* Transactions Tab */}

@@ -141,7 +141,7 @@ const EventDetailPage = () => {
       <MainLayout>
         <div className="max-w-7xl mx-auto py-40 text-center">
           <Info className="h-16 w-16 text-gray-300 mx-auto mb-6" />
-          <h2 className="text-3xl font-black text-gray-900 mb-4 uppercase tracking-tighter">Evento não encontrado</h2>
+          <h2 className="text-3xl font-black text-gray-900 mb-4 uppercase tracking-tight">Evento não encontrado</h2>
           <p className="text-gray-500 mb-8 max-w-md mx-auto">Não encontramos o evento que você está procurando.</p>
           <Link to="/events" className="btn-primary py-4 px-10 inline-block text-white rounded-xl">Ver todos os eventos</Link>
         </div>
@@ -165,7 +165,7 @@ const EventDetailPage = () => {
           <DialogContent className="max-w-[400px] bg-white rounded-[2.5rem] border-none p-0 overflow-hidden shadow-2xl">
             <div className="p-8 space-y-6">
               <div className="space-y-1">
-                <DialogTitle className="text-2xl font-black uppercase tracking-tighter text-slate-900">Viralize o Evento</DialogTitle>
+                <DialogTitle className="text-2xl font-black uppercase tracking-tight text-slate-900">Viralize o Evento</DialogTitle>
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Gere um card premium para seus stories</p>
               </div>
 
@@ -228,7 +228,7 @@ const EventDetailPage = () => {
                       Ingressos Limitados
                     </Badge>
                   </div>
-                  <h1 className="text-xl md:text-3xl font-black tracking-tighter leading-tight uppercase">
+                  <h1 className="text-xl md:text-3xl font-black tracking-tight leading-tight uppercase">
                     {event.title}
                   </h1>
                 </div>
@@ -453,7 +453,7 @@ const EventDetailPage = () => {
                   <div className="space-y-3 flex-grow text-center md:text-left">
                     <div>
                       <p className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.3em] mb-1">Organizador Oficial</p>
-                      <h3 className="text-2xl font-black text-white uppercase tracking-tighter">
+                      <h3 className="text-2xl font-black text-white uppercase tracking-tight">
                         {event.organizer?.name || 'Produtor Ticketera'}
                       </h3>
                     </div>
@@ -486,7 +486,7 @@ const EventDetailPage = () => {
                        </div>
                        <span className="text-[10px] font-black text-white/70 uppercase tracking-[0.2em]">Ticketera Pro</span>
                     </div>
-                    <h3 className="text-xl font-black text-white uppercase tracking-tighter leading-tight">
+                    <h3 className="text-xl font-black text-white uppercase tracking-tight leading-tight">
                       A ÚNICA PLATAFORMA COM <br /> MKT 360 INTEGRADO
                     </h3>
                   </div>
@@ -496,7 +496,7 @@ const EventDetailPage = () => {
                 <div className="bg-white rounded-[2rem] shadow-2xl shadow-slate-200 border border-slate-100 overflow-hidden">
                   <div className="p-8 space-y-6">
                     <div className="space-y-1">
-                      <h3 className="text-xl font-black tracking-tighter uppercase text-slate-900">Seleção de Ingressos</h3>
+                      <h3 className="text-xl font-black tracking-tight uppercase text-slate-900">Seleção de Ingressos</h3>
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Escolha sua experiência</p>
                     </div>
 
@@ -534,7 +534,7 @@ const EventDetailPage = () => {
                 <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-[2rem] p-8 shadow-xl shadow-slate-900/20 group cursor-pointer hover:from-slate-950 transition-all overflow-hidden relative border border-white/5">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl -mr-16 -mt-16 transition-transform duration-700 group-hover:scale-110"></div>
                   <div className="relative z-10 text-center space-y-2">
-                    <h3 className="text-xl font-black text-white uppercase tracking-tighter leading-tight">
+                    <h3 className="text-xl font-black text-white uppercase tracking-tight leading-tight">
                       PLATFORM <br /> MARKETING 360
                     </h3>
                     <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">

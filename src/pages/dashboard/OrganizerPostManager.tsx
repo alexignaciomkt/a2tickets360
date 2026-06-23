@@ -215,7 +215,7 @@ const OrganizerPostManager = () => {
         {posts.length === 0 && !isLoading && (
           <div className="text-center py-20 bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200">
             <Camera className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-xl font-black uppercase tracking-tighter text-gray-900">Seu Feed está vazio</h3>
+            <h3 className="text-xl font-black uppercase tracking-tight text-gray-900">Seu Feed está vazio</h3>
             <p className="text-gray-500 font-medium max-w-xs mx-auto">Comece subindo fotos dos seus melhores eventos para encantar seus clientes.</p>
           </div>
         )}

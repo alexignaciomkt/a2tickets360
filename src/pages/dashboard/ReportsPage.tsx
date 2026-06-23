@@ -35,7 +35,7 @@ const ReportsPage = () => {
         {/* Header Section */}
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 px-1">
            <div className="space-y-1">
-              <h1 className="text-xl font-black text-slate-900 uppercase tracking-tighter leading-none">Analytics de Inteligência</h1>
+              <h1 className="text-xl font-black text-slate-900 uppercase tracking-tight leading-none">Analytics de Inteligência</h1>
               <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
                 Visualização de dados clusterizados por geolocalização, cronologia e categoria.
               </p>

@@ -280,7 +280,7 @@ const VisitorRegistrationPage = () => {
                                     <div className="bg-white/20 w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
                                         <CheckCircle2 className="h-10 w-10 text-white" />
                                     </div>
-                                    <h2 className="text-3xl font-black italic tracking-tighter">SUA CREDENCIAL</h2>
+                                    <h2 className="text-3xl font-black italic tracking-tight">SUA CREDENCIAL</h2>
                                     <p className="opacity-80 font-medium">Inscrição realizada com sucesso!</p>
                                 </div>
 

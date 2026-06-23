@@ -54,7 +54,7 @@ const MasterFinancialBI = () => {
           </div>
           <div className="space-y-2 relative z-10">
              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 leading-none mb-3">{title}</p>
-             <h3 className="text-3xl font-black text-slate-900 tracking-tighter leading-none tabular-nums">
+             <h3 className="text-3xl font-black text-slate-900 tracking-tight leading-none tabular-nums">
                 {loading ? <Loader2 className="h-6 w-6 animate-spin text-slate-200" /> : value}
              </h3>
              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide mt-3 leading-none opacity-80 group-hover:opacity-100 transition-opacity">{subValue}</p>
@@ -85,7 +85,7 @@ const MasterFinancialBI = () => {
         {/* Financial Intelligence Header */}
         <div className="flex flex-col md:flex-row justify-between items-start gap-4 px-1">
            <div className="space-y-1">
-              <h1 className="text-xl font-black text-slate-900 tracking-tighter uppercase leading-none">Inteligência Financeira (BI)</h1>
+              <h1 className="text-xl font-black text-slate-900 tracking-tight uppercase leading-none">Inteligência Financeira (BI)</h1>
               <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 max-w-2xl">Métricas de conversão e fluxo de caixa em tempo real.</p>
            </div>
            <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-xl border border-slate-100 shadow-sm">
@@ -157,7 +157,7 @@ const MasterFinancialBI = () => {
                              <p className="text-xs font-black text-slate-900 uppercase tracking-tight leading-none">Hierarquia de Integridade do Gateway</p>
                              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide leading-none">Taxa global de sucesso em todos os nós do ecossistema.</p>
                           </div>
-                          <p className="text-2xl font-black text-slate-900 tracking-tighter tabular-nums leading-none">98.5%</p>
+                          <p className="text-2xl font-black text-slate-900 tracking-tight tabular-nums leading-none">98.5%</p>
                        </div>
                        <div className="w-full bg-slate-50 h-3 rounded-full overflow-hidden border border-gray-100 relative">
                           <div className="bg-slate-900 h-full w-[98.5%] rounded-full relative">
@@ -178,7 +178,7 @@ const MasterFinancialBI = () => {
                  <div className="relative z-10 space-y-6">
                     <div className="space-y-2">
                        <p className="text-[9px] font-black uppercase tracking-wide text-slate-400 leading-none">Objetivo de Lucro Mensal</p>
-                       <h3 className="text-3xl font-black tracking-tighter leading-none tabular-nums">R$ 500.000</h3>
+                       <h3 className="text-3xl font-black tracking-tight leading-none tabular-nums">R$ 500.000</h3>
                     </div>
                     <div className="space-y-3">
                        <div className="flex justify-between text-[9px] font-black uppercase tracking-wide text-slate-400 leading-none">
@@ -212,7 +212,7 @@ const MasterFinancialBI = () => {
                                     <p className="text-[8px] text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1 leading-none"><Clock className="w-2.5 h-2.5" /> D+2 PRONTO</p>
                                   </div>
                               </div>
-                              <p className="text-[11px] font-black text-slate-900 tracking-tighter tabular-nums">R$ {p.amount?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}</p>
+                              <p className="text-[11px] font-black text-slate-900 tracking-tight tabular-nums">R$ {p.amount?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}</p>
                            </div>
                          ))
                        ) : (

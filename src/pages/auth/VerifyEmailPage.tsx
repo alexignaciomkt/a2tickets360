@@ -45,7 +45,7 @@ const VerifyEmailPage = () => {
                 {status === 'loading' && (
                     <div className="flex flex-col items-center py-10">
                         <Loader2 className="w-16 h-16 text-primary animate-spin mb-6" />
-                        <h2 className="text-2xl font-bold text-white mb-2 italic uppercase tracking-tighter">Verificando...</h2>
+                        <h2 className="text-2xl font-bold text-white mb-2 italic uppercase tracking-tight">Verificando...</h2>
                         <p className="text-gray-400">Aguarde um instante enquanto validamos seu e-mail.</p>
                     </div>
                 )}
@@ -55,7 +55,7 @@ const VerifyEmailPage = () => {
                         <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mb-6">
                             <CheckCircle2 className="w-12 h-12 text-green-500" />
                         </div>
-                        <h2 className="text-3xl font-black text-white mb-4 italic uppercase tracking-tighter">E-mail Confirmado!</h2>
+                        <h2 className="text-3xl font-black text-white mb-4 italic uppercase tracking-tight">E-mail Confirmado!</h2>
                         <p className="text-gray-400 mb-10 leading-relaxed">
                             Seu cadastro foi validado com sucesso. Agora você já pode acessar sua conta e aproveitar todos os recursos do A2 Tickets 360.
                         </p>
@@ -74,7 +74,7 @@ const VerifyEmailPage = () => {
                         <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mb-6">
                             <XCircle className="w-12 h-12 text-red-500" />
                         </div>
-                        <h2 className="text-2xl font-black text-white mb-4 italic uppercase tracking-tighter">Ops! Algo deu errado</h2>
+                        <h2 className="text-2xl font-black text-white mb-4 italic uppercase tracking-tight">Ops! Algo deu errado</h2>
                         <p className="text-gray-400 mb-10">
                             {message}
                         </p>

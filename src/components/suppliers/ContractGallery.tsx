@@ -65,7 +65,7 @@ export const ContractGallery = ({ supplierId, supplierName }: ContractGalleryPro
                                         <FileText className="w-5 h-5 text-indigo-600" />
                                     </div>
                                     <div>
-                                        <div className="text-xs font-black text-gray-900 uppercase tracking-tighter truncate max-w-[200px]">
+                                        <div className="text-xs font-black text-gray-900 uppercase tracking-tight truncate max-w-[200px]">
                                             {contract.name}
                                         </div>
                                         <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase">

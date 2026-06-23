@@ -90,7 +90,7 @@ const ParticipantPage = () => {
                 <div className="pt-16 pb-6 px-6">
                   <div className="flex justify-between items-start">
                     <div>
-                      <h1 className="text-2xl font-black text-gray-900 uppercase tracking-tighter">A2 Tickets 360</h1>
+                      <h1 className="text-2xl font-black text-gray-900 uppercase tracking-tight">A2 Tickets 360</h1>
                       <p className="text-gray-600">{participant.email}</p>
                       <div className="mt-2 inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                         Participante

@@ -24,7 +24,7 @@ const TermsPage = () => {
                                 <Shield className="w-4 h-4 text-primary mr-2" />
                                 <span className="text-xs font-bold uppercase tracking-[0.2em] text-gray-300">Segurança & Transparência</span>
                             </div>
-                            <h1 className="text-5xl md:text-7xl font-black text-white italic uppercase tracking-tighter mb-4 leading-none">
+                            <h1 className="text-5xl md:text-7xl font-black text-white italic uppercase tracking-tight mb-4 leading-none">
                                 Termos de <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-indigo-400">Uso</span>
                             </h1>
                             <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">

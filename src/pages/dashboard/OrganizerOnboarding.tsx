@@ -492,7 +492,7 @@ const OrganizerOnboarding = () => {
                     <div className="inline-flex items-center justify-center p-3 bg-white rounded-2xl shadow-sm mb-4 border border-indigo-100">
                         <Sparkles className="h-8 w-8 text-indigo-600" />
                     </div>
-                    <h1 className="text-3xl font-black text-gray-900 uppercase tracking-tighter">
+                    <h1 className="text-3xl font-black text-gray-900 uppercase tracking-tight">
                         Seja bem-vindo, {user?.name.split(' ')[0]}!
                     </h1>
                     <p className="mt-2 text-gray-500 font-medium">
@@ -794,7 +794,7 @@ const OrganizerOnboarding = () => {
                         variant="ghost"
                         onClick={prevStep}
                         disabled={currentStep === 1 || saving}
-                        className="text-gray-500 font-bold uppercase tracking-tighter gap-2"
+                        className="text-gray-500 font-bold uppercase tracking-tight gap-2"
                     >
                         <ArrowLeft className="h-4 w-4" /> Voltar
                     </Button>
@@ -815,7 +815,7 @@ const OrganizerOnboarding = () => {
                             <Button
                                 onClick={nextStep}
                                 disabled={loading || saving}
-                                className="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-tighter px-8 h-12 rounded-2xl shadow-lg shadow-indigo-100 gap-2"
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-tight px-8 h-12 rounded-2xl shadow-lg shadow-indigo-100 gap-2"
                             >
                                 {saving ? 'Salvando...' : 'Próxima Etapa'} <ArrowRight className="h-4 w-4" />
                             </Button>
@@ -823,7 +823,7 @@ const OrganizerOnboarding = () => {
                             <Button
                                 onClick={finishOnboarding}
                                 disabled={loading || saving}
-                                className="bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-tighter px-10 h-12 rounded-2xl shadow-lg shadow-emerald-100 gap-2 animate-bounce hover:animate-none"
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-tight px-10 h-12 rounded-2xl shadow-lg shadow-emerald-100 gap-2 animate-bounce hover:animate-none"
                             >
                                 {saving ? 'Salvando...' : 'Concluir Cadastro'} <CheckCircle2 className="h-5 w-5" />
                             </Button>

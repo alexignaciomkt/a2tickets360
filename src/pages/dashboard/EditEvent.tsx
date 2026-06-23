@@ -281,7 +281,7 @@ const EditEvent = () => {
             <TabsContent value="general">
               <div className="bg-white rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden">
                 <div className="p-8 border-b border-gray-50 bg-gray-50/30">
-                  <h2 className="text-xl font-black uppercase tracking-tighter text-gray-900">Informações Básicas</h2>
+                  <h2 className="text-xl font-black uppercase tracking-tight text-gray-900">Informações Básicas</h2>
                   <p className="text-sm text-gray-500 font-medium">Atualize os detalhes principais do seu evento.</p>
                 </div>
                 

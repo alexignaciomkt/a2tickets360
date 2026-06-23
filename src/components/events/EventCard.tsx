@@ -40,13 +40,13 @@ const EventCard = ({ event }: EventCardProps) => {
         {/* Status Tags */}
         <div className="absolute top-3 right-3 flex flex-col gap-2 z-10">
           {isHappening && (
-            <div className="bg-red-600 text-white text-[10px] font-black px-2 py-1 rounded-full flex items-center gap-1 animate-pulse shadow-lg uppercase tracking-tighter">
+            <div className="bg-red-600 text-white text-[10px] font-black px-2 py-1 rounded-full flex items-center gap-1 animate-pulse shadow-lg uppercase tracking-tight">
               <span className="w-1.5 h-1.5 bg-white rounded-full"></span>
               Acontecendo
             </div>
           )}
           {isEnded && (
-            <div className="bg-gray-800/90 backdrop-blur-sm text-white text-[10px] font-black px-2 py-1 rounded-full flex items-center gap-1 shadow-lg uppercase tracking-tighter">
+            <div className="bg-gray-800/90 backdrop-blur-sm text-white text-[10px] font-black px-2 py-1 rounded-full flex items-center gap-1 shadow-lg uppercase tracking-tight">
               🏁 Encerrado
             </div>
           )}

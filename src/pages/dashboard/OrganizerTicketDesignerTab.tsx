@@ -7,7 +7,7 @@ const OrganizerTicketDesignerTab = ({ eventId }: { eventId: string }) => {
       <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h3 className="text-xl font-black text-gray-900 uppercase tracking-tighter">Designer do Ingresso</h3>
+            <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">Designer do Ingresso</h3>
             <p className="text-sm text-gray-500 font-medium">Personalize a experiência visual que seu cliente terá ao abrir o ingresso.</p>
           </div>
           <button className="bg-gray-900 text-white px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-primary transition-all">
@@ -57,7 +57,7 @@ const OrganizerTicketDesignerTab = ({ eventId }: { eventId: string }) => {
                 <div className="h-48 bg-gray-900 relative">
                    <div className="absolute inset-0 bg-gradient-to-t from-gray-900 to-transparent"></div>
                    <div className="absolute bottom-6 left-6">
-                      <h4 className="text-white text-xl font-black uppercase tracking-tighter leading-none">Simpósio de Fotografia</h4>
+                      <h4 className="text-white text-xl font-black uppercase tracking-tight leading-none">Simpósio de Fotografia</h4>
                       <p className="text-primary text-[10px] font-black uppercase tracking-widest mt-1">Ingresso VIP</p>
                    </div>
                 </div>

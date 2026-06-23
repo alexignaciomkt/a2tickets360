@@ -75,7 +75,7 @@ const ProducerAssistant: React.FC<ProducerAssistantProps> = ({ event, onNavigate
               <Sparkles className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h3 className="text-lg font-black text-white uppercase tracking-tighter">Assistente de Página</h3>
+              <h3 className="text-lg font-black text-white uppercase tracking-tight">Assistente de Página</h3>
               <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">IA de Otimização 360</p>
             </div>
           </div>

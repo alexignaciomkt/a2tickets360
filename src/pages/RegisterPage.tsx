@@ -153,7 +153,7 @@ const RegisterPage = () => {
           <div className="max-w-xl mx-auto">
             <div className="bg-[#0A0A0A] border border-white/5 p-8 md:p-12 rounded-3xl shadow-2xl">
               <div className="mb-10 text-center">
-                <h1 className="text-4xl font-black text-white italic uppercase tracking-tighter mb-2">Junte-se ao Staff</h1>
+                <h1 className="text-4xl font-black text-white italic uppercase tracking-tight mb-2">Junte-se ao Staff</h1>
                 <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">A2 Tickets 360 &bull; Profissionais de Elite</p>
               </div>
 
@@ -326,7 +326,7 @@ const RegisterPage = () => {
               <PartyPopper className="w-10 h-10 text-primary" />
             </div>
             <DialogHeader className="space-y-4">
-              <DialogTitle className="text-3xl font-black text-white italic uppercase tracking-tighter leading-none">
+              <DialogTitle className="text-3xl font-black text-white italic uppercase tracking-tight leading-none">
                 Bem-vindo à <br />
                 <span className="text-primary">A2 Tickets 360º!</span>
               </DialogTitle>

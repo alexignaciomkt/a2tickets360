@@ -232,7 +232,7 @@ const EventsPage = () => {
               <div className="bg-gray-50 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6">
                 <Filter className="h-10 w-10 text-gray-300" />
               </div>
-              <h3 className="text-2xl font-black text-gray-900 mb-3 tracking-tighter uppercase">Nenhum evento encontrado</h3>
+              <h3 className="text-2xl font-black text-gray-900 mb-3 tracking-tight uppercase">Nenhum evento encontrado</h3>
               <p className="text-gray-500 max-w-md mx-auto mb-10 leading-relaxed font-medium">
                 Infelizmente não encontramos nenhum evento com os filtros aplicados ({searchQuery || selectedCategory || selectedCity || 'Filtros'}). Tente buscar por outros termos ou limpar os filtros.
               </p>

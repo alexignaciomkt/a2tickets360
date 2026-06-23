@@ -339,7 +339,7 @@ const TicketDesigner = () => {
                   >
                     <span>{design.name || 'Nome do Ingresso'}</span>
                     {design.isPDV && (
-                      <Badge variant="secondary" className="bg-yellow-400 text-black border-none font-black text-[10px] uppercase tracking-tighter shadow-sm animate-pulse">
+                      <Badge variant="secondary" className="bg-yellow-400 text-black border-none font-black text-[10px] uppercase tracking-tight shadow-sm animate-pulse">
                         PDV ELITE
                       </Badge>
                     )}

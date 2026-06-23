@@ -142,7 +142,7 @@ const OrganizerEvents = () => {
         {/* Header */}
         <div className="bg-white rounded-2xl shadow-sm p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-gray-100">
           <div>
-            <h1 className="text-2xl font-black text-gray-900 uppercase tracking-tighter">Meus Eventos</h1>
+            <h1 className="text-2xl font-black text-gray-900 uppercase tracking-tight">Meus Eventos</h1>
             <p className="text-sm text-gray-500 mt-1 font-medium">Gerencie todos os seus eventos em um só lugar</p>
           </div>
           <Button asChild className="bg-gray-900 text-white text-[10px] font-black uppercase tracking-widest px-5 py-3 rounded-xl hover:bg-gray-700 transition-colors shadow-sm">

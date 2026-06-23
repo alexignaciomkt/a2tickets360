@@ -57,7 +57,7 @@ const AdBanner = ({ imageUrl, title, subtitle, badge, cta, link, variant = 'prem
               <div className="w-8 h-px bg-current opacity-20" />
             </div>
             <h3 
-              className={`font-black tracking-tighter uppercase leading-none ${config?.titleSize || 'text-xl md:text-3xl'} ${
+              className={`font-black tracking-tight uppercase leading-none ${config?.titleSize || 'text-xl md:text-3xl'} ${
                 !config?.titleColor && variant === 'dark' ? 'text-white' : 
                 !config?.titleColor ? 'text-slate-900' : ''
               }`}

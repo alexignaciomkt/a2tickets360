@@ -57,7 +57,7 @@ const LegalPage = ({ slug: propSlug }: { slug?: string }) => {
                 <div className="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <Shield className="h-5 w-5 text-indigo-600" />
-                        <span className="font-black uppercase tracking-tighter text-gray-900">Legal</span>
+                        <span className="font-black uppercase tracking-tight text-gray-900">Legal</span>
                     </div>
                     <Button asChild variant="ghost" size="sm">
                         <Link to="/"><ChevronLeft className="mr-2 h-4 w-4" /> Voltar</Link>
@@ -71,7 +71,7 @@ const LegalPage = ({ slug: propSlug }: { slug?: string }) => {
                         <div className="flex items-center gap-2 text-indigo-600 font-bold text-xs uppercase tracking-widest mb-4">
                             <span className="bg-indigo-50 px-3 py-1 rounded-full">Atualizado em {new Date(page.updatedAt).toLocaleDateString()}</span>
                         </div>
-                        <h1 className="text-4xl font-black text-gray-900 mb-8 tracking-tighter uppercase">{page.title}</h1>
+                        <h1 className="text-4xl font-black text-gray-900 mb-8 tracking-tight uppercase">{page.title}</h1>
                         <div className="markdown-content text-gray-700 leading-relaxed space-y-4">
                             <ReactMarkdown>{page.content}</ReactMarkdown>
                         </div>

@@ -27,7 +27,7 @@ const RegisterChoicePage = () => {
                                 <span className="text-xs font-bold uppercase tracking-[0.2em] text-gray-300">Escolha sua Jornada</span>
                             </div>
 
-                            <h1 className="text-6xl md:text-8xl font-black text-white italic uppercase tracking-tighter mb-6 leading-[0.8] drop-shadow-2xl">
+                            <h1 className="text-6xl md:text-8xl font-black text-white italic uppercase tracking-tight mb-6 leading-[0.8] drop-shadow-2xl">
                                 O Próximo Nível <br />
                                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-indigo-400 to-blue-500">Começa Aqui.</span>
                             </h1>

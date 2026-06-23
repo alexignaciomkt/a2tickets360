@@ -48,6 +48,8 @@ import ParaProdutores from '@/pages/ParaProdutores';
 import WorkWithUs from '@/pages/WorkWithUs';
 import StaffReaderPage from '@/pages/staff/StaffReaderPage';
 import StaffPortalDashboard from '@/pages/staff/StaffPortalDashboard';
+import PromoterDashboard from '@/pages/promoter/PromoterDashboard';
+import PromoterLP from '@/pages/promoter/PromoterLP';
 import WorkerProfilePage from '@/pages/staff/WorkerProfilePage';
 import ProposalsPage from '@/pages/staff/ProposalsPage';
 import AgendaPage from '@/pages/staff/AgendaPage';
@@ -394,6 +396,10 @@ function AppRoutes() {
             <OrganizerPostManager />
           </ProtectedRoute>
         } />
+        {/* ═══ PROMOTER PORTAL ROUTES ═══ */}
+        <Route path="/promoter/about" element={<PromoterLP />} />
+        <Route path="/promoter" element={<PromoterDashboard />} />
+
       </Routes>
     </AnimatePresence>
   );

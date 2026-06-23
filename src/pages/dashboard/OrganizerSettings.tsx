@@ -316,27 +316,27 @@ const OrganizerSettings = () => {
           className="space-y-4"
         >
           <TabsList className="bg-gray-100 p-1 rounded-xl w-full justify-start overflow-x-auto h-auto scrollbar-hide">
-            <TabsTrigger value="profile" className="flex items-center gap-2 font-bold text-xs uppercase tracking-tighter">
+            <TabsTrigger value="profile" className="flex items-center gap-2 font-bold text-xs uppercase tracking-tight">
               <Store className="h-4 w-4" />
               Vitrine Pública
             </TabsTrigger>
-            <TabsTrigger value="account" className="flex items-center gap-2 font-bold text-xs uppercase tracking-tighter">
+            <TabsTrigger value="account" className="flex items-center gap-2 font-bold text-xs uppercase tracking-tight">
               <Building2 className="h-4 w-4" />
               Dados da Empresa
             </TabsTrigger>
-            <TabsTrigger value="branding" className="flex items-center gap-2 font-bold text-xs uppercase tracking-tighter">
+            <TabsTrigger value="branding" className="flex items-center gap-2 font-bold text-xs uppercase tracking-tight">
               <Palette className="h-4 w-4" />
               Identidade Visual
             </TabsTrigger>
-            <TabsTrigger value="social" className="flex items-center gap-2 font-bold text-xs uppercase tracking-tighter">
+            <TabsTrigger value="social" className="flex items-center gap-2 font-bold text-xs uppercase tracking-tight">
               <Share2 className="h-4 w-4" />
               Redes Sociais
             </TabsTrigger>
-            <TabsTrigger value="store" className="flex items-center gap-2 font-bold text-xs uppercase tracking-tighter">
+            <TabsTrigger value="store" className="flex items-center gap-2 font-bold text-xs uppercase tracking-tight">
               <LayoutGrid className="h-4 w-4" />
               Agenda & Loja
             </TabsTrigger>
-            <TabsTrigger value="gallery" className="flex items-center gap-2 font-bold text-xs uppercase tracking-tighter">
+            <TabsTrigger value="gallery" className="flex items-center gap-2 font-bold text-xs uppercase tracking-tight">
               <Users className="h-4 w-4" />
               Depoimentos/Galeria
             </TabsTrigger>
@@ -848,7 +848,7 @@ const OrganizerSettings = () => {
                     <Store className="w-6 h-6 text-indigo-600" />
                   </div>
                   <div>
-                  <CardTitle className="font-black text-2xl uppercase tracking-tighter text-gray-900">Configurações da Agenda & Loja</CardTitle>
+                  <CardTitle className="font-black text-2xl uppercase tracking-tight text-gray-900">Configurações da Agenda & Loja</CardTitle>
                   <CardDescription className="font-medium text-gray-500">Controle a exibição de eventos e produtos na sua página.</CardDescription>
                   <div className="mt-4 p-4 bg-indigo-50 rounded-2xl border border-indigo-100 max-w-md">
                     <label className="text-[10px] font-black uppercase text-indigo-400 tracking-widest block mb-2">Título da Agenda na FanPage</label>

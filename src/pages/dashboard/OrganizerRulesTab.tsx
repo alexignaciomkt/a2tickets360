@@ -50,7 +50,7 @@ const OrganizerRulesTab = ({ eventId, initialSettings }: { eventId: string, init
               <Shield className="w-6 h-6 text-amber-600" />
            </div>
            <div>
-              <h3 className="text-xl font-black uppercase tracking-tighter text-gray-900">Regras de Segurança e Limites</h3>
+              <h3 className="text-xl font-black uppercase tracking-tight text-gray-900">Regras de Segurança e Limites</h3>
               <p className="text-sm text-gray-500 font-medium">Configure como seu público pode interagir com o evento.</p>
            </div>
         </div>
@@ -59,7 +59,7 @@ const OrganizerRulesTab = ({ eventId, initialSettings }: { eventId: string, init
            {/* Limite por CPF */}
            <div className="flex items-start justify-between gap-8">
               <div className="space-y-1">
-                 <p className="font-black text-gray-900 uppercase tracking-tighter text-sm">Limite de Ingressos por CPF</p>
+                 <p className="font-black text-gray-900 uppercase tracking-tight text-sm">Limite de Ingressos por CPF</p>
                  <p className="text-xs text-gray-500 font-medium">Quantos ingressos uma única pessoa (CPF) pode comprar no total.</p>
               </div>
               <div className="w-24">
@@ -77,7 +77,7 @@ const OrganizerRulesTab = ({ eventId, initialSettings }: { eventId: string, init
            {/* Dados Individuais */}
            <div className="flex items-start justify-between gap-8">
               <div className="space-y-1">
-                 <p className="font-black text-gray-900 uppercase tracking-tighter text-sm">Exigir Dados Individuais</p>
+                 <p className="font-black text-gray-900 uppercase tracking-tight text-sm">Exigir Dados Individuais</p>
                  <p className="text-xs text-gray-500 font-medium">Cada ingresso deve ter um CPF e Nome diferente (Mailing Gold).</p>
               </div>
               <div className="relative inline-flex h-6 w-11 items-center rounded-full bg-gray-200 cursor-pointer transition-colors"
@@ -92,7 +92,7 @@ const OrganizerRulesTab = ({ eventId, initialSettings }: { eventId: string, init
            {/* Lógica de Grupos (Mesa/Camarote) */}
            <div className="space-y-4 pt-4">
               <div className="flex items-center gap-2">
-                 <p className="font-black text-gray-900 uppercase tracking-tighter text-sm">Mesas e Camarotes (Lógica de Grupo)</p>
+                 <p className="font-black text-gray-900 uppercase tracking-tight text-sm">Mesas e Camarotes (Lógica de Grupo)</p>
                  <span className="bg-primary/10 text-primary text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">Novo</span>
               </div>
               <p className="text-xs text-gray-500 font-medium leading-relaxed">Defina quantos "assentos" cada tipo de ingresso possui. Isso gerará tokens de resgate para os convidados.</p>
@@ -147,7 +147,7 @@ const OrganizerRulesTab = ({ eventId, initialSettings }: { eventId: string, init
       <div className="bg-amber-50 rounded-2xl p-6 border border-amber-100 flex gap-4">
          <AlertCircle className="w-6 h-6 text-amber-600 shrink-0" />
          <div>
-            <p className="text-xs font-black text-amber-900 uppercase tracking-tighter mb-1">Dica de Produtor</p>
+            <p className="text-xs font-black text-amber-900 uppercase tracking-tight mb-1">Dica de Produtor</p>
             <p className="text-xs text-amber-700 font-medium leading-relaxed">
                Manter a opção "Exigir Dados Individuais" ativada garante que sua base de e-mails seja 100% qualificada, 
                pois impede que um único usuário compre 10 ingressos usando apenas o seu próprio e-mail.

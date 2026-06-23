@@ -132,7 +132,7 @@ const PayoutManagement = () => {
               <CardContent className="p-10 flex items-center justify-between">
                 <div className="space-y-2">
                   <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-300 leading-none mb-2">{stat.label}</p>
-                  <h3 className="text-3xl font-black tracking-tighter text-slate-900 leading-none tabular-nums">{stat.value}</h3>
+                  <h3 className="text-3xl font-black tracking-tight text-slate-900 leading-none tabular-nums">{stat.value}</h3>
                 </div>
                 <div className={`w-14 h-14 rounded-[1.4rem] flex items-center justify-center border-4 border-white shadow-2xl transition-all group-hover:scale-110 group-hover:rotate-6 ${
                   stat.color === 'indigo' ? 'bg-indigo-50 text-indigo-600' :
@@ -248,7 +248,7 @@ const PayoutManagement = () => {
             <DialogHeader>
               <div className="flex items-center justify-between">
                 <div className="space-y-3">
-                  <DialogTitle className="text-3xl font-black uppercase tracking-tighter flex items-center gap-6">
+                  <DialogTitle className="text-3xl font-black uppercase tracking-tight flex items-center gap-6">
                     <div className="p-4 bg-slate-900 rounded-[1.6rem] text-white shadow-2xl border-4 border-white"><Target className="w-8 h-8" /></div>
                     Protocolo de Liquidação
                   </DialogTitle>
@@ -266,7 +266,7 @@ const PayoutManagement = () => {
                   <div className="absolute -right-12 -top-12 p-12 opacity-5 group-hover:opacity-10 group-hover:scale-125 transition-all duration-1000 group-hover:rotate-12"><Zap className="w-52 h-52" /></div>
                   <div className="space-y-3 relative z-10">
                     <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] leading-none">Volume Líquido de Clearing</p>
-                    <p className="text-4xl font-black text-emerald-400 tracking-tighter leading-none tabular-nums">R$ {selectedPayout.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                    <p className="text-4xl font-black text-emerald-400 tracking-tight leading-none tabular-nums">R$ {selectedPayout.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                   </div>
                   <div className="space-y-3 relative z-10">
                     <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] leading-none">Hash de Kernel Autorizado</p>

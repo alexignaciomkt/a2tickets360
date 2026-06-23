@@ -23,6 +23,9 @@ interface CheckoutData {
   address: string;
   birthDate: string;
   gender: string;
+  couponCode: string;
+  promoterId?: string;
+  discountApplied?: number;
 }
 
 const initialFormData: CheckoutData = {
@@ -37,6 +40,7 @@ const initialFormData: CheckoutData = {
   address: '',
   birthDate: '',
   gender: '',
+  couponCode: '',
 };
 
 const steps = ['Informações', 'Pagamento', 'Confirmação'];
@@ -55,6 +59,8 @@ const CheckoutPage = () => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [hasTicket, setHasTicket] = useState(false);
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
+  const [couponMessage, setCouponMessage] = useState({ text: '', type: '' });
 
   // Pre-fill form if user is logged in
   useEffect(() => {
@@ -139,7 +145,47 @@ const CheckoutPage = () => {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value.toUpperCase() === value && name === 'couponCode' ? value : value }));
+  };
+
+  const handleApplyCoupon = async () => {
+    if (!formData.couponCode) return;
+    setValidatingCoupon(true);
+    setCouponMessage({ text: '', type: '' });
+
+    try {
+      // 1. Procurar cupom na tabela coupons (organizador)
+      const { data: couponData } = await supabase
+        .from('coupons')
+        .select('*')
+        .eq('code', formData.couponCode.toUpperCase())
+        .eq('event_id', eventId)
+        .single();
+
+      if (couponData) {
+         setFormData(prev => ({ ...prev, discountApplied: couponData.discount_value }));
+         setCouponMessage({ text: 'Cupom de Desconto aplicado!', type: 'success' });
+      } else {
+         // 2. Se não for cupom do organizador, procurar se é o "Slug" de um promoter ativo
+         const { data: promoterData } = await supabase
+           .from('promoters')
+           .select('id, name')
+           .eq('slug', formData.couponCode.toLowerCase())
+           .eq('status', 'active')
+           .single();
+
+         if (promoterData) {
+            setFormData(prev => ({ ...prev, promoterId: promoterData.id }));
+            setCouponMessage({ text: `Promoter ${promoterData.name} vinculado!`, type: 'success' });
+         } else {
+            setCouponMessage({ text: 'Cupom inválido ou expirado.', type: 'error' });
+            setFormData(prev => ({ ...prev, promoterId: undefined, discountApplied: undefined }));
+         }
+      }
+    } catch (e) {
+      setCouponMessage({ text: 'Erro ao validar cupom.', type: 'error' });
+    }
+    setValidatingCoupon(false);
   };
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -290,6 +336,17 @@ const CheckoutPage = () => {
                     photo_url: photoUrl,
                     qr_code_data: `TICKET-${Math.random().toString(36).substr(2, 9).toUpperCase()}`
                 };
+
+                // Registrar a conversão se houver promoter
+                if (formData.promoterId) {
+                   await supabase.from('promoter_sales').insert({
+                      promoter_id: formData.promoterId,
+                      event_id: eventId,
+                      ticket_id: ticketData.ticket_id,
+                      sale_amount: ticket.price,
+                      customer_id: currentUser?.id
+                   });
+                }
 
                 console.log('Tentando salvar ingresso:', ticketData);
 
@@ -450,7 +507,7 @@ const CheckoutPage = () => {
                   <div className="mx-auto w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mb-6">
                     <ShieldCheck className="w-10 h-10 text-amber-600" />
                   </div>
-                  <h2 className="text-2xl font-black uppercase tracking-tighter text-slate-900 mb-4">Você já garantiu seu lugar!</h2>
+                  <h2 className="text-2xl font-black uppercase tracking-tight text-slate-900 mb-4">Você já garantiu seu lugar!</h2>
                   <p className="text-slate-500 font-medium mb-8 max-w-md mx-auto">
                     Identificamos que você já possui um ingresso ativo para este evento. Para garantir a segurança e o limite de público, é permitido apenas um ingresso por CPF.
                   </p>
@@ -658,7 +715,7 @@ const CheckoutPage = () => {
                         </div>
                         
                         <div className="flex-1 text-center sm:text-left">
-                          <h4 className="font-black text-slate-900 uppercase tracking-tighter text-lg leading-tight mb-2">
+                          <h4 className="font-black text-slate-900 uppercase tracking-tight text-lg leading-tight mb-2">
                             {photoPreview ? 'Foto Identificada' : 'Tirar Selfie Agora'}
                           </h4>
                           <p className="text-slate-500 text-xs font-medium mb-4 max-w-[250px]">
@@ -686,6 +743,35 @@ const CheckoutPage = () => {
                 {currentStep === 1 && (
                   <div className="space-y-4">
                     <h2 className="text-xl font-semibold mb-6">Pagamento</h2>
+
+                    {/* CUPOM DE PROMOTER */}
+                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 mb-6">
+                      <label className="block text-sm font-black uppercase tracking-widest text-gray-500 mb-2">
+                        Possui cupom ou código de promoter?
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          name="couponCode"
+                          value={formData.couponCode}
+                          onChange={(e) => setFormData(prev => ({...prev, couponCode: e.target.value.toUpperCase()}))}
+                          className="input-field flex-1 font-black uppercase tracking-widest"
+                          placeholder="EX: JOAO10"
+                        />
+                        <button 
+                          onClick={handleApplyCoupon}
+                          disabled={validatingCoupon || !formData.couponCode}
+                          className="bg-gray-900 text-white px-6 rounded-lg font-black uppercase tracking-widest text-xs disabled:opacity-50"
+                        >
+                          {validatingCoupon ? '...' : 'Aplicar'}
+                        </button>
+                      </div>
+                      {couponMessage.text && (
+                        <p className={`text-xs font-bold mt-2 ${couponMessage.type === 'success' ? 'text-green-600' : 'text-red-500'}`}>
+                          {couponMessage.text}
+                        </p>
+                      )}
+                    </div>
 
                     <div className="flex flex-col sm:flex-row gap-4 mb-6">
                       <div
@@ -761,7 +847,7 @@ const CheckoutPage = () => {
                       <Check className="h-8 w-8 text-green-600" />
                     </div>
 
-                    <h2 className="text-3xl font-black mb-2 tracking-tighter uppercase">PARABÉNS! INGRESSO GARANTIDO.</h2>
+                    <h2 className="text-3xl font-black mb-2 tracking-tight uppercase">PARABÉNS! INGRESSO GARANTIDO.</h2>
                     <p className="text-gray-500 font-bold mb-8 uppercase text-[10px] tracking-widest">
                       Seu lugar está reservado. Prepare-se para o épico!
                     </p>
@@ -783,7 +869,7 @@ const CheckoutPage = () => {
                         >
                             <div className="absolute top-4 right-6 text-white/20 font-black text-4xl uppercase select-none">A2</div>
                             <div className="relative z-10 text-left">
-                                <h3 className="text-white font-black text-xl uppercase tracking-tighter leading-none">{event.title}</h3>
+                                <h3 className="text-white font-black text-xl uppercase tracking-tight leading-none">{event.title}</h3>
                                 <p className="text-indigo-200 text-[8px] font-black uppercase tracking-widest mt-1 italic">Exclusive Experience</p>
                             </div>
                         </div>
@@ -813,19 +899,19 @@ const CheckoutPage = () => {
                                 <div className="grid grid-cols-2 gap-4 text-left">
                                     <div>
                                         <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Data & Hora</p>
-                                        <p className="text-xs font-black text-gray-900 uppercase tracking-tighter">{formattedDate}</p>
+                                        <p className="text-xs font-black text-gray-900 uppercase tracking-tight">{formattedDate}</p>
                                         <p className="text-[10px] font-bold uppercase" style={{ color: event.ticket_design?.primaryColor || '#4F46E5' }}>{event.time}H</p>
                                     </div>
                                     <div>
                                         <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Local</p>
-                                        <p className="text-xs font-black text-gray-900 uppercase tracking-tighter truncate">{event.location.name}</p>
+                                        <p className="text-xs font-black text-gray-900 uppercase tracking-tight truncate">{event.location.name}</p>
                                         <p className="text-[10px] font-bold uppercase" style={{ color: event.ticket_design?.primaryColor || '#4F46E5' }}>{event.location.city}</p>
                                     </div>
                                 </div>
 
                                 <div className="pt-4 border-t border-gray-50 text-left">
                                     <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Comprador</p>
-                                    <p className="text-sm font-black text-gray-950 uppercase tracking-tighter">{formData.name}</p>
+                                    <p className="text-sm font-black text-gray-950 uppercase tracking-tight">{formData.name}</p>
                                     <div className="flex justify-between items-center mt-2">
                                         <span 
                                             className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full"

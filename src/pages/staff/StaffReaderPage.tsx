@@ -229,7 +229,7 @@ const StaffReaderPage = () => {
                     <div className="w-full max-w-sm p-4 space-y-6 text-center">
                         <div id="qr-reader" className="overflow-hidden rounded-[2.5rem] border-4 border-indigo-600 shadow-2xl bg-black"></div>
                         <div className="space-y-2">
-                            <h3 className="text-xl font-black text-white uppercase tracking-tighter">Pronto para Validar</h3>
+                            <h3 className="text-xl font-black text-white uppercase tracking-tight">Pronto para Validar</h3>
                             <p className="text-indigo-300 text-[10px] font-black uppercase tracking-widest opacity-70">Aponte para o QR Code do ingresso</p>
                         </div>
                     </div>
@@ -254,7 +254,7 @@ const StaffReaderPage = () => {
                                         </div>
 
                                         <div className="pt-4">
-                                            <h2 className="text-4xl font-black uppercase tracking-tighter leading-none mb-1 italic">Acesso Liberado</h2>
+                                            <h2 className="text-4xl font-black uppercase tracking-tight leading-none mb-1 italic">Acesso Liberado</h2>
                                             <p className="text-emerald-100 font-bold uppercase tracking-widest text-xs opacity-80">Conferência Visual Obrigatória</p>
                                         </div>
                                     </div>
@@ -279,7 +279,7 @@ const StaffReaderPage = () => {
                                         <X className="w-16 h-16" strokeWidth={4} />
                                     </div>
                                     <div className="space-y-4 text-center">
-                                        <h1 className="text-4xl font-black uppercase tracking-tighter leading-none">Acesso Negado</h1>
+                                        <h1 className="text-4xl font-black uppercase tracking-tight leading-none">Acesso Negado</h1>
                                         <p className="text-red-100 font-medium px-10 leading-relaxed italic opacity-80">Ingresso já utilizado, inválido ou de outro evento.</p>
                                     </div>
                                 </>

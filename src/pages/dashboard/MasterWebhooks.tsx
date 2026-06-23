@@ -161,7 +161,7 @@ const MasterWebhooks = () => {
                                 <CardTitle className="text-slate-900 text-[14px] font-black uppercase tracking-tight leading-none group-hover:text-indigo-600 transition-colors">
                                     {triggers.find(t => t.key === hook.eventKey)?.label || hook.eventKey}
                                 </CardTitle>
-                                <div className="text-[10px] font-bold text-slate-400 font-mono tracking-tighter truncate bg-white px-4 py-2 rounded-xl mt-4 inline-block max-w-full border-2 border-gray-50 group-hover:text-slate-900 group-hover:border-slate-100 transition-all tabular-nums">
+                                <div className="text-[10px] font-bold text-slate-400 font-mono tracking-tight truncate bg-white px-4 py-2 rounded-xl mt-4 inline-block max-w-full border-2 border-gray-50 group-hover:text-slate-900 group-hover:border-slate-100 transition-all tabular-nums">
                                     {hook.url}
                                 </div>
                             </CardHeader>
@@ -270,7 +270,7 @@ const MasterWebhooks = () => {
                 <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
                     <DialogContent className="bg-white border-none text-slate-900 rounded-[4rem] shadow-[0_50px_150px_rgba(0,0,0,0.3)] p-16 max-w-xl animate-in zoom-in-95 duration-500 border-4 border-slate-50">
                         <DialogHeader>
-                            <DialogTitle className="text-3xl font-black uppercase tracking-tighter flex items-center gap-6">
+                            <DialogTitle className="text-3xl font-black uppercase tracking-tight flex items-center gap-6">
                                 <div className="p-5 bg-slate-900 rounded-[1.8rem] text-white shadow-2xl group-hover:rotate-12 transition-transform border-4 border-white">
                                     <Cpu className="w-8 h-8" />
                                 </div>

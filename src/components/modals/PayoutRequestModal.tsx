@@ -56,7 +56,7 @@ export function PayoutRequestModal({ open, onOpenChange, availableBalance }: Pay
                                 <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-2xl flex justify-between items-center text-left">
                                     <div>
                                         <p className="text-[10px] font-black text-indigo-900 uppercase tracking-widest">Saldo Disponível</p>
-                                        <p className="text-2xl font-black text-indigo-600 tracking-tighter">
+                                        <p className="text-2xl font-black text-indigo-600 tracking-tight">
                                             R$ {availableBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                         </p>
                                     </div>

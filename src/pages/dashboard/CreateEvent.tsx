@@ -494,7 +494,7 @@ const CreateEvent = () => {
           </div>
 
           <div className="flex-1 text-center md:text-left">
-            <h4 className="text-xl font-black text-gray-900 uppercase tracking-tighter mb-2">Destaque seu Evento na Home</h4>
+            <h4 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-2">Destaque seu Evento na Home</h4>
             <p className="text-sm text-gray-500 font-medium">
               Sua arte aparecerá no carrossel principal da plataforma por 30 dias.
               Ideal para aumentar a visibilidade e as vendas.
@@ -502,7 +502,7 @@ const CreateEvent = () => {
           </div>
 
           <div className="shrink-0 flex flex-col items-center gap-2">
-            <div className="text-2xl font-black text-indigo-600 tracking-tighter">R$ 49,90</div>
+            <div className="text-2xl font-black text-indigo-600 tracking-tight">R$ 49,90</div>
             <Button
               type="button"
               onClick={() => setWantsHighlight(!wantsHighlight)}

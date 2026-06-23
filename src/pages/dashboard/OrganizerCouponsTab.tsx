@@ -67,7 +67,7 @@ const OrganizerCouponsTab = ({ eventId }: { eventId: string }) => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h3 className="text-xl font-black uppercase tracking-tighter text-gray-900">Cupons e Cortesias</h3>
+        <h3 className="text-xl font-black uppercase tracking-tight text-gray-900">Cupons e Cortesias</h3>
         <button 
           onClick={() => setShowAddModal(true)}
           className="bg-gray-900 text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-gray-800 transition-all flex items-center gap-2"
@@ -142,7 +142,7 @@ const OrganizerCouponsTab = ({ eventId }: { eventId: string }) => {
       {showAddModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-300">
-            <h3 className="text-2xl font-black uppercase tracking-tighter text-gray-900 mb-6">Novo Cupom</h3>
+            <h3 className="text-2xl font-black uppercase tracking-tight text-gray-900 mb-6">Novo Cupom</h3>
             <form onSubmit={handleAddCoupon} className="space-y-4">
               <div>
                 <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Código do Cupom</label>

@@ -30,7 +30,7 @@ const WelcomeModal = ({ isOpen, onClose }: WelcomeModalProps) => {
                         <div className="bg-white/20 w-16 h-16 rounded-2xl flex items-center justify-center mb-6 backdrop-blur-sm">
                             <Sparkles className="text-white h-8 w-8" />
                         </div>
-                        <DialogTitle className="text-3xl font-black uppercase tracking-tighter mb-2 text-white">
+                        <DialogTitle className="text-3xl font-black uppercase tracking-tight mb-2 text-white">
                             Seja bem-vindo(a)!
                         </DialogTitle>
                         <DialogDescription className="text-indigo-100 text-lg font-medium leading-tight">

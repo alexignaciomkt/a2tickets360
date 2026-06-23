@@ -33,7 +33,7 @@ const AlertCard = ({ alertCount, alerts, onViewAllClick }: AlertCardProps) => {
   return (
     <Card className="col-span-1 md:col-span-3 border-gray-100 shadow-sm rounded-[2.5rem] overflow-hidden">
       <CardHeader className="flex flex-row items-center justify-between pb-2 border-b border-gray-50 bg-gray-50/30">
-        <CardTitle className="flex items-center text-sm font-black uppercase tracking-tighter text-slate-800">
+        <CardTitle className="flex items-center text-sm font-black uppercase tracking-tight text-slate-800">
           <AlertTriangle className="w-4 h-4 mr-2 text-rose-500" />
           Alertas de Segurança
         </CardTitle>

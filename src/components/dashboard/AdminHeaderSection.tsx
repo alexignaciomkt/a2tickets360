@@ -17,7 +17,7 @@ const AdminHeaderSection = ({
   return (
     <div className="flex justify-between items-center py-6">
       <div className="space-y-1">
-        <h1 className="text-lg md:text-xl font-black uppercase tracking-tighter text-slate-900 leading-none">{title}</h1>
+        <h1 className="text-lg md:text-xl font-black uppercase tracking-tight text-slate-900 leading-none">{title}</h1>
         <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
           {subtitle} <span className="text-indigo-600">{userName || ''}</span>
         </p>

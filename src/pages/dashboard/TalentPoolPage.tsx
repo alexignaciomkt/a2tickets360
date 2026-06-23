@@ -162,7 +162,7 @@ const TalentPoolPage = () => {
                     <div className="relative z-10 space-y-10">
                         <div className="space-y-3">
                             <Badge className="bg-emerald-500 text-white border-none font-black uppercase tracking-widest text-[9px] px-6 py-1.5 rounded-full shadow-lg shadow-emerald-500/20">Recruitment Intelligence Hub</Badge>
-                            <h1 className="text-3xl md:text-5xl font-black tracking-tighter uppercase leading-none">Global Talent Matrix</h1>
+                            <h1 className="text-3xl md:text-5xl font-black tracking-tight uppercase leading-none">Global Talent Matrix</h1>
                             <p className="text-slate-400 font-bold uppercase tracking-widest text-[11px] max-w-2xl leading-relaxed">
                                 Curadoria estratégica de profissionais qualificados. Filtragem por performance e clusterização demográfica de alta autoridade.
                             </p>
@@ -269,7 +269,7 @@ const TalentPoolPage = () => {
                                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/20 to-transparent"></div>
                                 <div className="absolute bottom-8 left-8 right-8 flex justify-between items-end">
                                     <div className="space-y-1.5">
-                                        <h3 className="text-white font-black uppercase tracking-tighter text-xl leading-none">{candidate.name}</h3>
+                                        <h3 className="text-white font-black uppercase tracking-tight text-xl leading-none">{candidate.name}</h3>
                                         <div className="flex items-center gap-2 text-white/50 text-[10px] font-black uppercase tracking-widest">
                                             <MapPin className="w-3.5 h-3.5 text-rose-500" /> {candidate.city}, {candidate.state}
                                         </div>
@@ -353,7 +353,7 @@ const TalentPoolPage = () => {
                                 <Search className="w-12 h-12 text-slate-200" />
                             </div>
                             <div className="space-y-3">
-                                <h3 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">Zero Talent Assets Located</h3>
+                                <h3 className="text-3xl font-black text-slate-900 uppercase tracking-tight">Zero Talent Assets Located</h3>
                                 <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">Adjust matrix parameters to locate authorized talent nodes.</p>
                             </div>
                             <Button variant="outline" className="h-14 rounded-full px-12 font-black text-[11px] uppercase tracking-widest border-gray-100 shadow-sm hover:bg-gray-50" onClick={() => { setSearchTerm(''); setFilterRole('all'); setFilterGender('all'); setFilterRating('0'); }}>

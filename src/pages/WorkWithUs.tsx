@@ -1,170 +1,222 @@
-
-import { Link } from 'react-router-dom';
-import { Search, MapPin, ArrowRight, Briefcase, Star, Users } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
+import { useSearchParams } from 'react-router-dom';
+import { Briefcase, Link as LinkIcon, UserPlus, CheckCircle2, AlertCircle } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
-
-const producers = [
-    {
-        id: '1',
-        name: 'Bomba Produções',
-        slug: 'bombaproducoes',
-        image: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=400&h=400&fit=crop',
-        location: 'São José dos Campos, SP',
-        category: 'Shows e Festivais',
-        openRoles: 12
-    },
-    {
-        id: '2',
-        name: 'Tech Events',
-        slug: 'techevents',
-        image: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&h=400&fit=crop',
-        location: 'São Paulo, SP',
-        category: 'Corporativo',
-        openRoles: 5
-    },
-    {
-        id: '3',
-        name: 'Cultural Arts',
-        slug: 'culturalarts',
-        image: 'https://images.unsplash.com/photo-1514525253440-b393452e8d26?w=400&h=400&fit=crop',
-        location: 'Rio de Janeiro, RJ',
-        category: 'Teatro e Arte',
-        openRoles: 8
-    }
-];
+import { supabase } from '@/lib/supabase';
 
 const WorkWithUs = () => {
-    return (
-        <MainLayout>
-            <div className="bg-gradient-to-br from-indigo-900 via-purple-900 to-black text-white py-20 relative overflow-hidden">
-                <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center opacity-20"></div>
-                <div className="container mx-auto px-4 relative z-10 text-center">
-                    <Badge className="bg-indigo-500 hover:bg-indigo-600 mb-6 text-sm px-4 py-1">Banco de Talentos A2</Badge>
-                    <h1 className="text-6xl md:text-9xl font-black mb-8 leading-[0.9] tracking-tighter uppercase">
-                        FAÇA PARTE <br />
-                        <span className="flex items-center justify-center gap-4">
-                            <span>DO</span>
-                            <span className="text-yellow-400 text-3xl md:text-5xl italic tracking-[0.05em] drop-shadow-[0_2px_15px_rgba(250,204,21,0.6)]">ESPETÁCULO</span>
-                        </span>
-                    </h1>
-                    <p className="text-xl md:text-2xl text-gray-300 max-w-2xl mx-auto mb-10 leading-relaxed font-light">
-                        Conecte-se com os maiores produtores de eventos do país. Do backstage ao palco, sua carreira começa aqui.
-                    </p>
+  const [searchParams] = useSearchParams();
+  const initialRole = (searchParams.get('role') as 'promoter' | 'staff') || 'promoter';
 
-                    <div className="max-w-2xl mx-auto bg-white/10 backdrop-blur-md p-2 rounded-full border border-white/20 flex gap-2 shadow-2xl">
-                        <div className="flex-1 relative">
-                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                            <Input
-                                placeholder="Busque por produtora ou cidade..."
-                                className="bg-transparent border-none text-white placeholder:text-gray-400 pl-12 h-12 text-lg focus-visible:ring-0 focus-visible:ring-offset-0"
-                            />
-                        </div>
-                        <Link to="/events">
-                            <Button size="lg" className="rounded-full px-8 bg-indigo-600 hover:bg-indigo-700 font-bold">
-                                Buscar Vagas
-                            </Button>
-                        </Link>
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    instagram: '',
+    role: initialRole,
+    reason: ''
+  });
+  
+  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setStatus('loading');
+    
+    try {
+      // Create application in supabase
+      const { error } = await supabase.from('promoter_applications').insert({
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        instagram: formData.instagram,
+        role: formData.role,
+        reason: formData.reason,
+        status: 'pending'
+      });
+
+      if (error) throw error;
+      
+      setStatus('success');
+      setFormData({ name: '', email: '', phone: '', instagram: '', role: 'promoter', reason: '' });
+    } catch (error) {
+      console.error('Error submitting application:', error);
+      setStatus('error');
+    }
+  };
+
+  return (
+    <MainLayout>
+      <div className="min-h-screen bg-zinc-950 text-white relative flex flex-col items-center justify-center py-20 px-4 font-sans">
+        
+        {/* Background Effects */}
+        <div className="fixed inset-0 w-full h-full z-0 pointer-events-none overflow-hidden">
+          <img src="/background site.png" alt="Custom Background" className="w-full h-full object-cover opacity-30" />
+          <div className="absolute inset-0 bg-zinc-950/80 backdrop-blur-[2px]" />
+          <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] rounded-full blur-[180px] opacity-20 bg-indigo-600 mix-blend-screen" />
+          <div className="absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] rounded-full blur-[180px] opacity-15 bg-purple-600 mix-blend-screen" />
+        </div>
+
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative z-10 w-full max-w-3xl"
+        >
+          <div className="text-center mb-12 space-y-6">
+            <h1 className="flex flex-col items-center justify-center font-black uppercase">
+              <span className="text-2xl md:text-3xl text-zinc-300 tracking-widest mb-2">Trabalhe</span>
+              <span className="text-5xl md:text-7xl lg:text-8xl text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-500 tracking-tight leading-none">Conosco</span>
+            </h1>
+            <p className="text-zinc-400 font-medium max-w-lg mx-auto text-lg mt-6">
+              Faça parte dos maiores eventos. Escolha atuar nos bastidores como <strong className="text-white">Staff</strong> ou fature espalhando a palavra como <strong className="text-indigo-400">Promoter</strong>.
+            </p>
+          </div>
+
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[3rem] p-8 md:p-12 shadow-2xl">
+            {status === 'success' ? (
+              <motion.div 
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="text-center space-y-6 py-10"
+              >
+                <div className="w-24 h-24 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto border border-emerald-500/30">
+                  <CheckCircle2 className="w-12 h-12 text-emerald-400" />
+                </div>
+                <div>
+                  <h2 className="text-3xl font-black uppercase tracking-tight text-white mb-2">Inscrição Recebida!</h2>
+                  <p className="text-zinc-400">Nossa equipe ou o organizador do evento avaliará seu perfil. Fique de olho no seu email e WhatsApp para os próximos passos.</p>
+                </div>
+                <button 
+                  onClick={() => setStatus('idle')}
+                  className="px-8 py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-full text-white font-bold uppercase tracking-widest text-xs transition-colors"
+                >
+                  Enviar Outra Inscrição
+                </button>
+              </motion.div>
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-8">
+                
+                {/* Role Selection */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setFormData({...formData, role: 'promoter'})}
+                    className={`flex flex-col items-center justify-center p-6 rounded-2xl border-2 transition-all duration-300 ${
+                      formData.role === 'promoter' 
+                        ? 'border-indigo-500 bg-indigo-500/10 shadow-[0_0_20px_rgba(99,102,241,0.2)]' 
+                        : 'border-white/5 bg-white/5 hover:bg-white/10'
+                    }`}
+                  >
+                    <LinkIcon className={`w-10 h-10 mb-3 ${formData.role === 'promoter' ? 'text-indigo-400' : 'text-zinc-500'}`} />
+                    <span className={`font-black uppercase tracking-widest text-sm ${formData.role === 'promoter' ? 'text-white' : 'text-zinc-400'}`}>Quero ser Promoter</span>
+                    <span className="text-[10px] text-zinc-500 font-medium mt-2 text-center">Indique eventos e ganhe comissão por vendas.</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setFormData({...formData, role: 'staff'})}
+                    className={`flex flex-col items-center justify-center p-6 rounded-2xl border-2 transition-all duration-300 ${
+                      formData.role === 'staff' 
+                        ? 'border-purple-500 bg-purple-500/10 shadow-[0_0_20px_rgba(168,85,247,0.2)]' 
+                        : 'border-white/5 bg-white/5 hover:bg-white/10'
+                    }`}
+                  >
+                    <Briefcase className={`w-10 h-10 mb-3 ${formData.role === 'staff' ? 'text-purple-400' : 'text-zinc-500'}`} />
+                    <span className={`font-black uppercase tracking-widest text-sm ${formData.role === 'staff' ? 'text-white' : 'text-zinc-400'}`}>Quero ser Staff</span>
+                    <span className="text-[10px] text-zinc-500 font-medium mt-2 text-center">Trabalhe na operação no dia do evento.</span>
+                  </button>
+                </div>
+
+                {/* Form Fields */}
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Nome Completo</label>
+                      <input 
+                        required
+                        type="text" 
+                        value={formData.name}
+                        onChange={e => setFormData({...formData, name: e.target.value})}
+                        className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                        placeholder="João da Silva"
+                      />
                     </div>
-                </div>
-            </div>
-
-            <div className="container mx-auto px-4 py-20">
-                <div className="text-center mb-16">
-                    <h2 className="text-3xl font-black text-gray-900 mb-4">Quem está contratando</h2>
-                    <p className="text-gray-600 max-w-2xl mx-auto">
-                        Explore as produtoras que utilizam a A2 Tickets para gerenciar seus times.
-                        Envie seu perfil e entre para o banco de talentos exclusivo.
-                    </p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {producers.map((producer) => (
-                        <div key={producer.id} className="group bg-white rounded-3xl border border-gray-100 shadow-sm hover:shadow-2xl transition-all duration-300 overflow-hidden flex flex-col">
-                            <div className="h-32 bg-gray-100 relative">
-                                <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-600 opacity-10"></div>
-                                <div className="absolute -bottom-10 left-8 p-1 bg-white rounded-2xl shadow-lg">
-                                    <img src={producer.image} alt={producer.name} className="w-20 h-20 rounded-xl object-cover" />
-                                </div>
-                            </div>
-                            <div className="pt-12 px-8 pb-8 flex-1 flex flex-col">
-                                <div className="flex justify-between items-start mb-2">
-                                    <h3 className="text-xl font-bold text-gray-900">{producer.name}</h3>
-                                    <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-200">
-                                        {producer.openRoles} vagas
-                                    </Badge>
-                                </div>
-
-                                <div className="space-y-3 mb-6">
-                                    <div className="flex items-center text-sm text-gray-500">
-                                        <MapPin className="w-4 h-4 mr-2" /> {producer.location}
-                                    </div>
-                                    <div className="flex items-center text-sm text-gray-500">
-                                        <Star className="w-4 h-4 mr-2" /> {producer.category}
-                                    </div>
-                                </div>
-
-                                <p className="text-sm text-gray-600 mb-6 line-clamp-2">
-                                    Equipe especializada em grandes festivais. Buscamos profissionais para Segurança, Bar e Logística.
-                                </p>
-
-                                <div className="mt-auto pt-6 border-t border-gray-50">
-                                    <Link to={`/producer-page/${producer.slug}`}>
-                                        <Button className="w-full bg-gray-900 hover:bg-indigo-600 text-white font-bold rounded-xl transition-all group-hover:scale-105 active:scale-95">
-                                            Ver Página e Candidatar <ArrowRight className="w-4 h-4 ml-2" />
-                                        </Button>
-                                    </Link>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </div>
-
-            <div className="bg-gray-50 py-20">
-                <div className="container mx-auto px-4">
-                    <div className="bg-white rounded-[3rem] p-12 shadow-xl flex flex-col md:flex-row items-center gap-12 border border-gray-100">
-                        <div className="md:w-1/2">
-                            <div className="inline-block bg-indigo-100 text-indigo-700 px-4 py-1.5 rounded-full text-sm font-bold mb-6">
-                                Para Profissionais de Eventos
-                            </div>
-                            <h2 className="text-4xl font-black text-gray-900 mb-6 leading-tight">
-                                Um perfil, múltiplas oportunidades.
-                            </h2>
-                            <p className="text-lg text-gray-600 mb-8 leading-relaxed">
-                                Não perca tempo preenchendo fichas de papel. Na A2 Tickets, seu perfil profissional fica salvo e você pode se aplicar para diferentes produtores com um clique.
-                            </p>
-                            <ul className="space-y-4 mb-8">
-                                <li className="flex items-center gap-3 font-medium text-gray-700">
-                                    <div className="w-8 h-8 rounded-full bg-green-100 text-green-600 flex items-center justify-center"><Briefcase className="w-4 h-4" /></div>
-                                    Oportunidades em tempo real
-                                </li>
-                                <li className="flex items-center gap-3 font-medium text-gray-700">
-                                    <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center"><Users className="w-4 h-4" /></div>
-                                    Conexão direta com quem contrata
-                                </li>
-                            </ul>
-                            <Link to="/register">
-                                <Button size="lg" variant="outline" className="border-2 border-gray-900 text-gray-900 font-bold rounded-full px-8 hover:bg-gray-900 hover:text-white transition-all">
-                                    Criar meu Perfil
-                                </Button>
-                            </Link>
-                        </div>
-                        <div className="md:w-1/2 relative">
-                            <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500 to-purple-500 rounded-[2.5rem] rotate-3 opacity-20"></div>
-                            <img
-                                src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=1471&auto=format&fit=crop"
-                                alt="Staff Working"
-                                className="relative rounded-[2.5rem] shadow-2xl rotate-0 transition-transform hover:-rotate-2 duration-500"
-                            />
-                        </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Email</label>
+                      <input 
+                        required
+                        type="email" 
+                        value={formData.email}
+                        onChange={e => setFormData({...formData, email: e.target.value})}
+                        className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                        placeholder="joao@email.com"
+                      />
                     </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">WhatsApp</label>
+                      <input 
+                        required
+                        type="tel" 
+                        value={formData.phone}
+                        onChange={e => setFormData({...formData, phone: e.target.value})}
+                        className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                        placeholder="(00) 00000-0000"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Instagram (@)</label>
+                      <input 
+                        type="text" 
+                        value={formData.instagram}
+                        onChange={e => setFormData({...formData, instagram: e.target.value})}
+                        className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                        placeholder="@seuperfil"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">
+                      Por que você quer ser {formData.role === 'promoter' ? 'Promoter' : 'Staff'}?
+                    </label>
+                    <textarea 
+                      required
+                      value={formData.reason}
+                      onChange={e => setFormData({...formData, reason: e.target.value})}
+                      className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-white focus:outline-none focus:border-indigo-500 transition-colors resize-none h-32"
+                      placeholder="Conte um pouco sobre sua experiência ou networking..."
+                    />
+                  </div>
                 </div>
-            </div>
-        </MainLayout>
-    );
+
+                {status === 'error' && (
+                  <div className="flex items-center gap-2 text-red-400 bg-red-400/10 p-4 rounded-xl border border-red-400/20">
+                    <AlertCircle className="w-5 h-5" />
+                    <span className="text-sm font-medium">Erro ao enviar inscrição. Tente novamente mais tarde.</span>
+                  </div>
+                )}
+
+                <button 
+                  type="submit"
+                  disabled={status === 'loading'}
+                  className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-400 hover:to-purple-400 text-white font-black text-sm uppercase tracking-widest py-4 rounded-2xl transition-all shadow-[0_0_20px_rgba(99,102,241,0.3)] hover:shadow-[0_0_30px_rgba(99,102,241,0.5)] disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {status === 'loading' ? (
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <UserPlus className="w-5 h-5" /> Enviar Aplicação
+                    </>
+                  )}
+                </button>
+              </form>
+            )}
+          </div>
+        </motion.div>
+      </div>
+    </MainLayout>
+  );
 };
 
 export default WorkWithUs;

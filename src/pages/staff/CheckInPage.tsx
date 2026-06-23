@@ -261,7 +261,7 @@ const CheckInPage = () => {
             placeholder="NOME, CPF OU CÓDIGO MANUAL..."
             value={manualCode}
             onChange={(e) => setManualCode(e.target.value)}
-            className="w-full bg-gray-900 border border-white/5 rounded-2xl pl-12 pr-4 py-4 font-black uppercase text-sm tracking-tighter focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
+            className="w-full bg-gray-900 border border-white/5 rounded-2xl pl-12 pr-4 py-4 font-black uppercase text-sm tracking-tight focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
           />
         </form>
 
@@ -285,7 +285,7 @@ const CheckInPage = () => {
                         <XCircle className="w-10 h-10 text-white" />
                       )}
                    </div>
-                   <h2 className="text-2xl font-black text-white uppercase tracking-tighter leading-none mb-1">
+                   <h2 className="text-2xl font-black text-white uppercase tracking-tight leading-none mb-1">
                      {scanResult.success ? 'Liberado!' : scanResult.alreadyUsed ? 'Já Entrou!' : 'Negado!'}
                    </h2>
                    <p className="text-white/80 font-bold uppercase text-[10px] tracking-widest">{scanResult.message}</p>
@@ -329,7 +329,7 @@ const CheckInPage = () => {
                           </div>
                         </div>
                         {/* Nome + Ingresso */}
-                        <p className={`font-black text-white uppercase tracking-tighter mt-4 transition-all duration-500 ${
+                        <p className={`font-black text-white uppercase tracking-tight mt-4 transition-all duration-500 ${
                           showSelfieExpand && scanResult.success ? 'text-2xl' : 'text-xl'
                         }`}>{scanResult.ticket.buyer_name}</p>
                         <p className="text-[10px] font-black text-white/60 uppercase tracking-widest mt-1">{scanResult.ticket.ticket_name}</p>

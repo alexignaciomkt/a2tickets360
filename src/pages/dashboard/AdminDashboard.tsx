@@ -101,7 +101,7 @@ const AdminDashboard = () => {
       <CardContent className="p-8 flex items-center justify-between">
         <div className="space-y-1.5">
           <p className="text-[9px] font-black uppercase tracking-widest text-slate-300 leading-none">{title}</p>
-          <h3 className="text-2xl font-black tracking-tighter text-slate-900 leading-none tabular-nums">{loading ? '---' : value}</h3>
+          <h3 className="text-2xl font-black tracking-tight text-slate-900 leading-none tabular-nums">{loading ? '---' : value}</h3>
         </div>
         <div className={`w-12 h-12 rounded-[1.2rem] flex items-center justify-center transition-all group-hover:scale-110 shadow-lg border border-white/10 ${
           color === 'indigo' ? 'bg-slate-900 text-white' : 
@@ -121,7 +121,7 @@ const AdminDashboard = () => {
         {/* Header Section */}
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-8">
            <div className="space-y-1.5">
-              <h1 className="text-xl md:text-2xl font-black text-slate-900 uppercase tracking-tighter leading-none">Kernel Operation Dashboard</h1>
+              <h1 className="text-xl md:text-2xl font-black text-slate-900 uppercase tracking-tight leading-none">Kernel Operation Dashboard</h1>
               <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 leading-none">
                 Bem-vindo ao centro de comando administrativo do <span className="text-slate-900">A2 Tickets 360 Ecosystem</span>.
               </p>
@@ -312,7 +312,7 @@ const AdminDashboard = () => {
                     <FileText className="h-7 w-7 text-white" />
                   </div>
                   <div className="space-y-1.5">
-                    <CardTitle className="text-2xl font-black uppercase tracking-tighter">Legal Protocol Nodes</CardTitle>
+                    <CardTitle className="text-2xl font-black uppercase tracking-tight">Legal Protocol Nodes</CardTitle>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Gestão de termos de uso e políticas de compliance do ecossistema.</p>
                   </div>
                 </div>

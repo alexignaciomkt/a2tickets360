@@ -63,7 +63,7 @@ const StaffPortalDashboard = () => {
                 {/* Welcome Section */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                     <div>
-                        <h1 className="text-4xl font-black text-white italic tracking-tighter uppercase leading-none">
+                        <h1 className="text-4xl font-black text-white italic tracking-tight uppercase leading-none">
                             Bem-vindo, <span className="text-primary not-italic">João!</span>
                         </h1>
                         <p className="text-gray-500 font-medium mt-2">Você tem <span className="text-white">2 novas propostas</span> de trabalho hoje.</p>
@@ -98,7 +98,7 @@ const StaffPortalDashboard = () => {
                     {/* Main Area: Proposals */}
                     <div className="lg:col-span-2 space-y-6">
                         <div className="flex items-center justify-between">
-                            <h2 className="text-xl font-black text-white uppercase tracking-tighter flex items-center gap-2">
+                            <h2 className="text-xl font-black text-white uppercase tracking-tight flex items-center gap-2">
                                 <Briefcase className="w-5 h-5 text-primary" />
                                 Novas Propostas
                             </h2>
@@ -141,7 +141,7 @@ const StaffPortalDashboard = () => {
 
                     {/* Sidebar Area: Agenda & Health */}
                     <div className="space-y-6">
-                        <h2 className="text-xl font-black text-white uppercase tracking-tighter flex items-center gap-2">
+                        <h2 className="text-xl font-black text-white uppercase tracking-tight flex items-center gap-2">
                             <Clock className="w-5 h-5 text-primary" />
                             Próximo Trabalho
                         </h2>
@@ -182,7 +182,7 @@ const StaffPortalDashboard = () => {
                                 <Award className="w-12 h-12 text-white" />
                             </div>
                             <CardContent className="p-6">
-                                <h3 className="text-white font-black uppercase tracking-tighter mb-2">Pefil Incompleto</h3>
+                                <h3 className="text-white font-black uppercase tracking-tight mb-2">Pefil Incompleto</h3>
                                 <p className="text-indigo-200 text-xs font-medium mb-4 leading-relaxed">
                                     Adicione seus certificados **(NR-10, NR-35, etc)** para aumentar suas chances de contratação em grandes festivais.
                                 </p>

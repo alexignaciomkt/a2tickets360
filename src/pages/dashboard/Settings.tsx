@@ -115,7 +115,7 @@ const Settings = () => {
         {/* Header Section */}
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-8">
            <div className="space-y-1.5">
-              <h1 className="text-xl md:text-2xl font-black text-slate-900 uppercase tracking-tighter leading-none">Identity Configuration</h1>
+              <h1 className="text-xl md:text-2xl font-black text-slate-900 uppercase tracking-tight leading-none">Identity Configuration</h1>
               <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 leading-none">
                 Gestão de preferências, ativos de identidade e protocolos de comunicação.
               </p>

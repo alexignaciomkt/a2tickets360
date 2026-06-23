@@ -56,7 +56,7 @@ const OrganizerSuppliers = () => {
                 {/* Header */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
-                        <h1 className="text-2xl font-black text-gray-900 uppercase tracking-tighter">Painel de Fornecedores</h1>
+                        <h1 className="text-2xl font-black text-gray-900 uppercase tracking-tight">Painel de Fornecedores</h1>
                         <p className="text-gray-500 font-medium italic text-sm">Gerencie seus parceiros e o ecossistema estratégico do evento.</p>
                     </div>
                     <Button
@@ -111,7 +111,7 @@ const OrganizerSuppliers = () => {
                                                         {supplier.name.charAt(0)}
                                                     </div>
                                                     <div>
-                                                        <div className="text-sm font-black text-gray-900 uppercase tracking-tighter">{supplier.name}</div>
+                                                        <div className="text-sm font-black text-gray-900 uppercase tracking-tight">{supplier.name}</div>
                                                         <div className="text-xs text-gray-500 font-medium">{supplier.email || 'Sem e-mail'}</div>
                                                     </div>
                                                 </div>
@@ -184,7 +184,7 @@ const OrganizerSuppliers = () => {
                 <Dialog open={contractsOpen} onOpenChange={setContractsOpen}>
                     <DialogContent className="sm:max-w-[500px] rounded-3xl">
                         <DialogHeader>
-                            <DialogTitle className="text-xl font-black uppercase tracking-tighter">Gestão de Documentos</DialogTitle>
+                            <DialogTitle className="text-xl font-black uppercase tracking-tight">Gestão de Documentos</DialogTitle>
                             <DialogDescription className="font-medium italic">
                                 Contratos e propostas comerciais estratégicas.
                             </DialogDescription>

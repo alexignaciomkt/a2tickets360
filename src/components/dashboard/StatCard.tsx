@@ -18,7 +18,7 @@ const StatCard = ({ title, value, icon: Icon, iconColor, iconBgColor, className 
       <CardContent className="p-5 flex items-center justify-between">
         <div className="space-y-0.5">
           <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 leading-none">{title}</p>
-          <h3 className="text-lg font-black tracking-tighter text-slate-900 leading-none">{value}</h3>
+          <h3 className="text-lg font-black tracking-tight text-slate-900 leading-none">{value}</h3>
         </div>
         <div className={`rounded-2xl p-2.5 ${iconBgColor} bg-opacity-20`}>
           <Icon className={`w-4 h-4 ${iconColor}`} />

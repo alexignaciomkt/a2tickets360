@@ -126,7 +126,7 @@ const OrganizerEventHub = () => {
                   ID: {eventId?.slice(0, 8)}
                 </span>
               </div>
-              <h1 className="text-4xl font-black text-gray-900 tracking-tighter uppercase">{event?.title}</h1>
+              <h1 className="text-4xl font-black text-gray-900 tracking-tight uppercase">{event?.title}</h1>
               <div className="flex flex-wrap items-center gap-4 text-sm font-medium text-gray-500">
                 <div className="flex items-center gap-1.5">
                   <Calendar className="w-4 h-4 text-primary" />
@@ -180,21 +180,21 @@ const OrganizerEventHub = () => {
              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Ingressos Vendidos</p>
-                   <h3 className="text-3xl font-black text-gray-900 tracking-tighter">{stats.sold} / {stats.capacity}</h3>
+                   <h3 className="text-3xl font-black text-gray-900 tracking-tight">{stats.sold} / {stats.capacity}</h3>
                    <div className="w-full bg-gray-100 rounded-full h-2 mt-4 overflow-hidden">
                       <div className="bg-primary h-2 rounded-full transition-all duration-1000" style={{ width: `${(stats.sold / (stats.capacity || 1)) * 100}%` }}></div>
                    </div>
                 </div>
                 <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Receita Bruta</p>
-                   <h3 className="text-3xl font-black text-gray-900 tracking-tighter">
+                   <h3 className="text-3xl font-black text-gray-900 tracking-tight">
                       R$ {stats.revenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                    </h3>
                    <p className="text-[10px] text-green-600 font-bold mt-2 uppercase">Líquido (90%): R$ {(stats.revenue * 0.9).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                 </div>
                 <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Check-ins Realizados</p>
-                   <h3 className="text-3xl font-black text-gray-900 tracking-tighter">
+                   <h3 className="text-3xl font-black text-gray-900 tracking-tight">
                       {stats.sold > 0 ? Math.round((stats.checkins / stats.sold) * 100) : 0}%
                    </h3>
                    <p className="text-[10px] text-gray-400 font-bold mt-2 uppercase">

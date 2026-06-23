@@ -58,7 +58,7 @@ const CustomerTickets = () => {
   return (
     <DashboardLayout userType="customer">
       <div className="mb-8">
-        <h1 className="text-3xl font-black uppercase tracking-tighter text-gray-900">Meus Ingressos</h1>
+        <h1 className="text-3xl font-black uppercase tracking-tight text-gray-900">Meus Ingressos</h1>
         <p className="text-gray-500 font-medium italic">Gerencie seus acessos e apresente na portaria.</p>
       </div>
       

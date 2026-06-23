@@ -79,7 +79,7 @@ const CommissionsPage = () => {
                  </div>
                  <div className="space-y-1">
                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 leading-none">{stat.l}</p>
-                   <h3 className="text-xl md:text-2xl font-black text-slate-900 tracking-tighter leading-none tabular-nums">{stat.v}</h3>
+                   <h3 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight leading-none tabular-nums">{stat.v}</h3>
                  </div>
                </CardContent>
              </Card>
