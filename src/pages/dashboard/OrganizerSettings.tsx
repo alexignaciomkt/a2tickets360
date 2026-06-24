@@ -924,6 +924,20 @@ const OrganizerSettings = () => {
                     }))}
                   />
                 </div>
+
+                <div className="flex items-center justify-between p-6 rounded-2xl bg-gray-50 border border-gray-100 transition-all hover:bg-white hover:shadow-md group">
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Leitor de QR Code</p>
+                    <p className="text-sm font-bold text-gray-900">{profileData.settings?.enableQrCodeScanner ? 'Habilitado' : 'Desabilitado'}</p>
+                  </div>
+                  <Switch 
+                    checked={profileData.settings?.enableQrCodeScanner === true}
+                    onCheckedChange={(val) => setProfileData((prev: any) => ({
+                      ...prev,
+                      settings: { ...prev.settings, enableQrCodeScanner: val }
+                    }))}
+                  />
+                </div>
               </div>
 
               <div className="space-y-3">

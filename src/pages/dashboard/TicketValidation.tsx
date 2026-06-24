@@ -1,5 +1,6 @@
 
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Search, QrCode, CheckCircle, XCircle, AlertTriangle, Filter, Download, Share2, Copy } from 'lucide-react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -29,6 +30,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { ticketService, PurchasedTicket as Ticket } from '@/services/ticketService';
+import { organizerService } from '@/services/organizerService';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface Ticket {
@@ -48,14 +50,27 @@ interface Ticket {
 const TicketValidation = () => {
   const { toast } = useToast();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isScannerEnabled, setIsScannerEnabled] = useState(false);
 
   useEffect(() => {
     if (user?.id) {
       loadTickets();
+      loadProfileSettings();
     }
   }, [user]);
+
+  const loadProfileSettings = async () => {
+    if (!user?.id) return;
+    try {
+      const profile = await organizerService.getProfile(user.id);
+      setIsScannerEnabled(!!profile?.settings?.enableQrCodeScanner);
+    } catch (e) {
+      console.error('Erro ao carregar configurações do perfil:', e);
+    }
+  };
 
   const loadTickets = async () => {
     setLoading(true);
@@ -131,9 +146,38 @@ const TicketValidation = () => {
     }
   };
 
+  const handleEnableScanner = async () => {
+    if (!user?.id) return;
+    setLoading(true);
+    try {
+      const profile = await organizerService.getProfile(user.id);
+      const updatedProfile = {
+        ...profile,
+        settings: {
+          ...profile.settings,
+          enableQrCodeScanner: true
+        }
+      };
+      await organizerService.updateProfile(user.id, updatedProfile, user.id);
+      setIsScannerEnabled(true);
+      toast({
+        title: 'Scanner ativado!',
+        description: 'O leitor de QR Code agora está disponível.',
+      });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro',
+        description: 'Não foi possível habilitar o scanner no momento.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleQRScan = () => {
     // Redirecionar para a página dedicada do scanner
-    window.location.href = '/staff/reader';
+    navigate('/staff/reader');
   };
 
   const handleShareScanner = (platform: 'whatsapp' | 'copy') => {
@@ -181,31 +225,40 @@ const TicketValidation = () => {
             <p className="text-gray-600 mt-1">Gerencie e valide ingressos dos seus eventos</p>
           </div>
           <div className="flex space-x-2">
-            <div className="flex bg-white rounded-md border shadow-sm h-10 px-1 items-center mr-2">
-              <span className="text-xs font-medium text-gray-500 px-2 uppercase border-r mr-2">Compartilhar Scanner</span>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
-                onClick={() => handleShareScanner('whatsapp')}
-                title="Compartilhar via WhatsApp"
-              >
-                <Share2 className="h-4 w-4" />
+            {isScannerEnabled ? (
+              <>
+                <div className="flex bg-white rounded-md border shadow-sm h-10 px-1 items-center mr-2">
+                  <span className="text-xs font-medium text-gray-500 px-2 uppercase border-r mr-2">Compartilhar Scanner</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                    onClick={() => handleShareScanner('whatsapp')}
+                    title="Compartilhar via WhatsApp"
+                  >
+                    <Share2 className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    onClick={() => handleShareScanner('copy')}
+                    title="Copiar Link"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+                <Button variant="default" onClick={handleQRScan} className="bg-primary hover:bg-primary/90">
+                  <QrCode className="h-4 w-4 mr-2" />
+                  Abrir Scanner
+                </Button>
+              </>
+            ) : (
+              <Button variant="outline" onClick={handleEnableScanner} disabled={loading} className="border-primary text-primary hover:bg-primary/5">
+                <QrCode className="h-4 w-4 mr-2" />
+                Habilitar Scanner
               </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                onClick={() => handleShareScanner('copy')}
-                title="Copiar Link"
-              >
-                <Copy className="h-4 w-4" />
-              </Button>
-            </div>
-            <Button variant="default" onClick={handleQRScan} className="bg-primary hover:bg-primary/90">
-              <QrCode className="h-4 w-4 mr-2" />
-              Abrir Scanner
-            </Button>
+            )}
             <Button variant="outline" onClick={handleExportReport}>
               <Download className="h-4 w-4 mr-2" />
               Exportar

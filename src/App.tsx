@@ -115,6 +115,7 @@ function AppRoutes() {
         <Route path="/work-with-us" element={<WorkWithUs />} />
         <Route path="/validador" element={<CheckInPage />} />
         <Route path="/staff/check-in/:eventId" element={<CheckInPage />} />
+        <Route path="/staff/reader" element={<StaffReaderPage />} />
         <Route path="/auth/verify" element={<VerifyEmailPage />} />
         <Route path="/events" element={<EventsPage />} />
         <Route path="/events/:id" element={<EventDetailPage />} />
