@@ -12,48 +12,36 @@ export const admins = pgTable('admins', {
 });
 
 // Organizadores (Donos dos Eventos)
-export const organizers = pgTable('organizers', {
+export const organizers = pgTable('organizer_details', {
     id: uuid('id').primaryKey().defaultRandom(),
-    name: text('name').notNull(),
-    email: text('email').unique().notNull(),
-    passwordHash: text('password_hash').notNull(),
-
-    // Dados Pessoais
+    userId: uuid('user_id').notNull(),
+    companyName: text('company_name'),
+    slug: text('slug').unique(),
+    cnpj: text('cnpj'),
     cpf: text('cpf'),
-    rg: text('rg'),
     phone: text('phone'),
+    bio: text('bio'),
+    asaasKey: text('asaas_key'),
+    logoUrl: text('logo_url'),
+    bannerUrl: text('banner_url'),
+    socialLinks: jsonb('social_links'),
+    addressData: jsonb('address_data'),
+    rg: text('rg'),
     birthDate: text('birth_date'),
-    address: text('address'),
-    city: text('city'),
-    state: text('state'),
     postalCode: text('postal_code'),
     documentFrontUrl: text('document_front_url'),
     documentBackUrl: text('document_back_url'),
-
-    // Dados da Produtora
-    companyName: text('company_name'),
-    cnpj: text('cnpj'),
-    companyAddress: text('company_address'),
-    logoUrl: text('logo_url'),
-    bannerUrl: text('banner_url'),
-    bio: text('bio'),
-    slug: text('slug').unique(),
-    category: text('category'),
     instagramUrl: text('instagram_url'),
     facebookUrl: text('facebook_url'),
     whatsappNumber: text('whatsapp_number'),
     websiteUrl: text('website_url'),
-
-    // Status do Cadastro
-    profileComplete: boolean('profile_complete').default(false),
+    companyAddress: text('company_address'),
     lastStep: integer('last_step').default(1),
-
-    asaasId: text('asaas_id'), // ID da subconta no Asaas
-    asaasApiKey: text('asaas_api_key'),
-    walletId: text('wallet_id'),
-    emailVerified: boolean('email_verified').default(false),
-    verificationToken: text('verification_token'),
-    isActive: boolean('is_active').default(true),
+    address: text('address'),
+    city: text('city'),
+    state: text('state'),
+    category: text('category'),
+    settings: jsonb('settings'),
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow(),
 });
@@ -71,27 +59,31 @@ export const events = pgTable('events', {
     id: uuid('id').primaryKey().defaultRandom(),
     organizerId: uuid('organizer_id').references(() => organizers.id).notNull(),
     title: text('title').notNull(),
+    slug: text('slug'),
     description: text('description'),
     category: text('category'),
-    eventType: text('event_type', { enum: ['paid', 'free'] }).default('paid'),
-    date: text('date').notNull(), // Formato ISO ou YYYY-MM-DD
-    time: text('time').notNull(),
-    endDate: text('end_date'),
-    endTime: text('end_time'),
-    duration: text('duration'),
+    eventType: text('event_type').default('paid'),
+    status: text('status').default('draft'),
+    startDate: timestamp('start_date'),
+    endDate: timestamp('end_date'),
+    time: text('time'),
     locationName: text('location_name'),
-    locationAddress: text('location_address'),
-    locationCity: text('location_city'),
-    locationState: text('location_state'),
-    locationPostalCode: text('location_postal_code'),
-    capacity: integer('capacity').notNull(),
-    status: text('status', { enum: ['draft', 'pending', 'published', 'active', 'completed', 'cancelled'] }).default('draft'),
-    imageUrl: text('image_url'),
-    floorPlanUrl: text('floor_plan_url'),
+    address: text('address'),
+    city: text('city'),
+    state: text('state'),
+    postalCode: text('postal_code'),
+    capacity: integer('capacity'),
+    bannerUrl: text('banner_url'),
     isFeatured: boolean('is_featured').default(false),
     featuredUntil: timestamp('featured_until'),
-    featuredPaymentStatus: text('featured_payment_status').default('none'), // none, pending, paid
+    featuredPaymentStatus: text('featured_payment_status').default('none'),
     featuredAsaasPaymentId: text('featured_asaas_payment_id'),
+    ticketDesign: jsonb('ticket_design'),
+    settings: jsonb('settings'),
+    galleryUrls: jsonb('gallery_urls'),
+    acceptsPromoters: boolean('accepts_promoters').default(false),
+    promoterCommissionRate: decimal('promoter_commission_rate', { precision: 5, scale: 2 }),
+    promoterDiscountRate: decimal('promoter_discount_rate', { precision: 5, scale: 2 }),
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow(),
 });
@@ -105,25 +97,50 @@ export const tickets = pgTable('tickets', {
     price: decimal('price', { precision: 10, scale: 2 }).notNull(),
     quantity: integer('quantity').notNull(),
     remaining: integer('remaining').notNull(),
-    batch: text('batch'), // Lote
+    category: text('category').default('standard'),
     isActive: boolean('is_active').default(true),
-    category: text('category', { enum: ['standard', 'vip', 'early-bird', 'student', 'group'] }).default('standard'),
+    capacityPerUnit: integer('capacity_per_unit'),
+    maxPerCpf: integer('max_per_cpf'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
 });
 
 // Vendas e Transações
 export const sales = pgTable('sales', {
     id: uuid('id').primaryKey().defaultRandom(),
     eventId: uuid('event_id').references(() => events.id).notNull(),
-    ticketId: uuid('ticket_id').references(() => tickets.id).notNull(),
-    buyerName: text('buyer_name').notNull(),
-    buyerEmail: text('buyer_email').notNull(),
-    buyerPhone: text('buyer_phone'),
-    quantity: integer('quantity').notNull(),
-    totalPrice: decimal('total_price', { precision: 10, scale: 2 }).notNull(),
+    customerId: uuid('customer_id'),
+    buyerInfo: jsonb('buyer_info'),
+    totalAmount: decimal('total_amount', { precision: 10, scale: 2 }).notNull(),
     paymentStatus: text('payment_status', { enum: ['pending', 'paid', 'refunded', 'cancelled'] }).default('pending'),
     paymentMethod: text('payment_method'), // PIX, CREDIT_CARD, BOLETO
+    asaasId: text('asaas_id'),
     asaasPaymentId: text('asaas_payment_id'), // ID da cobrança no Asaas
-    qrCodeData: text('qr_code_data').unique().notNull(), // O código que será validado
+    promoterId: uuid('promoter_id'),
+    promoterCommissionAmount: decimal('promoter_commission_amount', { precision: 10, scale: 2 }),
+    payoutStatus: text('payout_status'),
+    payoutRequestId: uuid('payout_request_id'),
+    createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Ingressos Comprados
+export const purchasedTickets = pgTable('purchased_tickets', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id'),
+    eventId: uuid('event_id').references(() => events.id).notNull(),
+    ticketId: uuid('ticket_id').references(() => tickets.id).notNull(),
+    parentPurchaseId: uuid('parent_purchase_id').references(() => sales.id),
+    status: text('status').default('pending'),
+    photoUrl: text('photo_url'),
+    qrCodeData: text('qr_code_data').unique(),
+    idVerified: boolean('id_verified').default(false),
+    isCourtesy: boolean('is_courtesy').default(false),
+    promoterId: uuid('promoter_id'),
+    couponId: uuid('coupon_id'),
+    groupToken: text('group_token'),
+    purchaseDate: timestamp('purchase_date').defaultNow(),
+    validatedAt: timestamp('validated_at'),
+    validatedBy: uuid('validated_by'),
     createdAt: timestamp('created_at').defaultNow(),
 });
 
@@ -549,14 +566,17 @@ export const eventsRelations = relations(events, ({ one, many }) => ({
     proposals: many(staffProposals),
 }));
 
+export const ticketsRelations = relations(tickets, ({ one }) => ({
+    event: one(events, {
+        fields: [tickets.eventId],
+        references: [events.id],
+    }),
+}));
+
 export const salesRelations = relations(sales, ({ one, many }) => ({
     event: one(events, {
         fields: [sales.eventId],
         references: [events.id],
-    }),
-    ticket: one(tickets, {
-        fields: [sales.ticketId],
-        references: [tickets.id],
     }),
     checkins: many(checkins),
 }));
@@ -725,3 +745,107 @@ export const organizerPostsRelations = relations(organizerPosts, ({ one }) => ({
     }),
 }));
 
+// ============================================================================
+// A2 COMMERCE ENGINE - PHASE 1
+// ============================================================================
+
+export const tenants = pgTable('tenants', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    name: text('name').notNull(),
+    document: text('document'),
+    status: text('status').default('active'),
+    settings: jsonb('settings'),
+    metadata: jsonb('metadata'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const gateways = pgTable('gateways', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    name: text('name').notNull(),
+    provider: text('provider').notNull(),
+    status: text('status').default('active'),
+    configuration: jsonb('configuration'),
+    createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const wallets = pgTable('wallets', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id').notNull().references(() => tenants.id),
+    ownerId: uuid('owner_id').notNull(),
+    ownerType: text('owner_type').notNull(),
+    gatewayId: uuid('gateway_id').references(() => gateways.id),
+    gatewayWalletId: text('gateway_wallet_id'),
+    gatewayAccountId: text('gateway_account_id'),
+    label: text('label'),
+    isDefault: boolean('is_default').default(true),
+    isActive: boolean('is_active').default(true),
+    metadata: jsonb('metadata'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const featureFlags = pgTable('feature_flags', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id').references(() => tenants.id),
+    key: text('key').unique().notNull(),
+    enabled: boolean('enabled').default(false),
+    rolloutPercentage: integer('rollout_percentage').default(100),
+    description: text('description'),
+    environment: text('environment').default('all'),
+    metadata: jsonb('metadata'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const auditLogs = pgTable('audit_logs', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id').references(() => tenants.id),
+    actorId: uuid('actor_id').notNull(),
+    actorType: text('actor_type').notNull(),
+    action: text('action').notNull(),
+    entityType: text('entity_type').notNull(),
+    entityId: uuid('entity_id').notNull(),
+    beforeSnapshot: jsonb('before_snapshot'),
+    afterSnapshot: jsonb('after_snapshot'),
+    ip: text('ip'),
+    userAgent: text('user_agent'),
+    createdAt: timestamp('created_at').defaultNow(),
+});
+
+// A2 COMMERCE ENGINE - RELATIONS
+
+export const tenantsRelations = relations(tenants, ({ many }) => ({
+    wallets: many(wallets),
+    featureFlags: many(featureFlags),
+    auditLogs: many(auditLogs),
+}));
+
+export const gatewaysRelations = relations(gateways, ({ many }) => ({
+    wallets: many(wallets),
+}));
+
+export const walletsRelations = relations(wallets, ({ one }) => ({
+    tenant: one(tenants, {
+        fields: [wallets.tenantId],
+        references: [tenants.id],
+    }),
+    gateway: one(gateways, {
+        fields: [wallets.gatewayId],
+        references: [gateways.id],
+    }),
+}));
+
+export const featureFlagsRelations = relations(featureFlags, ({ one }) => ({
+    tenant: one(tenants, {
+        fields: [featureFlags.tenantId],
+        references: [tenants.id],
+    }),
+}));
+
+export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
+    tenant: one(tenants, {
+        fields: [auditLogs.tenantId],
+        references: [tenants.id],
+    }),
+}));

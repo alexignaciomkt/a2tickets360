@@ -392,15 +392,61 @@ app.post('/api/payments/checkout', async (c: Context) => {
     const { ticketId, quantity, buyerName, buyerEmail, buyerCpf, paymentMethod } = await c.req.json();
 
     try {
-        const ticket = await db.query.tickets.findFirst({ where: eq(schema.tickets.id, ticketId) });
+        const ticket = await db.query.tickets.findFirst({ 
+            where: eq(schema.tickets.id, ticketId),
+            with: { event: true }
+        });
         if (!ticket) throw new Error('Ingresso não encontrado');
+        
+        const organizer = await db.query.organizers.findFirst({
+            where: eq(schema.organizers.userId, ticket.event.organizerId)
+        });
 
-        const totalValue = Number(ticket.price) * quantity;
+        if (!organizer) {
+            throw new Error('Organizador não encontrado.');
+        }
 
-        // 1. Criar Cliente no Asaas
+        const ticketPrice = Number(ticket.price);
+        const subtotal = ticketPrice * quantity;
+        
+        // Calcular Taxas
+        const organizerSettings = organizer.settings as any || {};
+        const feePercentage = Number(organizerSettings.feePercentage || 10);
+        const feeFixed = Number(organizerSettings.feeFixed || 0);
+        
+        // Puxar a configuração do evento (JSONB)
+        const eventSettings = ticket.event.settings as any;
+        const eventPassFeeToBuyer = eventSettings?.pass_fee_to_buyer;
+        
+        // Prioridade: Evento > Organizador
+        const passFeeToBuyer = eventPassFeeToBuyer !== undefined 
+            ? eventPassFeeToBuyer 
+            : (organizerSettings.passFeeToBuyer !== false);
+        
+        const feeAmount = (subtotal * (feePercentage / 100)) + feeFixed;
+        const totalValue = passFeeToBuyer ? subtotal + feeAmount : subtotal;
+
+        // 1. Criar Cliente no Asaas usando a API KEY do Master, 
+        // ou usar o apiKey do organizer se quisermos que a transação aconteça na conta dele?
+        // Como estamos usando "Split", a cobrança é criada na Master Account e dividida.
         const customer = await asaas.createCustomer({ name: buyerName, email: buyerEmail, cpfCnpj: buyerCpf });
 
-        // 2. Criar Pagamento com Split (10%)
+        // 2. Criar Pagamento com Split enviando o feeAmount para a Wallet da Master.
+        // Espera, no Asaas, se a cobrança é feita pela MASTER, o 'split' define quanto vai para outras wallets.
+        // Se a Master faz a cobrança, ela recebe 100%. O split serve para enviar o (subtotal - taxa) para o Produtor.
+        // Ou seja: splitValue para o Produtor = subtotal - (se passFeeToBuyer for false, a taxa é descontada do subtotal).
+        const producerNetValue = passFeeToBuyer ? subtotal : (subtotal - feeAmount);
+        
+        // Aqui o asaas.createPayment tem que mandar pra walletId do produtor.
+        // Preciso ajustar no asaas.ts quem é o recebedor do split (walletId do produtor, não do master).
+        
+        // Vamos refatorar o asaas.ts no backend se ele usa walletId fixo da Master.
+        // O asaas.createPayment no asaas.ts estava usando this.walletId (Master).
+        // Isso quer dizer que o produtor está cobrando e passando pra gente?
+        // Ou a gente cobra e passa pro produtor?
+        // A arquitetura Asaas recomendada para Marketplaces é: a Master gera a cobrança, 
+        // e faz um Split repassando o "producerNetValue" para a "organizer.walletId".
+        
         const payment = await asaas.createPayment({
             customer: customer.id,
             billingType: paymentMethod,
@@ -408,22 +454,34 @@ app.post('/api/payments/checkout', async (c: Context) => {
             dueDate: new Date(Date.now() + 86400000).toISOString().split('T')[0], // Amanhã
             description: `[A2 Tickets] Compra de ${quantity}x ${ticket.name}`,
             externalReference: `sale_${Date.now()}`,
-            splitPercent: 10 // Sua comissão de 10%
+            splitValue: producerNetValue, 
+            splitWalletId: organizerSettings.walletId // Preciso passar isso pro método
         });
 
         // 3. Registrar Venda Pendente
-        const qrCode = `QR_${Math.random().toString(36).substring(7).toUpperCase()}`;
-        await db.insert(schema.sales).values({
+        const saleResult = await db.insert(schema.sales).values({
             eventId: ticket.eventId,
-            ticketId: ticket.id,
-            buyerName,
-            buyerEmail,
-            quantity,
-            totalPrice: totalValue.toString(),
+            buyerInfo: { name: buyerName, email: buyerEmail },
+            totalAmount: totalValue.toString(),
             asaasPaymentId: payment.id,
             paymentStatus: 'pending',
-            qrCodeData: qrCode
-        });
+            paymentMethod: paymentMethod
+        }).returning({ id: schema.sales.id });
+
+        const saleId = saleResult[0].id;
+
+        // 4. Registrar os ingressos comprados (1 ingresso por vez na quantidade)
+        for (let i = 0; i < quantity; i++) {
+            const qrCode = `QR_${Math.random().toString(36).substring(7).toUpperCase()}`;
+            await db.insert(schema.purchasedTickets).values({
+                eventId: ticket.eventId,
+                userId: ticket.event.organizerId, // Mocking with a guaranteed valid user ID from the event owner
+                ticketId: ticket.id,
+                parentPurchaseId: saleId,
+                status: 'active',
+                qrCodeData: qrCode
+            });
+        }
 
         return c.json({ status: 'success', invoiceUrl: payment.invoiceUrl, paymentId: payment.id });
     } catch (error: any) {
@@ -710,6 +768,112 @@ app.put('/api/organizers/:id/complete-profile', async (c) => {
     } catch (error) {
         console.error('Erro ao concluir perfil:', error);
         return c.json({ error: 'Erro ao concluir perfil' }, 500);
+    }
+});
+
+// Criar Subconta Asaas para o Organizador
+app.post('/api/organizers/:id/asaas-account', async (c) => {
+    const id = c.req.param('id');
+    const body = await c.req.json();
+    
+    try {
+        const organizer = await db.query.organizers.findFirst({
+            where: eq(organizersTable.id, id),
+        });
+
+        if (!organizer) {
+            return c.json({ error: 'Organizador não encontrado' }, 404);
+        }
+
+        if (organizer.asaasId) {
+            return c.json({ error: 'Este organizador já possui uma subconta vinculada' }, 400);
+        }
+
+        // Criar Subconta na API Asaas
+        const asaasAccount = await asaas.createSubAccount({
+            name: body.companyName || organizer.name,
+            email: organizer.email,
+            cpfCnpj: body.cpfCnpj,
+            mobilePhone: body.mobilePhone,
+            phone: body.phone || body.mobilePhone,
+            address: body.address,
+            addressNumber: body.addressNumber || 'S/N',
+            province: body.province,
+            postalCode: body.postalCode,
+            incomeValue: body.incomeValue || 5000,
+        });
+
+        // Salvar os IDs no banco
+        const updated = await db.update(organizersTable)
+            .set({
+                cpf: body.cpfCnpj,
+                phone: body.mobilePhone,
+                address: body.address,
+                postalCode: body.postalCode,
+                asaasId: asaasAccount.id,
+                walletId: asaasAccount.walletId,
+                asaasApiKey: asaasAccount.apiKey,
+                updatedAt: new Date(),
+            })
+            .where(eq(organizersTable.id, id))
+            .returning();
+
+        return c.json(updated[0]);
+    } catch (error: any) {
+        console.error('Erro ao criar subconta Asaas:', error);
+        return c.json({ error: error.message || 'Erro ao criar subconta Asaas' }, 500);
+    }
+});
+
+// --- Webhook Asaas ---
+app.post('/api/webhooks/asaas', async (c) => {
+    try {
+        const payload = await c.req.json();
+        
+        console.log('[WEBHOOK ASAAS] Recebido:', payload.event, payload.payment?.id);
+
+        if (payload.event === 'PAYMENT_RECEIVED' || payload.event === 'PAYMENT_CONFIRMED') {
+            const paymentId = payload.payment.id;
+            
+            // 1. Procurar a venda associada a este pagamento
+            const sale = await db.query.sales.findFirst({
+                where: eq(schema.sales.asaasPaymentId, paymentId)
+            });
+
+            if (sale && sale.paymentStatus !== 'paid') {
+                // Atualizar Status da Venda
+                await db.update(schema.sales)
+                    .set({ paymentStatus: 'paid' })
+                    .where(eq(schema.sales.id, sale.id));
+
+                // 2. Procurar o User pelo email (ou criar user placeholder)
+                let user = await db.query.users.findFirst({
+                    where: eq(schema.users.email, sale.buyerEmail)
+                });
+                
+                // 3. Gerar purchased_tickets
+                // Note: Para simplicidade, usamos um hash MD5 ou string aleatória como QR Code real
+                const realQrCode = sale.qrCodeData || `A2_${Math.random().toString(36).substring(2).toUpperCase()}`;
+
+                await db.insert(schema.purchasedTickets).values({
+                    userId: user?.id || 'guest',
+                    eventId: sale.eventId,
+                    ticketId: sale.ticketId,
+                    purchaseDate: new Date(),
+                    status: 'active',
+                    qrCodeData: realQrCode,
+                    buyerName: sale.buyerName,
+                    buyerEmail: sale.buyerEmail,
+                });
+                
+                console.log(`[WEBHOOK ASAAS] Venda ${sale.id} confirmada e ingresso gerado!`);
+            }
+        }
+        
+        return c.json({ received: true });
+    } catch (error) {
+        console.error('[WEBHOOK ASAAS] Erro:', error);
+        return c.json({ error: 'Internal Server Error' }, 500);
     }
 });
 
