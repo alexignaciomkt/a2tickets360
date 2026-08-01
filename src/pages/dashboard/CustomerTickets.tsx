@@ -4,7 +4,7 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import QRCodeTicket from '@/components/tickets/QRCodeTicket';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { Loader2, Ticket as TicketIcon, Calendar, MapPin } from 'lucide-react';
+import { Loader2, Ticket as TicketIcon, Calendar, MapPin, QrCode } from 'lucide-react';
 
 const CustomerTickets = () => {
   const { ticketId } = useParams<{ ticketId?: string }>();

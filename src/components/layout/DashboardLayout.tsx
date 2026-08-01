@@ -40,11 +40,12 @@ import SupportBot from './SupportBot';
 
 interface DashboardLayoutProps {
   children: ReactNode;
-  userType: 'customer' | 'organizer' | 'admin';
+  userType: 'customer' | 'organizer' | 'admin' | 'promoter';
 }
 
 const DashboardLayout = ({ children, userType }: DashboardLayoutProps) => {
   const { user } = useAuth();
+  const [isPromoter, setIsPromoter] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(() => {
     return localStorage.getItem('A2_Tickets_sidebar_collapsed') === 'true';
@@ -55,20 +56,50 @@ const DashboardLayout = ({ children, userType }: DashboardLayoutProps) => {
     localStorage.setItem('A2_Tickets_sidebar_collapsed', desktopSidebarCollapsed.toString());
   }, [desktopSidebarCollapsed]);
 
+  useEffect(() => {
+    if (user?.id) {
+      import('@/lib/supabase').then(({ supabase }) => {
+        supabase.from('promoters').select('id, is_active').eq('user_id', user.id).single()
+          .then(({ data }) => {
+            if (data?.is_active) {
+              setIsPromoter(true);
+            }
+          });
+      });
+    }
+  }, [user]);
+
   // Define navigation items based on user type
   const getNavItems = () => {
     switch (userType) {
       case 'customer':
-        return [
+      case 'promoter': {
+        const customerItems = [
           {
-            category: 'Geral',
+            category: 'Minha Conta',
             items: [
-              { name: 'Início', path: '/dashboard', icon: Home },
               { name: 'Meus Ingressos', path: '/dashboard/tickets', icon: Calendar },
-              { name: 'Configurações', path: '/dashboard/settings', icon: Settings },
+              { name: 'Perfil e Configurações', path: '/dashboard/settings', icon: Settings },
             ]
           }
         ];
+        
+        // Se for promoter, adiciona a área do promoter (independentemente de estar na aba customer ou promoter)
+        const promoterItems = (userType === 'promoter' || isPromoter) ? [
+          {
+            category: 'Área do Promoter',
+            items: [
+              { name: 'Painel', path: '/promoter', icon: LayoutDashboard },
+              { name: 'Eventos para Trabalhar', path: '/promoter/events', icon: Calendar },
+              { name: 'Mailing', path: '/promoter/mailing', icon: Users },
+              { name: 'Marketing & Links', path: '/promoter/marketing', icon: Share2 },
+              { name: 'Recebimentos', path: '/promoter/settings', icon: DollarSign },
+            ]
+          }
+        ] : [];
+        
+        return [...customerItems, ...promoterItems];
+      }
       case 'organizer':
         return [
           {
@@ -175,7 +206,14 @@ const DashboardLayout = ({ children, userType }: DashboardLayoutProps) => {
   // Initialize state from localStorage if available
   const [openCategories, setOpenCategories] = useState<string[]>(() => {
     const saved = localStorage.getItem('A2 Tickets 360_sidebar_categories');
-    return saved ? JSON.parse(saved) : (userType === 'admin' ? ['Principal'] : ['Geral']);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        return userType === 'admin' ? ['Principal'] : ['Minha Conta'];
+      }
+    }
+    return userType === 'admin' ? ['Principal'] : ['Minha Conta'];
   });
 
   // Persist state changes to localStorage
@@ -323,7 +361,7 @@ const DashboardLayout = ({ children, userType }: DashboardLayoutProps) => {
                   <span className="text-xs font-semibold text-slate-600">Serviços Estáveis</span>
                </div>
                <div className="h-10 w-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold shadow-md">
-                  {user?.name?.charAt(0).toUpperCase()}
+                  {(user?.name?.charAt(0) || 'U').toUpperCase()}
                </div>
             </div>
         </header>
@@ -397,6 +435,16 @@ const DashboardLayout = ({ children, userType }: DashboardLayoutProps) => {
                  <Settings className="w-5 h-5" />
                </Link>
                
+               {userType === 'organizer' && user && !user.walletId && (
+                  <Link 
+                    to="/organizer/finance/onboarding" 
+                    className="hidden md:flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold px-4 py-2 rounded-xl transition-colors shadow-sm animate-pulse"
+                  >
+                    <DollarSign className="w-4 h-4" />
+                    Ativar Recebimentos
+                  </Link>
+               )}
+
                {userType !== 'admin' && (
                  <>
                    <Link to="/organizer/events/create">

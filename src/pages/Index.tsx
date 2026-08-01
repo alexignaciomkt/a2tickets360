@@ -39,6 +39,15 @@ const Index = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [faqs, setFaqs] = useState<any[]>([]);
   const [openFaq, setOpenFaq] = useState<string | null>(null);
+  const [showPromoterPopup, setShowPromoterPopup] = useState(false);
+
+  useEffect(() => {
+    // Show popup after 2 seconds on every load
+    const timer = setTimeout(() => {
+      setShowPromoterPopup(true);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Mock Blog Data
   const blogPosts = [
@@ -138,6 +147,37 @@ const Index = () => {
     <MainLayout>
       <div className="pb-20 bg-zinc-950 text-white min-h-screen relative font-sans">
         
+        {/* PROMOTER POPUP */}
+        <AnimatePresence>
+          {showPromoterPopup && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+                onClick={() => setShowPromoterPopup(false)}
+              />
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                className="relative z-10 w-full max-w-2xl bg-zinc-900 rounded-3xl overflow-hidden shadow-2xl border border-white/10"
+              >
+                <button 
+                  onClick={() => setShowPromoterPopup(false)}
+                  className="absolute top-4 right-4 z-20 w-8 h-8 flex items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/80 transition"
+                >
+                  <Minus className="w-4 h-4 rotate-45" /> {/* Close icon */}
+                </button>
+                <Link to="/seja-promoter" onClick={() => setShowPromoterPopup(false)}>
+                  <img src="/popup-promoter.png" alt="Seja Promoter" className="w-full h-auto cursor-pointer" />
+                </Link>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
         {/* ─── CUSTOM BACKGROUND ─── */}
         <div className="fixed inset-0 w-full h-full z-0 pointer-events-none overflow-hidden">
           <img src="/background site.png" alt="Custom Background" className="w-full h-full object-cover opacity-40" />
@@ -333,45 +373,38 @@ const Index = () => {
                   </Link>
                 </div>
 
-                <div className="flex flex-col space-y-6 max-w-5xl mx-auto">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   {section.events.slice(0, 4).map(event => (
-                    <Link key={event.id} to={`/events/${event.id}`} className="group relative block">
+                    <Link key={event.id} to={`/events/${event.id}`} className="group relative block h-full">
                       <div className="absolute inset-0 bg-indigo-500/10 blur-xl rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-                      <div className="relative overflow-hidden bg-white/5 border border-white/10 backdrop-blur-xl shadow-lg hover:border-indigo-500/50 transition-all duration-500 rounded-2xl flex flex-col md:flex-row items-center p-4 gap-6">
+                      <div className="relative h-full overflow-hidden bg-white/5 border border-white/10 backdrop-blur-xl shadow-lg hover:border-indigo-500/50 transition-all duration-500 rounded-2xl flex flex-col">
                         
-                        {/* Imagem (Esquerda) */}
-                        <div className="w-full md:w-64 h-48 md:h-36 rounded-xl overflow-hidden shrink-0 border border-white/10 relative">
+                        {/* Imagem (Topo) */}
+                        <div className="w-full h-48 overflow-hidden border-b border-white/10 relative shrink-0">
                            <img src={event.bannerUrl || event.imageUrl} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all duration-700" alt={event.title} />
                            <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest text-white border border-white/10 shadow-sm">
                               {event.location?.city || 'Brasil'}
                            </div>
                         </div>
 
-                        {/* Informações (Meio) */}
-                        <div className="flex-1 flex flex-col justify-center space-y-3 w-full text-left py-2">
-                           <div className="flex items-center gap-3">
+                        {/* Informações (Corpo) */}
+                        <div className="flex flex-col flex-grow p-5 text-left">
+                           <div className="flex items-center gap-3 mb-3">
                              <Badge className="bg-indigo-500/20 text-indigo-400 font-black text-[9px] uppercase tracking-widest px-3 py-1 shadow-sm border border-indigo-500/30">
                                {event.category || section.category}
                              </Badge>
                            </div>
-                           <h4 className="text-xl md:text-3xl font-black text-white leading-tight drop-shadow-md group-hover:text-indigo-400 transition-colors">
+                           <h4 className="text-lg font-black text-white leading-tight drop-shadow-md group-hover:text-indigo-400 transition-colors mb-4 line-clamp-2">
                              {event.title}
                            </h4>
-                           <div className="flex flex-wrap items-center gap-4 md:gap-6 text-xs font-bold text-zinc-400">
+                           
+                           <div className="mt-auto flex flex-col gap-2 text-xs font-bold text-zinc-400">
                              <span className="flex items-center gap-2">
-                               <Calendar className="w-4 h-4 text-indigo-500" /> {new Date(event.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
+                               <Calendar className="w-4 h-4 text-indigo-500 shrink-0" /> {new Date(event.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
                              </span>
                              <span className="flex items-center gap-2 text-emerald-400">
                                R$ {event.tickets?.[0]?.price.toFixed(2) || '0,00'}
                              </span>
-                           </div>
-                        </div>
-
-                        {/* Botão de Ação (Direita) */}
-                        <div className="shrink-0 flex items-center justify-center w-full md:w-auto mt-4 md:mt-0 md:pr-4">
-                           <div className="w-full md:w-16 md:h-16 py-4 md:py-0 rounded-xl md:rounded-full flex items-center justify-center bg-white/10 border border-white/10 shadow-lg group-hover:bg-indigo-600 transition-all duration-300">
-                              <span className="md:hidden text-white font-black uppercase tracking-widest text-xs mr-2">Garantir Ingresso</span>
-                              <ChevronRight className="w-6 h-6 text-white" />
                            </div>
                         </div>
 

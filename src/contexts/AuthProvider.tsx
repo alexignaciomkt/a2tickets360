@@ -43,9 +43,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   .select('*')
                   .eq('user_id', userId)
                   .single();
-                
                 if (details) {
                   combinedData = { ...combinedData, ...details };
+                }
+
+                const { data: orgData } = await supabase
+                  .from('organizers')
+                  .select('wallet_id')
+                  .eq('id', userId)
+                  .single();
+                  
+                if (orgData) {
+                  combinedData.wallet_id = orgData.wallet_id;
                 }
               }
 
@@ -54,7 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 name: combinedData.name,
                 email: combinedData.email || userEmail,
                 role: combinedData.role as UserRole,
-                status: (combinedData.status || 'approved') as ProfileStatus,
+                status: (combinedData.status || 'pending') as ProfileStatus,
                 profileComplete: combinedData.profile_complete || false,
                 photoUrl: combinedData.logo_url || combinedData.photo_url || '',
                 cpf: combinedData.cpf,
@@ -66,7 +75,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 profileDocId: profile.id,
                 slug: combinedData.slug,
                 companyName: combinedData.company_name,
-                createdAt: combinedData.created_at
+                createdAt: combinedData.created_at,
+                walletId: combinedData.wallet_id
               };
             }
 

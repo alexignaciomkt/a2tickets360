@@ -18,6 +18,7 @@ export interface User {
   address?: string;
   birthDate?: string;
   createdAt?: string;
+  walletId?: string;
 }
 
 export interface RegisterData {

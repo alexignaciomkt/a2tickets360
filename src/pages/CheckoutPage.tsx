@@ -61,6 +61,7 @@ const CheckoutPage = () => {
   const [hasTicket, setHasTicket] = useState(false);
   const [validatingCoupon, setValidatingCoupon] = useState(false);
   const [couponMessage, setCouponMessage] = useState({ text: '', type: '' });
+  const [feeConfig, setFeeConfig] = useState({ percentage: 8, fixed: 5, passToBuyer: true });
 
   // Pre-fill form if user is logged in
   useEffect(() => {
@@ -103,6 +104,24 @@ const CheckoutPage = () => {
             setTicket(foundTicket);
           } else {
             setTicket({ name: 'Ingresso Individual', price: 0 });
+          }
+
+          // Fetch organizer fee config
+          if (foundEvent.organizerId) {
+            const { data: orgData } = await supabase
+              .from('organizers')
+              .select('fee_percentage, fee_fixed, pass_fee_to_buyer')
+              .eq('id', foundEvent.organizerId)
+              .maybeSingle();
+              
+            if (orgData) {
+              const eventPassFee = foundEvent.settings?.pass_fee_to_buyer;
+              setFeeConfig({
+                percentage: orgData.fee_percentage !== null ? Number(orgData.fee_percentage) : 8,
+                fixed: orgData.fee_fixed !== null ? Number(orgData.fee_fixed) : 5,
+                passToBuyer: eventPassFee !== undefined ? eventPassFee : (orgData.pass_fee_to_buyer !== false)
+              });
+            }
           }
         }
       } catch (error) {
@@ -1022,7 +1041,7 @@ const CheckoutPage = () => {
                   {ticket.price > 0 && (
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-gray-600">Taxa de serviço</span>
-                      <span>R$ {(ticket.price * 0.1).toFixed(2).replace('.', ',')}</span>
+                      <span>R$ {((ticket.price * (feeConfig.percentage / 100)) + feeConfig.fixed).toFixed(2).replace('.', ',')}</span>
                     </div>
                   )}
                   <div className="border-t border-gray-200 pt-3 mt-3">
@@ -1030,7 +1049,7 @@ const CheckoutPage = () => {
                       <span>Total</span>
                       <span>
                         {ticket.price > 0
-                          ? `R$ ${(ticket.price * 1.1).toFixed(2).replace('.', ',')}`
+                          ? `R$ ${((ticket.price - (formData.discountApplied || 0)) + (feeConfig.passToBuyer ? ((ticket.price * (feeConfig.percentage / 100)) + feeConfig.fixed) : 0)).toFixed(2).replace('.', ',')}`
                           : 'Grátis'}
                       </span>
                     </div>

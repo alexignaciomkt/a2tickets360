@@ -47,6 +47,11 @@ const Header = () => {
             <Search className="w-5 h-5" />
           </button>
 
+          {/* Quero ser Promoter (New) */}
+          <Link to="/seja-promoter" className={`hidden sm:flex items-center gap-2 border px-6 py-2.5 rounded-full font-black text-[10px] uppercase tracking-widest transition active:scale-95 group ${isHome ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20' : 'border-emerald-200 text-emerald-600 bg-emerald-50 hover:bg-emerald-100'}`}>
+            Quero ser Promoter
+          </Link>
+
           {/* Area do Produtor (High Impact) */}
           <Link to="/para-produtores" className="hidden sm:flex items-center gap-2 bg-indigo-600 text-white px-6 py-2.5 rounded-full font-black text-[10px] uppercase tracking-widest hover:bg-indigo-700 transition shadow-2xl shadow-indigo-500/20 active:scale-95 group">
             <Zap className="w-4 h-4 fill-current group-hover:animate-bounce" />
@@ -100,6 +105,15 @@ const Header = () => {
                         <Ticket className="w-5 h-5" />
                       </div>
                       <span className="font-black text-[10px] uppercase tracking-widest">Meus Ingressos</span>
+                    </Link>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem className="p-3 rounded-2xl cursor-pointer hover:bg-white/5 group" asChild>
+                    <Link to="/promoter/events" className="flex items-center gap-4">
+                      <div className="w-10 h-10 bg-emerald-500/10 text-emerald-400 rounded-xl flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-white transition">
+                        <LayoutDashboard className="w-5 h-5" />
+                      </div>
+                      <span className="font-black text-[10px] uppercase tracking-widest">Painel Promoter</span>
                     </Link>
                   </DropdownMenuItem>
 

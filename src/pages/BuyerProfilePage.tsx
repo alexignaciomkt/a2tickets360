@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { Calendar, Ticket, Clock, MapPin, Star, History, Image as ImageIcon, Settings as SettingsIcon, Camera, X, Loader2 } from 'lucide-react';
-import MainLayout from '@/components/layout/MainLayout';
+import DashboardLayout from '@/components/layout/DashboardLayout';
 import { users, PurchasedTicket, events, Event } from '@/data/mockData';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -35,13 +35,13 @@ const BuyerProfilePage = () => {
     }, [user]);
 
     return (
-        <MainLayout>
-            <div className="bg-[#F8FAFC] min-h-screen py-12">
+        <DashboardLayout userType="customer">
+            <div className="bg-[#F8FAFC] min-h-screen py-8">
                 <div className="max-w-7xl mx-auto px-4">
-                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                    <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
 
                         {/* Sidebar: Profile Summary */}
-                        <div className="lg:col-span-1 space-y-6">
+                        <div className="xl:col-span-1 space-y-6">
                             <Card className="rounded-2xl border-none shadow-premium overflow-hidden">
                                 <div className="h-24 bg-gradient-to-r from-[#FF6B00] to-[#FF8533]"></div>
                                 <CardContent className="p-6 -mt-12 text-center">
@@ -115,7 +115,7 @@ const BuyerProfilePage = () => {
                         </div>
 
                         {/* Main Content Area */}
-                        <div className="lg:col-span-3 space-y-8">
+                        <div className="xl:col-span-3 space-y-8">
                             <Tabs defaultValue="tickets" className="w-full">
                                 <TabsList className="bg-white p-1 rounded-2xl shadow-sm mb-6 border-none inline-flex">
                                     <TabsTrigger value="tickets" className="rounded-xl px-6 font-bold text-xs uppercase tracking-wider data-[state=active]:bg-[#FF6B00] data-[state=active]:text-white transition-all">
@@ -241,7 +241,7 @@ const BuyerProfilePage = () => {
                     </div>
                 </div>
             </div>
-        </MainLayout>
+        </DashboardLayout>
     );
 };
 

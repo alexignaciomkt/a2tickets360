@@ -32,6 +32,9 @@ const CreateEvent = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [wantsHighlight, setWantsHighlight] = useState(false);
+  const [acceptsPromoters, setAcceptsPromoters] = useState(false);
+  const [promoterCommissionRate, setPromoterCommissionRate] = useState(10);
+  const [promoterDiscountRate, setPromoterDiscountRate] = useState(0);
 
   // Renderização do Aviso de Perfil Incompleto (Não bloqueante)
   const renderProfileWarning = () => {
@@ -176,6 +179,9 @@ const CreateEvent = () => {
         locationPostalCode,
         capacity, 
         status,
+        acceptsPromoters,
+        promoterCommissionRate,
+        promoterDiscountRate,
         imageUrl: imageUrl || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800',
         isFeatured: false, // Always false — activated only via Asaas webhook or Master toggle
         featuredPaymentStatus: wantsHighlight ? 'pending' : 'none',
@@ -460,6 +466,67 @@ const CreateEvent = () => {
         </p>
       </div>
       <TicketBuilder tickets={tickets} onChange={setTickets} eventType={eventType} />
+      
+      {/* Bloco de Promoters / Afiliados */}
+      <div className="mt-8 bg-indigo-50/50 border border-indigo-100 rounded-2xl p-6">
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <h4 className="text-sm font-black text-gray-900 uppercase tracking-tight flex items-center gap-2">
+              <Users className="w-4 h-4 text-indigo-500" />
+              Programa de Promoters (Afiliados)
+            </h4>
+            <p className="text-xs text-gray-500 font-medium mt-1">
+              Permita que promotores vendam ingressos para este evento.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setAcceptsPromoters(!acceptsPromoters)}
+            className={`w-12 h-6 rounded-full transition-colors relative flex items-center shrink-0 ${acceptsPromoters ? 'bg-indigo-600' : 'bg-gray-300'}`}
+          >
+            <span className={`w-4 h-4 bg-white rounded-full transition-transform absolute ${acceptsPromoters ? 'translate-x-7' : 'translate-x-1'}`} />
+          </button>
+        </div>
+
+        {acceptsPromoters && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6 animate-in fade-in slide-in-from-top-2 duration-300">
+            <div>
+              <label className="text-xs font-bold text-gray-700 mb-1 block uppercase tracking-widest">
+                Comissão do Promoter (%)
+              </label>
+              <div className="relative">
+                <Input 
+                  type="number" 
+                  min="0" 
+                  max="100"
+                  value={promoterCommissionRate} 
+                  onChange={(e) => setPromoterCommissionRate(Number(e.target.value))}
+                  className="bg-white border-indigo-200 focus:border-indigo-500 pl-4 pr-8 font-black" 
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">%</span>
+              </div>
+              <p className="text-[10px] text-gray-500 mt-1">Quanto o promoter ganha.</p>
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-700 mb-1 block uppercase tracking-widest">
+                Desconto do Comprador (%)
+              </label>
+              <div className="relative">
+                <Input 
+                  type="number" 
+                  min="0" 
+                  max="100"
+                  value={promoterDiscountRate} 
+                  onChange={(e) => setPromoterDiscountRate(Number(e.target.value))}
+                  className="bg-white border-indigo-200 focus:border-indigo-500 pl-4 pr-8 font-black" 
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">%</span>
+              </div>
+              <p className="text-[10px] text-gray-500 mt-1">Benefício de quem compra.</p>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 

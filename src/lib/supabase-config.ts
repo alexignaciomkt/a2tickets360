@@ -12,5 +12,5 @@ export const MINIO_CONFIG = {
   region: 'us-east-1' // Padrão S3
 } as const;
 
-export type UserRole = 'master' | 'organizer' | 'staff' | 'exhibitor' | 'customer';
+export type UserRole = 'master' | 'organizer' | 'staff' | 'exhibitor' | 'customer' | 'promoter';
 export type ProfileStatus = 'pending' | 'approved' | 'rejected' | 'suspended';

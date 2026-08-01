@@ -1,0 +1,41 @@
+A jornada do cliente na plataforma A2 Tickets 360 é desenhada para ser fluida, segura e "premium", eliminando fricções desde a descoberta do evento até a entrada no local
+. De acordo com os manuais e descrições do sistema, a jornada detalhada segue estas etapas:
+1. Descoberta e Vitrine de Eventos
+O cliente inicia sua experiência na Página Inicial (Vitrine), que apresenta um carrossel rotativo com eventos em destaque e banners de alto impacto
+. Ele pode navegar por categorias visuais (Música, Educação, Humor, Festivais) ou utilizar a busca por nome para encontrar o que deseja
+. Cada "card" de evento já exibe informações essenciais como data, local, preço e um selo de verificado para passar confiança
+.
+2. Página de Detalhes e Decisão
+Ao clicar em um evento, o comprador acessa uma landing page profissional que contém
+:
+Informações Completas: Descrição detalhada, mapa do local e grade de programação
+.
+Segurança: Exibição de selos de garantia de compra, QR Code verificado e aviso de identificação biométrica
+.
+Seleção de Ingressos: Uma lista clara de tipos (VIP, Pista, Meia-entrada) com seus respectivos preços e disponibilidades
+.
+3. Checkout Descomplicado (O Coração da Jornada)
+O processo de compra é dividido em três etapas visuais com uma barra de progresso para que o cliente saiba exatamente onde está
+:
+Etapa 1 - Identificação e Biometria: O cliente insere nome, e-mail e CPF
+. Um diferencial crítico aqui é o upload obrigatório de uma foto, que será utilizada para a verificação visual/biométrica no momento do check-in no evento
+.
+Etapa 2 - Pagamento: Integrado ao gateway Asaas, o cliente escolhe entre Cartão de Crédito ou PIX
+. O sistema exibe um resumo lateral que já inclui a taxa de serviço (geralmente 10%)
+. Se o ingresso for gratuito, esta etapa é pulada automaticamente para garantir agilidade
+.
+Etapa 3 - Confirmação: Uma mensagem de sucesso é exibida e o ingresso digital com QR Code é gerado instantaneamente
+.
+4. Pós-Compra e Gestão de Ingressos
+Após a confirmação, o cliente é direcionado ao seu Painel do Comprador (Dashboard)
+. Nesse ambiente, ele pode
+:
+Visualizar seus ingressos ativos e o histórico de eventos anteriores
+.
+Acessar o QR Code para cada ingresso adquirido
+.
+Acompanhar o status do ingresso (Válido, Utilizado ou Cancelado)
+.
+5. Experiência no Dia do Evento
+A jornada termina no acesso ao evento, onde o cliente apresenta o QR Code no celular
+. O staff utiliza o validador da plataforma para fazer a leitura instantânea, que confronta os dados do ingresso com a foto carregada pelo cliente no checkout, garantindo que apenas o comprador legítimo acesse o local e evitando fraudes

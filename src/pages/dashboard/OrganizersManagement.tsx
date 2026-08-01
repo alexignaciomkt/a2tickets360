@@ -415,22 +415,23 @@ const OrganizersManagement = () => {
 
             {selectedOrg && (
               <div className="space-y-8">
-                <div className="relative h-48 rounded-xl bg-slate-900 overflow-hidden border border-slate-800 shadow-md">
-                  {selectedOrg.bannerUrl || selectedOrg.banner_url ? (
-                    <img src={selectedOrg.bannerUrl || selectedOrg.banner_url} className="w-full h-full object-cover opacity-80" alt="Banner" />
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-slate-700 font-medium text-sm">Sem capa informada</div>
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 to-transparent" />
-                  <div className="absolute bottom-6 left-6 flex items-center gap-6">
-                    <div className="w-24 h-24 rounded-lg border-2 border-white shadow-lg overflow-hidden bg-white shrink-0">
-                       {selectedOrg.logoUrl || selectedOrg.logo_url ? <img src={selectedOrg.logoUrl || selectedOrg.logo_url} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-slate-900 font-bold text-3xl">{(selectedOrg.companyName || selectedOrg.name || 'P').charAt(0)}</div>}
+                <div className="h-28 w-full bg-slate-900 rounded-t-xl overflow-hidden relative">
+                  <img src={selectedOrg.bannerUrl || selectedOrg.banner_url} loading="lazy" decoding="async" className="w-full h-full object-cover opacity-80" alt="Banner" />
+                </div>
+                
+                {/* Perfil e Identificação */}
+                <div className="px-6 pb-6 relative">
+                  <div className="flex flex-col md:flex-row md:items-end gap-6 mb-8">
+                    <div className="w-24 h-24 rounded-2xl bg-white p-1 border-4 border-slate-50 shadow-xl overflow-hidden -mt-12 relative z-10 flex-shrink-0">
+                      <div className="w-full h-full rounded-xl bg-slate-100 overflow-hidden relative">
+                      {selectedOrg.logoUrl || selectedOrg.logo_url ? <img src={selectedOrg.logoUrl || selectedOrg.logo_url} loading="lazy" decoding="async" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-slate-900 font-bold text-3xl">{(selectedOrg.companyName || selectedOrg.name || 'P').charAt(0)}</div>}
+                      </div>
                     </div>
-                    <div className="text-white space-y-1 relative z-10">
+                    <div className="text-slate-900 space-y-1 relative z-10 pb-2">
                        <h3 className="text-2xl font-bold tracking-tight">{selectedOrg.companyName || selectedOrg.name}</h3>
                        <div className="flex items-center gap-3">
-                          <p className="text-xs font-medium text-white/70">Membro desde {selectedOrg.createdAt ? new Date(selectedOrg.createdAt).getFullYear() : '2025'}</p>
-                          <Badge variant="outline" className="bg-white/10 text-white border-white/20 text-[10px] font-medium px-2 py-0.5 rounded-md backdrop-blur-sm">ID: {selectedOrg.id?.slice(0,8).toUpperCase()}</Badge>
+                          <p className="text-xs font-medium text-slate-500">Membro desde {selectedOrg.createdAt ? new Date(selectedOrg.createdAt).getFullYear() : '2025'}</p>
+                          <Badge variant="outline" className="bg-slate-100 text-slate-600 border-slate-200 text-[10px] font-medium px-2 py-0.5 rounded-md">ID: {selectedOrg.id?.slice(0,8).toUpperCase()}</Badge>
                        </div>
                     </div>
                   </div>
@@ -442,7 +443,7 @@ const OrganizersManagement = () => {
                       { l: 'Razão Social', v: selectedOrg.name || '---' },
                       { l: 'E-mail', v: selectedOrg.email || '---', lowercase: true },
                       { l: 'Telefone', v: selectedOrg.phone || '---' },
-                      { l: 'Página Pública', v: selectedOrg.slug ? `ticketera.com.br/p/${selectedOrg.slug}` : '---', lowercase: true, color: 'indigo' },
+                      { l: 'Página Pública', v: selectedOrg.slug ? `${window.location.host}/p/${selectedOrg.slug}` : '---', lowercase: true, color: 'indigo' },
                     ].map((item, i) => (
                       <div key={i} className="space-y-1">
                         <p className="text-xs font-semibold text-slate-500">{item.l}</p>
@@ -485,7 +486,7 @@ const OrganizersManagement = () => {
                         <p className="text-xs font-semibold text-slate-500">{doc.l}</p>
                         {doc.v ? (
                           <a href={doc.v} target="_blank" rel="noreferrer" className="block relative rounded-lg overflow-hidden border border-slate-200 shadow-sm group/doc">
-                            <img src={doc.v} className="w-full h-48 object-cover" />
+                            <img src={doc.v} loading="lazy" decoding="async" className="w-full h-48 object-cover" />
                             <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover/doc:opacity-100 transition-all flex items-center justify-center">
                                <div className="w-10 h-10 rounded-full bg-white text-slate-900 flex items-center justify-center shadow-md">
                                   <ExternalLink className="w-4 h-4" />

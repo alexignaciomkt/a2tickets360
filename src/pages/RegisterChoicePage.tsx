@@ -3,7 +3,7 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import MainLayout from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
-import { User, Briefcase, ChevronRight, Rocket, Sparkles } from 'lucide-react';
+import { User, Briefcase, ChevronRight, Rocket, Sparkles, Megaphone } from 'lucide-react';
 
 const RegisterChoicePage = () => {
     const navigate = useNavigate();
@@ -38,7 +38,7 @@ const RegisterChoicePage = () => {
                             </p>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-12">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-12">
                             {/* Opção Staff */}
                             <div
                                 onClick={() => navigate('/register/staff')} // Agora aponta para /register/staff
@@ -78,6 +78,27 @@ const RegisterChoicePage = () => {
 
                                 <div className="flex items-center text-indigo-400 font-bold uppercase tracking-widest text-xs group-hover:translate-x-2 transition-transform">
                                     Criar minha conta <ChevronRight className="w-4 h-4 ml-1" />
+                                </div>
+                            </div>
+
+                            {/* Opção Promoter */}
+                            <div
+                                onClick={() => navigate('/work-with-us?role=promoter')}
+                                className="group relative bg-[#0A0A0A] border border-white/5 p-10 rounded-3xl cursor-pointer transition-all hover:bg-white/[0.02] hover:border-emerald-500/30 text-left overflow-hidden"
+                            >
+                                <div className="absolute -right-4 -top-4 w-32 h-32 bg-emerald-500/10 blur-[80px] group-hover:bg-emerald-500/20 transition-colors" />
+
+                                <div className="w-16 h-16 bg-emerald-500/10 rounded-2xl flex items-center justify-center mb-8 border border-emerald-500/20 group-hover:scale-110 transition-transform">
+                                    <Megaphone className="w-8 h-8 text-emerald-400" />
+                                </div>
+
+                                <h2 className="text-3xl font-black text-white italic uppercase tracking-tight mb-4">Quero ser Promoter</h2>
+                                <p className="text-gray-500 mb-8 leading-relaxed">
+                                    Quero ser um afiliado, divulgar eventos com meu link exclusivo e ganhar comissões por cada venda.
+                                </p>
+
+                                <div className="flex items-center text-emerald-400 font-bold uppercase tracking-widest text-xs group-hover:translate-x-2 transition-transform">
+                                    Começar a lucrar <ChevronRight className="w-4 h-4 ml-1" />
                                 </div>
                             </div>
                         </div>

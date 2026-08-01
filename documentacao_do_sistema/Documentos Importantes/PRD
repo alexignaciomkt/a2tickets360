@@ -1,0 +1,74 @@
+1. Visão Geral e Objetivos
+A A2 Tickets 360 visa democratizar o acesso à tecnologia de elite para produtores de todos os portes, unificando bilhetagem, CRM, marketing e operação em um ecossistema único
+. O objetivo central é eliminar a fragmentação de ferramentas (planilhas, grupos de WhatsApp e sistemas isolados) e colocar o "produtor no controle" de seus dados e audiência
+.
+2. Personas (Público-Alvo)
+Produtor Iniciante: Foco em criação rápida, página de vendas profissional e captação de leads
+.
+Produtor em Crescimento: Necessita de dashboards de performance, automação de marketing e check-in eficiente
+.
+Agências e Grandes Produtores: Exigem gestão multi-equipes, relatórios white-label para patrocinadores e suporte estratégico (agency-in-the-loop)
+.
+3. Escopo Funcional (Módulos do Sistema)
+3.1. Bilhetagem e Vendas (Ticketing 360)
+Criação de Eventos: Formulário inteligente com validação automática e configuração de múltiplos lotes/categorias (VIP, Pista, Meia)
+.
+Designer de Ingressos: Editor visual para personalizar layouts (Clássico, Moderno, Minimalista) com a marca do evento
+.
+Checkout Descomplicado: Processo em 3 etapas (Identificação com foto, Pagamento e Confirmação) integrado ao gateway Asaas (Cartão e PIX)
+.
+PDV Físico: Gestão de pontos de venda presenciais com comissionamento configurável
+.
+3.2. Inteligência de Negócios e Marketing (Módulo Premium)
+Cockpit de Marketing: Painel em tempo real exibindo Investimento, Leads, Ingressos Vendidos e ROI por Canal (Meta, Google, WhatsApp)
+.
+Previsibilidade de Receita: Projeções baseadas em dados históricos para antecipar o público final e ajustar o investimento
+.
+Alertas Proativos: Notificações automáticas quando as vendas estão abaixo da projeção ou quando há necessidade de realocação de verba
+.
+CRM Nativo: Histórico completo do participante, permitindo segmentação e campanhas de remarketing (abandono de carrinho e reativação)
+.
+3.3. Gestão Operacional e Staff
+Controle de Equipe: Cadastro de staff por função, escala de turnos, envio automático de credenciais e controle de cachês
+.
+Banco de Talentos: Acesso a um pool de profissionais qualificados para contratação direta via plataforma
+.
+Check-in Inteligente: Validação via QR Code (/validador) com verificação visual por foto e modo offline
+.
+3.4. Gestão de Fornecedores e Financeiro
+Ecossistema de Fornecedores: Módulo para cotações, armazenamento de contratos e registro de despesas reais
+.
+Dashboard Financeiro: Visão clara de Receita Bruta, Líquida, Taxas e Saldo a Receber com solicitação de repasse integrada
+.
+3.5. Presença Digital
+Fan Page da Produtora: Página estilo rede social com timeline, galeria de fotos, vagas abertas e lista de eventos
+.
+Loja Integrada: E-commerce para venda de merchandising e kits oficiais com gestão de estoque
+.
+4. Requisitos Técnicos
+Stack: Desenvolvido em React + TypeScript, Vite, Tailwind CSS e banco de dados com partição multi-tenant
+.
+Segurança: Integração com gateway antifraude, criptografia de dados e compliance com a LGPD
+.
+5. Roadmap de Lançamento
+Fase 1: Publicação de eventos, CRM básico e captação de RSVP
+.
+Fase 2: Ticketing completo, checkout e app de check-in QR
+.
+Fase 3: Dashboards de BI, atribuição de tráfego (UTM) e automação de marketing
+.
+Fase 4: Recursos Enterprise (White-label), multi-equipes e Copilot de IA para produtores
+.
+6. Modelo de Receita
+Assinaturas: Planos Free (sem custo fixo), Starter (R49−79),Pro(R 199-399) e Enterprise (Sob consulta)
+.
+Taxas: Cobrança por ingresso vendido (ex: 7% + R$ 1,99)
+.
+Serviços Premium: Gestão de mídia, BI customizado e identidade visual
+.
+7. Métricas de Sucesso (KPIs)
+GMV (Volume Bruto de Mercadorias): Total transacionado em ingressos
+.
+WAUs de Produtor: Produtores ativos semanais
+.
+ROI de Marketing: Retorno gerado para o produtor sobre o valor investido em anúncios

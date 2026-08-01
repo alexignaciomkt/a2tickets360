@@ -24,7 +24,9 @@ import {
   Cpu,
   History,
   Target,
-  ArrowRight
+  ArrowRight,
+  FileText,
+  Clock
 } from 'lucide-react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';

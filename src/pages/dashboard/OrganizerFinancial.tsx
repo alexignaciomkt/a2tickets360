@@ -17,8 +17,13 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { organizerService } from '@/services/organizerService';
 import { Event, FinancialSummary } from '@/interfaces/organizer';
+import { useAuth } from '@/contexts/AuthContext';
+import { AsaasOnboardingModal } from '@/components/modals/AsaasOnboardingModal';
 
 const OrganizerFinancial = () => {
+  const { user } = useAuth();
+  const [profile, setProfile] = useState<any>(null);
+  const [asaasModalOpen, setAsaasModalOpen] = useState(false);
   const [events, setEvents] = useState<Event[]>([]);
   const [financialSummary, setFinancialSummary] = useState<FinancialSummary | null>(null);
   const [expenseModalOpen, setExpenseModalOpen] = useState(false);
@@ -35,7 +40,11 @@ const OrganizerFinancial = () => {
 
   const loadFinancialData = async () => {
     try {
-      const organizerId = '1';
+      const organizerId = user?.id || '1';
+      
+      const profileData = await organizerService.getProfile(organizerId);
+      setProfile(profileData);
+
       const eventsData = await organizerService.getEvents(organizerId);
       setEvents(eventsData);
 
@@ -406,31 +415,49 @@ const OrganizerFinancial = () => {
 
         {/* Asaas Integration Info */}
         <Card className="border-none shadow-sm rounded-[2rem] overflow-hidden bg-slate-50 border-blue-100 mt-6">
-          <CardHeader className="bg-slate-50 border-b border-gray-100 pb-4 px-6 pt-6">
+          <CardHeader className="bg-slate-50 border-b border-gray-100 pb-4 px-6 pt-6 flex flex-row items-center justify-between">
             <CardTitle className="flex items-center text-blue-800 font-black text-lg uppercase tracking-tight">
               <Landmark className="h-5 w-5 mr-2" />
               Integração Financeira Asaas
             </CardTitle>
+            {profile && !profile.asaasId && (
+              <Button 
+                onClick={() => setAsaasModalOpen(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs"
+              >
+                Ativar Conta de Recebimento
+              </Button>
+            )}
           </CardHeader>
           <CardContent>
-            <p className="text-gray-600 mb-4">
-              Todas as transações financeiras são processadas automaticamente via <strong>Asaas</strong>.
-              O sistema gera repasses automáticos baseados nas vendas confirmadas.
-            </p>
-            <div className="bg-white p-4 rounded border text-sm">
-              <p className="font-semibold mb-2">Configuração de Webhook (Automático):</p>
-              <code className="bg-gray-100 px-2 py-1 rounded block mb-2 break-all">
-                {window.location.origin}/api/webhooks/asaas
-              </code>
-              <p className="text-xs text-gray-500">
-                Certifique-se de que sua conta Asaas está configurada para enviar eventos de pagamento para esta URL.
-              </p>
-            </div>
-            <div className="mt-4 flex gap-2">
-              <span className="text-xs font-bold bg-blue-100 text-blue-800 px-2 py-1 rounded">Powered by Asaas</span>
-            </div>
+            {profile && !profile.asaasId ? (
+              <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded-xl mt-4">
+                <p className="font-bold mb-1">Atenção: Sua conta não está habilitada para receber pagamentos.</p>
+                <p className="text-sm">Clique no botão acima para criar sua subconta e começar a vender ingressos via PIX e Cartão de Crédito.</p>
+              </div>
+            ) : (
+              <>
+                <p className="text-gray-600 mb-4 mt-4">
+                  Sua conta está integrada com o <strong>Asaas</strong>. 
+                  Todos os recebimentos cairão automaticamente na sua carteira virtual (Wallet ID: <code>{profile?.walletId || '---'}</code>).
+                </p>
+                <div className="mt-4 flex gap-2">
+                  <span className="text-xs font-bold bg-blue-100 text-blue-800 px-2 py-1 rounded">Status: Conectado</span>
+                  <span className="text-xs font-bold bg-green-100 text-green-800 px-2 py-1 rounded">Split Automático Ativo</span>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
+
+        {profile && (
+          <AsaasOnboardingModal
+            open={asaasModalOpen}
+            onOpenChange={setAsaasModalOpen}
+            organizerId={user?.id || '1'}
+            onSuccess={(updated) => setProfile(updated)}
+          />
+        )}
       </div>
     </DashboardLayout>
   );

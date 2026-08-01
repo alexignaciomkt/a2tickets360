@@ -36,6 +36,7 @@ import StaffFinancialPage from '@/pages/dashboard/StaffFinancialPage';
 import TalentPoolPage from '@/pages/dashboard/TalentPoolPage';
 import CreateEvent from '@/pages/dashboard/CreateEvent';
 import EventSuccessPage from '@/pages/dashboard/EventSuccessPage';
+import AsaasOnboardingPage from '@/pages/dashboard/AsaasOnboardingPage';
 import TicketValidation from '@/pages/dashboard/TicketValidation';
 import TicketDesigner from '@/pages/dashboard/TicketDesigner';
 import SalesPoints from '@/pages/dashboard/SalesPoints';
@@ -49,7 +50,14 @@ import WorkWithUs from '@/pages/WorkWithUs';
 import StaffReaderPage from '@/pages/staff/StaffReaderPage';
 import StaffPortalDashboard from '@/pages/staff/StaffPortalDashboard';
 import PromoterDashboard from '@/pages/promoter/PromoterDashboard';
+import PromoterEvents from '@/pages/promoter/PromoterEvents';
+import PromoterMailing from '@/pages/promoter/PromoterMailing';
+import PromoterMarketing from '@/pages/promoter/PromoterMarketing';
+import PromoterSettings from '@/pages/promoter/PromoterSettings';
+import PromoterStore from '@/pages/promoter/PromoterStore';
+import PromoterLanding from '@/pages/PromoterLanding';
 import PromoterLP from '@/pages/promoter/PromoterLP';
+import PromoterOnboardingPage from '@/pages/promoter/PromoterOnboardingPage';
 import WorkerProfilePage from '@/pages/staff/WorkerProfilePage';
 import ProposalsPage from '@/pages/staff/ProposalsPage';
 import AgendaPage from '@/pages/staff/AgendaPage';
@@ -79,6 +87,7 @@ import MasterFinancialBI from '@/pages/dashboard/MasterFinancialBI';
 import MasterSiteManagement from '@/pages/dashboard/MasterSiteManagement';
 
 import { AnimatePresence } from 'framer-motion';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 const queryClient = new QueryClient();
 
@@ -87,10 +96,12 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <NotificationProvider>
-          <Router>
-            <AppRoutes />
-            <Toaster />
-          </Router>
+          <ErrorBoundary>
+            <Router>
+              <AppRoutes />
+              <Toaster />
+            </Router>
+          </ErrorBoundary>
         </NotificationProvider>
       </AuthProvider>
     </QueryClientProvider>
@@ -113,12 +124,18 @@ function AppRoutes() {
         <Route path="/privacy" element={<LegalPage slug="privacy" />} />
         <Route path="/para-produtores" element={<ParaProdutores />} />
         <Route path="/work-with-us" element={<WorkWithUs />} />
+        <Route path="/onboarding/promoter" element={
+          <ProtectedRoute allowedRoles={['promoter']}>
+            <PromoterOnboardingPage />
+          </ProtectedRoute>
+        } />
         <Route path="/validador" element={<CheckInPage />} />
         <Route path="/staff/check-in/:eventId" element={<CheckInPage />} />
         <Route path="/staff/reader" element={<StaffReaderPage />} />
         <Route path="/auth/verify" element={<VerifyEmailPage />} />
         <Route path="/events" element={<EventsPage />} />
         <Route path="/events/:id" element={<EventDetailPage />} />
+        <Route path="/e/:id" element={<EventDetailPage />} />
         <Route path="/p/:slug" element={<ProducerFanPage />} />
         <Route path="/producer-fan/:slug" element={<ProducerFanPage />} />
         <Route path="/producer-page/:slug" element={<ProducerFanPage />} />
@@ -133,17 +150,17 @@ function AppRoutes() {
           </ProtectedRoute>
         } />
         <Route path="/dashboard/tickets" element={
-          <ProtectedRoute allowedRoles={['customer']}>
+          <ProtectedRoute allowedRoles={['customer', 'organizer', 'master', 'admin', 'promoter']}>
             <CustomerTickets />
           </ProtectedRoute>
         } />
         <Route path="/dashboard/tickets/:ticketId" element={
-          <ProtectedRoute allowedRoles={['customer']}>
+          <ProtectedRoute allowedRoles={['customer', 'organizer', 'master', 'admin', 'promoter']}>
             <CustomerTickets />
           </ProtectedRoute>
         } />
         <Route path="/dashboard/settings" element={
-          <ProtectedRoute allowedRoles={['customer', 'organizer', 'master']}>
+          <ProtectedRoute allowedRoles={['customer', 'organizer', 'master', 'admin', 'promoter']}>
             <Settings />
           </ProtectedRoute>
         } />
@@ -241,6 +258,11 @@ function AppRoutes() {
         <Route path="/organizer/settings" element={
           <ProtectedRoute allowedRoles={['organizer']}>
             <OrganizerSettings />
+          </ProtectedRoute>
+        } />
+        <Route path="/organizer/finance/onboarding" element={
+          <ProtectedRoute allowedRoles={['organizer']}>
+            <AsaasOnboardingPage />
           </ProtectedRoute>
         } />
         <Route path="/organizer/onboarding" element={
@@ -398,8 +420,36 @@ function AppRoutes() {
           </ProtectedRoute>
         } />
         {/* ═══ PROMOTER PORTAL ROUTES ═══ */}
+        <Route path="/seja-promoter" element={<PromoterLanding />} />
         <Route path="/promoter/about" element={<PromoterLP />} />
-        <Route path="/promoter" element={<PromoterDashboard />} />
+        <Route path="/promoter" element={
+          <ProtectedRoute allowedRoles={['promoter']}>
+            <PromoterDashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/promoter/events" element={
+          <ProtectedRoute allowedRoles={['promoter']}>
+            <PromoterEvents />
+          </ProtectedRoute>
+        } />
+        <Route path="/promoter/mailing" element={
+          <ProtectedRoute allowedRoles={['promoter']}>
+            <PromoterMailing />
+          </ProtectedRoute>
+        } />
+        <Route path="/promoter/settings" element={
+          <ProtectedRoute allowedRoles={['promoter']}>
+            <PromoterSettings />
+          </ProtectedRoute>
+        } />
+        <Route path="/promoter/marketing" element={
+          <ProtectedRoute allowedRoles={['promoter']}>
+            <PromoterMarketing />
+          </ProtectedRoute>
+        } />
+        
+        {/* Rota da loja/página isolada do Promoter */}
+        <Route path="/p/:promoterSlug/:eventId" element={<PromoterStore />} />
 
       </Routes>
     </AnimatePresence>

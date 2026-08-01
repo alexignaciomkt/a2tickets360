@@ -7,6 +7,7 @@ interface EventSettings {
   max_tickets_per_cpf: number;
   require_individual_data: boolean;
   allow_mesa_token_resale: boolean;
+  pass_fee_to_buyer?: boolean;
 }
 
 const OrganizerRulesTab = ({ eventId, initialSettings }: { eventId: string, initialSettings?: any }) => {
@@ -14,6 +15,7 @@ const OrganizerRulesTab = ({ eventId, initialSettings }: { eventId: string, init
     max_tickets_per_cpf: initialSettings?.max_tickets_per_cpf || 5,
     require_individual_data: initialSettings?.require_individual_data ?? true,
     allow_mesa_token_resale: initialSettings?.allow_mesa_token_resale ?? false,
+    pass_fee_to_buyer: initialSettings?.pass_fee_to_buyer ?? true,
     group_logic: initialSettings?.group_logic || []
   });
   const [eventTickets, setEventTickets] = useState<any[]>([]);
@@ -80,10 +82,28 @@ const OrganizerRulesTab = ({ eventId, initialSettings }: { eventId: string, init
                  <p className="font-black text-gray-900 uppercase tracking-tight text-sm">Exigir Dados Individuais</p>
                  <p className="text-xs text-gray-500 font-medium">Cada ingresso deve ter um CPF e Nome diferente (Mailing Gold).</p>
               </div>
-              <div className="relative inline-flex h-6 w-11 items-center rounded-full bg-gray-200 cursor-pointer transition-colors"
+              <div className="relative inline-flex h-6 w-11 items-center rounded-full bg-gray-200 cursor-pointer transition-colors shrink-0"
                    onClick={() => setSettings({...settings, require_individual_data: !settings.require_individual_data})}
                    style={{ backgroundColor: settings.require_individual_data ? '#000' : '#E5E7EB' }}>
                 <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${settings.require_individual_data ? 'translate-x-6' : 'translate-x-1'}`} />
+              </div>
+           </div>
+
+           <div className="h-px bg-gray-50" />
+
+           {/* Repasse de Taxas */}
+           <div className="flex items-start justify-between gap-8">
+              <div className="space-y-1">
+                 <p className="font-black text-gray-900 uppercase tracking-tight text-sm flex items-center gap-2">
+                   Repassar Taxas ao Comprador
+                   <span className="bg-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5 rounded uppercase font-bold tracking-wider">Financeiro</span>
+                 </p>
+                 <p className="text-xs text-gray-500 font-medium">Se ativo, o fã pagará o valor do ingresso + taxa do sistema. Se inativo, a taxa será descontada do seu repasse líquido.</p>
+              </div>
+              <div className="relative inline-flex h-6 w-11 items-center rounded-full bg-gray-200 cursor-pointer transition-colors shrink-0"
+                   onClick={() => setSettings({...settings, pass_fee_to_buyer: !settings.pass_fee_to_buyer})}
+                   style={{ backgroundColor: settings.pass_fee_to_buyer ? '#059669' : '#E5E7EB' }}>
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${settings.pass_fee_to_buyer ? 'translate-x-6' : 'translate-x-1'}`} />
               </div>
            </div>
 
