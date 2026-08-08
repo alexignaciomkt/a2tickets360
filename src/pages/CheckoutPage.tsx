@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Check, Upload, Calendar, MapPin, Eye, EyeOff, Lock, ShieldCheck, ChevronRight } from 'lucide-react';
+import { Check, Upload, Calendar, MapPin, Eye, EyeOff, Lock, ShieldCheck, ChevronRight, Clock, Copy, MessageCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import MainLayout from '@/components/layout/MainLayout';
@@ -28,6 +28,28 @@ interface CheckoutData {
   discountApplied?: number;
 }
 
+// Dados de um jogador para inscricao esportiva
+interface PlayerData {
+  name: string;
+  cpf: string;
+  phone: string;
+}
+
+interface SportData {
+  teamName: string;
+  players: PlayerData[];
+}
+
+interface EligibilityResult {
+  eligible: boolean;
+  reason?: string;
+  originalRegistrationId?: string;
+  teamName?: string;
+  players?: { order: number; name: string }[];
+  usedRepechages?: number;
+  maxRepechages?: number;
+}
+
 const initialFormData: CheckoutData = {
   name: '',
   email: '',
@@ -43,6 +65,14 @@ const initialFormData: CheckoutData = {
   couponCode: '',
 };
 
+const initialSportData: SportData = {
+  teamName: '',
+  players: [
+    { name: '', cpf: '', phone: '' },
+    { name: '', cpf: '', phone: '' },
+  ],
+};
+
 const steps = ['Informações', 'Pagamento', 'Confirmação'];
 
 const CheckoutPage = () => {
@@ -53,7 +83,7 @@ const CheckoutPage = () => {
 
   const [event, setEvent] = useState<SupabaseEvent | null>(null);
   const [ticket, setTicket] = useState<any | null>(null);
-  const [currentStep, setCurrentStep] = useState(0);
+
   const [formData, setFormData] = useState<CheckoutData>(initialFormData);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -62,6 +92,32 @@ const CheckoutPage = () => {
   const [validatingCoupon, setValidatingCoupon] = useState(false);
   const [couponMessage, setCouponMessage] = useState({ text: '', type: '' });
   const [feeConfig, setFeeConfig] = useState({ percentage: 8, fixed: 5, passToBuyer: true });
+  
+  // Persist PIX and step across reloads
+  const sessionKey = `checkout_state_${eventId}_${ticketId}`;
+  const getInitialState = () => {
+    try {
+        const stored = sessionStorage.getItem(sessionKey);
+        if (stored) return JSON.parse(stored);
+    } catch (e) {}
+    return null;
+  };
+  const initialState = getInitialState();
+
+  const [pixData, setPixData] = useState<{ encodedImage: string, payload: string } | null>(initialState?.pixData || null);
+  const [invoiceUrl, setInvoiceUrl] = useState<string | null>(initialState?.invoiceUrl || null);
+  const [purchasedTicketId, setPurchasedTicketId] = useState<string | null>(initialState?.purchasedTicketId || null);
+  const [currentStep, setCurrentStep] = useState(initialState?.currentStep || 0);
+
+  // --- Estado esportivo ---
+  const [ticketPurpose, setTicketPurpose] = useState<string>('STANDARD');
+  const [registrationType, setRegistrationType] = useState<string>('INDIVIDUAL');
+  const [participantsPerReg, setParticipantsPerReg] = useState<number>(1);
+  const [sportData, setSportData] = useState<SportData>(initialSportData);
+  // Repescagem
+  const [repechageCpf, setRepechageCpf] = useState('');
+  const [checkingEligibility, setCheckingEligibility] = useState(false);
+  const [eligibilityResult, setEligibilityResult] = useState<EligibilityResult | null>(null);
 
   // Pre-fill form if user is logged in
   useEffect(() => {
@@ -102,27 +158,44 @@ const CheckoutPage = () => {
           const foundTicket = ticketsData?.find((t: any) => t.id === ticketId);
           if (foundTicket) {
             setTicket(foundTicket);
+            // Detectar tipo de lote esportivo
+            setTicketPurpose(foundTicket.ticket_purpose || 'STANDARD');
+            setRegistrationType(foundTicket.registration_type || 'INDIVIDUAL');
+            setParticipantsPerReg(Number(foundTicket.participants_per_registration) || 1);
+            // Para DOUBLE, garantir 2 jogadores no sportData
+            if (foundTicket.registration_type === 'DOUBLE') {
+              setSportData(initialSportData);
+            }
           } else {
             setTicket({ name: 'Ingresso Individual', price: 0 });
           }
 
-          // Fetch organizer fee config
-          if (foundEvent.organizerId) {
-            const { data: orgData } = await supabase
-              .from('organizers')
-              .select('fee_percentage, fee_fixed, pass_fee_to_buyer')
-              .eq('id', foundEvent.organizerId)
-              .maybeSingle();
-              
-            if (orgData) {
-              const eventPassFee = foundEvent.settings?.pass_fee_to_buyer;
-              setFeeConfig({
-                percentage: orgData.fee_percentage !== null ? Number(orgData.fee_percentage) : 8,
-                fixed: orgData.fee_fixed !== null ? Number(orgData.fee_fixed) : 5,
-                passToBuyer: eventPassFee !== undefined ? eventPassFee : (orgData.pass_fee_to_buyer !== false)
-              });
+          // Apply event specific fee settings if available
+          const eventPassFee = foundEvent.settings?.pass_fee_to_buyer;
+          let newFeeConfig = { percentage: 8, fixed: 5, passToBuyer: eventPassFee !== undefined ? eventPassFee : true };
+
+          const orgId = foundEvent.organizer_id || foundEvent.organizer?.id;
+          if (orgId) {
+            try {
+              const { data: orgData } = await supabase
+                .from('organizers')
+                .select('fee_percentage, fee_fixed, pass_fee_to_buyer')
+                .eq('id', orgId)
+                .maybeSingle();
+                
+              if (orgData) {
+                newFeeConfig.percentage = orgData.fee_percentage !== null ? Number(orgData.fee_percentage) : 8;
+                newFeeConfig.fixed = orgData.fee_fixed !== null ? Number(orgData.fee_fixed) : 5;
+                if (eventPassFee === undefined) {
+                  newFeeConfig.passToBuyer = orgData.pass_fee_to_buyer !== false;
+                }
+              }
+            } catch (e) {
+              console.warn('Could not load organizer fee settings, using defaults', e);
             }
           }
+          
+          setFeeConfig(newFeeConfig);
         }
       } catch (error) {
         console.error('Erro ao carregar evento:', error);
@@ -220,8 +293,76 @@ const CheckoutPage = () => {
     }
   };
 
+  // Atualizar campo de um jogador especifico
+  const handlePlayerChange = (playerIndex: number, field: keyof PlayerData, value: string) => {
+    setSportData(prev => {
+      const newPlayers = [...prev.players];
+      newPlayers[playerIndex] = { ...newPlayers[playerIndex], [field]: value };
+      return { ...prev, players: newPlayers };
+    });
+  };
+
+  // Verificar elegibilidade de repescagem via backend
+  const handleCheckEligibility = async () => {
+    if (!repechageCpf || !eventId || !ticketId) return;
+    setCheckingEligibility(true);
+    setEligibilityResult(null);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/sports/check-eligibility`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eventId, ticketId, cpf: repechageCpf }),
+      });
+      const data = await res.json();
+      setEligibilityResult(data);
+    } catch {
+      setEligibilityResult({ eligible: false, reason: 'Erro ao verificar elegibilidade. Tente novamente.' });
+    }
+    setCheckingEligibility(false);
+  };
+
+  // Polling PIX status
+  useEffect(() => {
+    if (currentStep === 2 && pixData && purchasedTicketId) {
+        const interval = setInterval(async () => {
+            try {
+                const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/purchased-tickets/${purchasedTicketId}/status`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.status === 'paid' || data.status === 'active') {
+                        clearInterval(interval);
+                        toast({
+                            title: 'Pagamento Confirmado! 🎉',
+                            description: 'Seu PIX foi recebido com sucesso!',
+                            className: 'bg-green-500 text-white',
+                        });
+                        sessionStorage.removeItem(sessionKey);
+                        navigate('/dashboard/tickets');
+                    }
+                }
+            } catch (err) {
+                // just ignore polling errors
+            }
+        }, 5000);
+        return () => clearInterval(interval);
+    }
+  }, [currentStep, pixData, purchasedTicketId, navigate, sessionKey, toast]);
+
   const handleNextStep = async () => {
     if (currentStep === 0) {
+      // Para REPECHAGE: bloquear avanco sem elegibilidade confirmada
+      if (ticketPurpose === 'REPECHAGE') {
+        if (!eligibilityResult?.eligible) {
+          toast({
+            variant: 'destructive',
+            title: 'Elegibilidade necessaria',
+            description: 'Informe um CPF valido e verifique a elegibilidade antes de continuar.',
+          });
+          return;
+        }
+        // Para REPECHAGE, nao precisamos dos campos comuns de cadastro
+        // pular direto para pagamento
+      } else {
       // Validate required fields including city and birthDate for mailing
       if (!formData.name || !formData.email || !formData.phone || !formData.cpf) {
         toast({
@@ -267,7 +408,23 @@ const CheckoutPage = () => {
           });
           return;
       }
-    }
+
+      // Validacao esportiva: REGISTRATION/DOUBLE exige nome da dupla e dados dos jogadores
+      if (ticketPurpose === 'REGISTRATION' && registrationType === 'DOUBLE') {
+        if (!sportData.teamName.trim()) {
+          toast({ variant: 'destructive', title: 'Nome da dupla obrigatorio', description: 'Informe o nome da dupla.' });
+          return;
+        }
+        for (let i = 0; i < 2; i++) {
+          const p = sportData.players[i];
+          if (!p.name.trim() || !p.cpf.trim() || !p.phone.trim()) {
+            toast({ variant: 'destructive', title: `Competidor ${i + 1} incompleto`, description: `Preencha nome, CPF e WhatsApp do Competidor ${i + 1}.` });
+            return;
+          }
+        }
+      }
+      } // fecha else do REPECHAGE (if REPECHAGE → early return, else → valida campos acima)
+    } // fecha if(currentStep === 0) — validações do step 0
 
     // Lógica real de processamento de checkout (Fase 1: Cadastro ou atualização de perfil)
     let currentUser = user;
@@ -427,22 +584,62 @@ const CheckoutPage = () => {
                     photo_url: photoUrl
                 });
             } else {
-                // Integração real com Asaas
+                // Integracao real com Asaas
+                // Montar sportData para envio
+                let sportPayload: any = undefined;
+                if (ticketPurpose === 'REGISTRATION') {
+                    sportPayload = {
+                        teamName: sportData.teamName,
+                        players: sportData.players.map(p => ({
+                            name: p.name,
+                            cpf: p.cpf,
+                            phone: p.phone,
+                        })),
+                    };
+                } else if (ticketPurpose === 'REPECHAGE' && eligibilityResult?.eligible) {
+                    sportPayload = {
+                        originalRegistrationId: eligibilityResult.originalRegistrationId,
+                        cpf: repechageCpf,
+                    };
+                }
+
                 const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/payments/checkout`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         ticketId: ticket.id,
                         quantity: 1,
-                        buyerName: formData.name,
+                        buyerId: user?.id,
+                        buyerName: formData.name || eligibilityResult?.teamName || 'Comprador',
                         buyerEmail: formData.email,
-                        buyerCpf: formData.cpf,
-                        paymentMethod: 'PIX'
+                        buyerCpf: formData.cpf || repechageCpf,
+                        paymentMethod: 'PIX',
+                        sportData: sportPayload,
                     })
                 });
                 const responseData = await res.json();
                 if (responseData.status === 'success' && responseData.invoiceUrl) {
-                    window.location.href = responseData.invoiceUrl;
+                    setInvoiceUrl(responseData.invoiceUrl);
+                    
+                    let newPixData = null;
+                    if (responseData.pixQrCode && responseData.pixQrCode.encodedImage) {
+                        setPixData(responseData.pixQrCode);
+                        newPixData = responseData.pixQrCode;
+                    } else {
+                        window.open(responseData.invoiceUrl, '_blank');
+                    }
+                    
+                    // Save to sessionStorage
+                    sessionStorage.setItem(sessionKey, JSON.stringify({
+                        currentStep: currentStep + 1,
+                        invoiceUrl: responseData.invoiceUrl,
+                        pixData: newPixData,
+                        purchasedTicketId: responseData.purchasedTicketId
+                    }));
+                    setPurchasedTicketId(responseData.purchasedTicketId);
+
+                    setLoading(false);
+                    setCurrentStep(currentStep + 1);
                     return;
                 } else {
                     throw new Error(responseData.error || 'Erro ao processar pagamento no Asaas');
@@ -463,6 +660,8 @@ const CheckoutPage = () => {
         return;
     }
 
+    // If successful (free ticket), clear session state just in case
+    sessionStorage.removeItem(sessionKey);
     setCurrentStep(currentStep + 1);
   };
 
@@ -547,10 +746,80 @@ const CheckoutPage = () => {
                 </div>
               ) : (
                 <div className="bg-white rounded-lg shadow-md p-6">
-                  {/* Step 1: User Info */}
-                  {currentStep === 0 && (
+                  {/* Step 1: User Info — REPECHAGE */}
+                  {currentStep === 0 && ticketPurpose === 'REPECHAGE' && (
+                  <div className="space-y-6">
+                    <h2 className="text-xl font-semibold mb-2">Repescagem — Verificar Elegibilidade</h2>
+                    <p className="text-sm text-gray-500">Informe o CPF de um dos competidores da dupla inscrita neste evento.</p>
+
+                    <div className="flex gap-2">
+                      <input
+                        id="repechage-cpf"
+                        type="text"
+                        value={repechageCpf}
+                        onChange={e => { setRepechageCpf(e.target.value); setEligibilityResult(null); }}
+                        className="input-field flex-1"
+                        placeholder="000.000.000-00"
+                        maxLength={14}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleCheckEligibility}
+                        disabled={checkingEligibility || !repechageCpf}
+                        className="bg-primary text-white px-6 rounded-lg font-black uppercase text-xs tracking-widest disabled:opacity-50 transition"
+                      >
+                        {checkingEligibility ? '...' : 'Verificar'}
+                      </button>
+                    </div>
+
+                    {eligibilityResult && !eligibilityResult.eligible && (
+                      <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                        <p className="text-red-600 font-semibold text-sm">{eligibilityResult.reason}</p>
+                      </div>
+                    )}
+
+                    {eligibilityResult?.eligible && (
+                      <div className="bg-green-50 border-2 border-green-200 rounded-2xl p-6 space-y-3">
+                        <p className="text-[10px] font-black text-green-500 uppercase tracking-widest">Inscrição encontrada ✓</p>
+                        <h3 className="text-xl font-black text-slate-900 uppercase">{eligibilityResult.teamName}</h3>
+                        <div className="space-y-1">
+                          {eligibilityResult.players?.map(p => (
+                            <p key={p.order} className="text-sm text-slate-700">
+                              <span className="font-bold">Competidor {p.order}:</span> {p.name}
+                            </p>
+                          ))}
+                        </div>
+                        <div className="pt-2 border-t border-green-100">
+                          <p className="text-sm text-slate-600">
+                            Repescagens utilizadas: <strong>{eligibilityResult.usedRepechages} de {eligibilityResult.maxRepechages}</strong>
+                          </p>
+                        </div>
+                        <div className="pt-4 border-t border-green-100 space-y-3">
+                          <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Dados do Pagador</p>
+                          <input
+                            id="email-repechage"
+                            name="email"
+                            type="email"
+                            value={formData.email}
+                            onChange={handleInputChange}
+                            className="input-field w-full"
+                            placeholder="Email para confirmação"
+                            required
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  )}
+
+                  {/* Step 1: User Info — REGISTRATION ou STANDARD */}
+                  {currentStep === 0 && ticketPurpose !== 'REPECHAGE' && (
                   <div className="space-y-4">
-                    <h2 className="text-xl font-semibold mb-6">Informações pessoais</h2>
+                    <h2 className="text-xl font-semibold mb-6">
+                      {ticketPurpose === 'REGISTRATION' && registrationType === 'DOUBLE'
+                        ? 'Dados do Comprador e da Dupla'
+                        : 'Informações pessoais'}
+                    </h2>
 
                     <div>
                       <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
@@ -758,6 +1027,46 @@ const CheckoutPage = () => {
                   </div>
                 )}
 
+                {/* DADOS DA DUPLA — aparece no step 0 para REGISTRATION/DOUBLE */}
+                {currentStep === 0 && ticketPurpose === 'REGISTRATION' && registrationType === 'DOUBLE' && (
+                  <div className="mt-6 bg-white rounded-lg shadow-md p-6">
+                    <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-5">Dados da Dupla</p>
+                    <div className="mb-5">
+                      <label htmlFor="team-name" className="block text-sm font-medium text-gray-700 mb-1">Nome da Dupla *</label>
+                      <input
+                        id="team-name"
+                        type="text"
+                        value={sportData.teamName}
+                        onChange={e => setSportData(prev => ({ ...prev, teamName: e.target.value }))}
+                        className="input-field w-full font-bold uppercase"
+                        placeholder="Ex: SILVA & COSTA"
+                      />
+                    </div>
+                    {[0, 1].map(idx => (
+                      <div key={idx} className="bg-indigo-50/40 rounded-2xl p-5 mb-4 border border-indigo-100">
+                        <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-4">Competidor {idx + 1}</p>
+                        <div className="space-y-3">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Nome completo *</label>
+                            <input id={`player-${idx}-name`} type="text" value={sportData.players[idx]?.name || ''} onChange={e => handlePlayerChange(idx, 'name', e.target.value)} className="input-field w-full" placeholder="Nome completo" />
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">CPF *</label>
+                              <input id={`player-${idx}-cpf`} type="text" value={sportData.players[idx]?.cpf || ''} onChange={e => handlePlayerChange(idx, 'cpf', e.target.value)} className="input-field w-full" placeholder="000.000.000-00" />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">WhatsApp *</label>
+                              <input id={`player-${idx}-phone`} type="tel" value={sportData.players[idx]?.phone || ''} onChange={e => handlePlayerChange(idx, 'phone', e.target.value)} className="input-field w-full" placeholder="(00) 00000-0000" />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    <p className="text-xs text-gray-400 italic mt-2">O comprador não precisa ser competidor. Os dados são independentes.</p>
+                  </div>
+                )}
+
                 {/* Step 2: Payment */}
                 {currentStep === 1 && (
                   <div className="space-y-4">
@@ -796,88 +1105,85 @@ const CheckoutPage = () => {
                       <div
                         className="flex-1 border-2 border-primary rounded-lg p-4 flex items-center cursor-pointer bg-primary/5"
                       >
-                        <div className="h-5 w-5 rounded-full border-2 border-primary bg-primary mr-2"></div>
-                        <span>Cartão de crédito</span>
-                      </div>
-                      <div
-                        className="flex-1 border-2 border-gray-200 rounded-lg p-4 flex items-center cursor-pointer"
-                      >
-                        <div className="h-5 w-5 rounded-full border-2 border-gray-300 mr-2"></div>
-                        <span>PIX</span>
+                        <div className="h-5 w-5 rounded-full border-2 border-primary bg-primary mr-2 flex items-center justify-center">
+                          <div className="h-2 w-2 bg-white rounded-full"></div>
+                        </div>
+                        <span className="font-bold">PIX (Aprovação Instantânea)</span>
                       </div>
                     </div>
 
-                    <div>
-                      <label htmlFor="card-number" className="block text-sm font-medium text-gray-700 mb-1">
-                        Número do cartão
-                      </label>
-                      <input
-                        id="card-number"
-                        type="text"
-                        className="input-field w-full"
-                        placeholder="0000 0000 0000 0000"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label htmlFor="expiry" className="block text-sm font-medium text-gray-700 mb-1">
-                          Data de validade
-                        </label>
-                        <input
-                          id="expiry"
-                          type="text"
-                          className="input-field w-full"
-                          placeholder="MM/AA"
-                        />
-                      </div>
-
-                      <div>
-                        <label htmlFor="cvv" className="block text-sm font-medium text-gray-700 mb-1">
-                          CVV
-                        </label>
-                        <input
-                          id="cvv"
-                          type="text"
-                          className="input-field w-full"
-                          placeholder="123"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label htmlFor="card-holder" className="block text-sm font-medium text-gray-700 mb-1">
-                        Nome no cartão
-                      </label>
-                      <input
-                        id="card-holder"
-                        type="text"
-                        className="input-field w-full"
-                        placeholder="Nome como aparece no cartão"
-                      />
-                    </div>
+                    {/* Removed static credit card fields */}
                   </div>
                 )}
 
-                {/* Step 3: Confirmation - PREMIUM TICKET */}
+                {/* Step 3: Confirmation - PREMIUM TICKET or PIX PAYMENT */}
                 {currentStep === 2 && (
                   <div className="text-center py-4 animate-fade-in">
-                    <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4 animate-bounce">
-                      <Check className="h-8 w-8 text-green-600" />
-                    </div>
+                    
+                    {pixData ? (
+                        // MODO PAGAMENTO PENDENTE (PIX)
+                        <div className="mb-8">
+                            <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-yellow-100 mb-4 animate-pulse">
+                                <Clock className="h-8 w-8 text-yellow-600" />
+                            </div>
+                            <h2 className="text-3xl font-black mb-2 tracking-tight uppercase text-yellow-600">Aguardando Pagamento</h2>
+                            <p className="text-gray-500 font-bold mb-8 uppercase text-xs tracking-widest">
+                                Escaneie o QR Code abaixo para garantir seu ingresso.
+                            </p>
 
-                    <h2 className="text-3xl font-black mb-2 tracking-tight uppercase">PARABÉNS! INGRESSO GARANTIDO.</h2>
-                    <p className="text-gray-500 font-bold mb-8 uppercase text-[10px] tracking-widest">
-                      Seu lugar está reservado. Prepare-se para o épico!
-                    </p>
+                            <div className="bg-white p-6 rounded-3xl shadow-lg border border-gray-100 max-w-sm mx-auto">
+                                <img src={`data:image/png;base64,${pixData.encodedImage}`} alt="QR Code PIX" className="w-full h-auto mx-auto border border-gray-200 rounded-lg p-2" />
+                                <div className="mt-6">
+                                    <p className="text-[10px] font-black uppercase text-gray-400 mb-2 tracking-widest">PIX Copia e Cola</p>
+                                    <div className="flex gap-2">
+                                        <input 
+                                            type="text" 
+                                            value={pixData.payload} 
+                                            readOnly 
+                                            className="text-xs bg-gray-50 border border-gray-200 rounded-lg p-3 w-full font-mono outline-none"
+                                        />
+                                        <button 
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(pixData.payload);
+                                                toast({ title: 'Copiado!', description: 'Código PIX copiado para a área de transferência', variant: 'default' });
+                                            }}
+                                            className="bg-indigo-600 text-white p-3 rounded-lg hover:bg-indigo-700 transition flex items-center justify-center"
+                                        >
+                                            <Copy className="w-5 h-5" />
+                                        </button>
+                                    </div>
+                                </div>
+                                {invoiceUrl && (
+                                    <div className="mt-6">
+                                        <button 
+                                            onClick={() => window.open(invoiceUrl, '_blank')}
+                                            className="text-indigo-600 text-xs font-bold underline uppercase"
+                                        >
+                                            Pagar depois (Abrir fatura)
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    ) : (
+                        // MODO INGRESSO GARANTIDO (GRATUITO)
+                        <>
+                            <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4 animate-bounce">
+                                <Check className="h-8 w-8 text-green-600" />
+                            </div>
 
-                    {/* Ticket Premium Wrapper */}
-                    <div id="premium-ticket" className="relative max-w-sm mx-auto bg-gray-900 rounded-[2.5rem] overflow-hidden shadow-2xl border-4 border-gray-800 group print:shadow-none print:border-black">
-                        {/* Ticket Stub Top */}
-                        <div 
-                            className="absolute top-0 left-0 w-full h-4" 
-                            style={{ backgroundColor: event.ticket_design?.primaryColor || '#4F46E5' }}
-                        ></div>
+                            <h2 className="text-3xl font-black mb-2 tracking-tight uppercase">PARABÉNS! INGRESSO GARANTIDO.</h2>
+                            <p className="text-gray-500 font-bold mb-8 uppercase text-[10px] tracking-widest">
+                                Seu lugar está reservado. Prepare-se para o épico!
+                            </p>
+
+                            {/* Ticket Premium Wrapper */}
+                            <div id="premium-ticket" className="relative max-w-sm mx-auto bg-gray-900 rounded-[2.5rem] overflow-hidden shadow-2xl border-4 border-gray-800 group print:shadow-none print:border-black">
+                                {/* Ticket Stub Top */}
+                                <div 
+                                    className="absolute top-0 left-0 w-full h-4" 
+                                    style={{ backgroundColor: event.ticket_design?.primaryColor || '#4F46E5' }}
+                                ></div>
                         
                         {/* Event Image / Gradient Header */}
                         <div 
@@ -950,32 +1256,54 @@ const CheckoutPage = () => {
                             <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Autenticado por Ticketera A2</span>
                         </div>
                     </div>
+                    </>
+                    )}
 
                     {/* Action Buttons */}
                     <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center print:hidden">
-                      <button
-                        onClick={() => window.open(`https://wa.me/${formData.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá! Aqui está seu ingresso para o evento ${event.title}. Acesse aqui: ${window.location.origin}/dashboard/tickets`)}`, '_blank')}
-                        className="bg-[#25D366] text-white px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-[#128C7E] transition shadow-xl flex items-center justify-center gap-2"
-                      >
-                        <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                        Receber no WhatsApp
-                      </button>
-                      <button
-                        onClick={() => window.print()}
-                        className="bg-gray-900 text-white px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-gray-800 transition shadow-xl flex items-center justify-center gap-2"
-                      >
-                        <Check className="w-5 h-5" /> Imprimir Ingresso
-                      </button>
+                      {pixData ? (
+                         <button
+                           onClick={() => {
+                               sessionStorage.removeItem(sessionKey);
+                               navigate('/dashboard/tickets');
+                           }}
+                           className="bg-gray-900 text-white px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-gray-800 transition flex items-center justify-center gap-2"
+                         >
+                           Ir para Meus Ingressos
+                         </button>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => window.open(`https://wa.me/${formData.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá! Aqui está seu ingresso para o evento ${event.title}. Acesse aqui: ${window.location.origin}/dashboard/tickets`)}`, '_blank')}
+                            className="bg-[#25D366] text-white px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-[#128C7E] transition shadow-xl flex items-center justify-center gap-2"
+                          >
+                            <MessageCircle className="w-5 h-5" /> Enviar por WhatsApp
+                          </button>
+                          <button
+                            onClick={() => {
+                              window.print();
+                            }}
+                            className="bg-white text-gray-900 px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-widest border-2 border-gray-200 hover:border-gray-900 hover:bg-gray-50 transition flex items-center justify-center gap-2 shadow-sm"
+                          >
+                            <Check className="w-5 h-5" /> Imprimir Ingresso
+                          </button>
+                        </>
+                      )}
                     </div>
 
-                    <div className="mt-8 flex justify-center print:hidden">
-                        <button
-                          className="text-indigo-600 font-black text-xs uppercase tracking-widest hover:text-indigo-700 transition"
-                          onClick={handleFinish}
-                        >
-                          Ir para meus ingressos
-                        </button>
-                    </div>
+                    {!pixData && (
+                        <div className="mt-8 flex justify-center print:hidden">
+                            <button
+                              className="text-indigo-600 font-black text-xs uppercase tracking-widest hover:text-indigo-700 transition"
+                              onClick={() => {
+                                  sessionStorage.removeItem(sessionKey);
+                                  handleFinish();
+                              }}
+                            >
+                              Ir para meus ingressos
+                            </button>
+                        </div>
+                    )}
                   </div>
                 )}
 
@@ -1038,7 +1366,7 @@ const CheckoutPage = () => {
                     <span className="text-gray-600">{ticket.name}</span>
                     <span>{ticket.price > 0 ? `R$ ${ticket.price.toFixed(2).replace('.', ',')}` : 'Grátis'}</span>
                   </div>
-                  {ticket.price > 0 && (
+                  {ticket.price > 0 && feeConfig.passToBuyer && (
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-gray-600">Taxa de serviço</span>
                       <span>R$ {((ticket.price * (feeConfig.percentage / 100)) + feeConfig.fixed).toFixed(2).replace('.', ',')}</span>

@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, serial, integer, boolean, decimal, jsonb, uuid } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, serial, integer, boolean, decimal, jsonb, uuid, index, AnyPgColumn } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
 // Administradores da Plataforma (Master)
@@ -153,6 +153,47 @@ export const purchasedTickets = pgTable('purchased_tickets', {
     validatedBy: uuid('validated_by'),
     createdAt: timestamp('created_at').defaultNow(),
 });
+
+// =============================================================================
+// ESPORTE — Inscrições Esportivas (REGISTRATION e REPECHAGE)
+// =============================================================================
+
+// Unidade competitiva: 1 registro = 1 dupla / 1 indivíduo / 1 time
+export const sportRegistrations = pgTable('sport_registrations', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    eventId: uuid('event_id').references(() => events.id).notNull(),
+    ticketId: uuid('ticket_id').references(() => tickets.id).notNull(),
+    saleId: uuid('sale_id').references(() => sales.id),
+    purchasedTicketId: uuid('purchased_ticket_id').references(() => purchasedTickets.id),
+    teamName: text('team_name'),
+    registrationType: text('registration_type').notNull().default('INDIVIDUAL'), // INDIVIDUAL | DOUBLE | TEAM
+    participantsPerRegistration: integer('participants_per_registration').notNull().default(1),
+    ticketPurpose: text('ticket_purpose').notNull().default('REGISTRATION'), // REGISTRATION | REPECHAGE
+    // Para REPECHAGE: aponta para a inscrição original
+    originalRegistrationId: uuid('original_registration_id').references((): AnyPgColumn => sportRegistrations.id),
+    // Contagem de repescagens pagas ligadas a esta inscrição (incrementado idempotentemente)
+    repechageCount: integer('repechage_count').notNull().default(0),
+    status: text('status').notNull().default('pending'), // pending | paid | cancelled | refunded
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+}, (t) => ({
+    eventIdx: index('idx_sr_event_id').on(t.eventId),
+    originalIdx: index('idx_sr_original').on(t.originalRegistrationId),
+    statusIdx: index('idx_sr_status').on(t.status),
+}));
+
+// Jogadores de cada inscrição esportiva
+export const sportRegistrationPlayers = pgTable('sport_registration_players', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    registrationId: uuid('registration_id').references(() => sportRegistrations.id, { onDelete: 'cascade' }).notNull(),
+    playerOrder: integer('player_order').notNull(), // 1, 2, ...
+    name: text('name').notNull(),
+    cpf: text('cpf').notNull(), // somente dígitos, normalizado server-side
+    phone: text('phone'),
+    createdAt: timestamp('created_at').defaultNow(),
+}, (t) => ({
+    cpfIdx: index('idx_srp_cpf').on(t.cpf),
+}));
 
 // Staff / Membros da Equipe (Vinculados a Organizadores ou Eventos)
 export const staff = pgTable('staff', {
@@ -857,5 +898,42 @@ export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
     tenant: one(tenants, {
         fields: [auditLogs.tenantId],
         references: [tenants.id],
+    }),
+}));
+
+// =============================================================================
+// ESPORTE — Relações
+// =============================================================================
+
+export const sportRegistrationsRelations = relations(sportRegistrations, ({ one, many }) => ({
+    event: one(events, {
+        fields: [sportRegistrations.eventId],
+        references: [events.id],
+    }),
+    ticket: one(tickets, {
+        fields: [sportRegistrations.ticketId],
+        references: [tickets.id],
+    }),
+    sale: one(sales, {
+        fields: [sportRegistrations.saleId],
+        references: [sales.id],
+    }),
+    purchasedTicket: one(purchasedTickets, {
+        fields: [sportRegistrations.purchasedTicketId],
+        references: [purchasedTickets.id],
+    }),
+    originalRegistration: one(sportRegistrations, {
+        fields: [sportRegistrations.originalRegistrationId],
+        references: [sportRegistrations.id],
+        relationName: 'repechageOf',
+    }),
+    repechages: many(sportRegistrations, { relationName: 'repechageOf' }),
+    players: many(sportRegistrationPlayers),
+}));
+
+export const sportRegistrationPlayersRelations = relations(sportRegistrationPlayers, ({ one }) => ({
+    registration: one(sportRegistrations, {
+        fields: [sportRegistrationPlayers.registrationId],
+        references: [sportRegistrations.id],
     }),
 }));

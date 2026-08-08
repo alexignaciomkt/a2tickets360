@@ -12,9 +12,9 @@ const {
     candidates, staffProposals, sponsorTypes, sponsors, sponsorInstallments, sponsorDeliverables,
     standCategories, stands, visitors, exhibitorStaff, exhibitorLogistics, exhibitorLeads,
     aiChatLogs, syncQueue, legalPages, productCategories, products, productVariants, productOrders,
-    organizerPosts
+    organizerPosts, sportRegistrations, sportRegistrationPlayers, purchasedTickets
 } = schema;
-import { eq, or, and, isNull, sql, inArray } from 'drizzle-orm';
+import { eq, or, and, isNull, sql, inArray, lte, gte } from 'drizzle-orm';
 import Redis from 'ioredis';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { join } from 'node:path';
@@ -392,104 +392,368 @@ app.post('/api/organizers/register', async (c: Context) => {
     }
 });
 
-// --- Rota de Checkout (Criação de Pagamento com Split) ---
+// =============================================================================
+// HELPER: Normalizar CPF (somente digitos)
+// =============================================================================
+function normalizeCpf(cpf: string): string {
+    return (cpf || '').replace(/\D/g, '');
+}
+
+// =============================================================================
+// POST /api/sports/check-eligibility
+// Backend decide elegibilidade para REPECHAGE.
+// Frontend apenas apresenta a decisao.
+// =============================================================================
+app.post('/api/sports/check-eligibility', async (c: Context) => {
+    try {
+        const { eventId, ticketId, cpf: rawCpf } = await c.req.json();
+        if (!eventId || !ticketId || !rawCpf) {
+            return c.json({ eligible: false, reason: 'Dados incompletos.' }, 400);
+        }
+        const cpf = normalizeCpf(rawCpf);
+        if (cpf.length !== 11) {
+            return c.json({ eligible: false, reason: 'CPF invalido.' });
+        }
+
+        // 1. Verificar que o ticket e do mesmo evento e e REPECHAGE
+        const ticket = await db.query.tickets.findFirst({
+            where: and(eq(tickets.id, ticketId), eq(tickets.eventId, eventId)),
+            with: { event: true }
+        });
+        if (!ticket) {
+            return c.json({ eligible: false, reason: 'Lote nao encontrado neste evento.' });
+        }
+        if (ticket.ticketPurpose !== 'REPECHAGE') {
+            return c.json({ eligible: false, reason: 'Este lote nao e de repescagem.' });
+        }
+
+        // 2. Verificar janela temporal do evento
+        const now = new Date();
+        const eventData = ticket.event;
+        if (eventData.startDate && now < new Date(eventData.startDate)) {
+            return c.json({ eligible: false, reason: 'O periodo de repescagem deste evento ainda nao iniciou.' });
+        }
+        if (eventData.endDate && now > new Date(eventData.endDate)) {
+            return c.json({ eligible: false, reason: 'O periodo de repescagem deste evento encerrou.' });
+        }
+
+        // 3. Buscar player pelo CPF no mesmo evento
+        const playerResult = await db
+            .select({
+                registrationId: sportRegistrationPlayers.registrationId,
+                playerOrder: sportRegistrationPlayers.playerOrder,
+                playerName: sportRegistrationPlayers.name,
+            })
+            .from(sportRegistrationPlayers)
+            .innerJoin(
+                sportRegistrations,
+                eq(sportRegistrationPlayers.registrationId, sportRegistrations.id)
+            )
+            .where(
+                and(
+                    eq(sportRegistrationPlayers.cpf, cpf),
+                    eq(sportRegistrations.eventId, eventId),
+                    eq(sportRegistrations.ticketPurpose, 'REGISTRATION'),
+                    eq(sportRegistrations.status, 'paid')
+                )
+            )
+            .limit(1);
+
+        if (!playerResult.length) {
+            return c.json({ eligible: false, reason: 'Nao encontramos uma inscricao paga neste evento para este CPF.' });
+        }
+
+        const originalRegistrationId = playerResult[0].registrationId;
+
+        // 4. Carregar inscricao original com jogadores
+        const originalReg = await db.query.sportRegistrations.findFirst({
+            where: eq(sportRegistrations.id, originalRegistrationId),
+            with: { players: true }
+        });
+        if (!originalReg || originalReg.status === 'cancelled' || originalReg.status === 'refunded') {
+            return c.json({ eligible: false, reason: 'A inscricao original nao esta ativa.' });
+        }
+
+        // 5. Verificar limite de repescagens
+        const eventSettings = eventData.settings as any || {};
+        const maxRepechages = typeof eventSettings.max_repechages_per_registration === 'number'
+            ? eventSettings.max_repechages_per_registration
+            : 0; // default seguro: 0 se nao configurado
+
+        // Contar repescagens pagas vinculadas a esta inscricao original
+        const paidRepechages = await db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(sportRegistrations)
+            .where(
+                and(
+                    eq(sportRegistrations.originalRegistrationId, originalRegistrationId),
+                    eq(sportRegistrations.ticketPurpose, 'REPECHAGE'),
+                    eq(sportRegistrations.status, 'paid')
+                )
+            );
+        const usedRepechages = paidRepechages[0]?.count ?? 0;
+
+        if (usedRepechages >= maxRepechages) {
+            return c.json({
+                eligible: false,
+                reason: `Esta dupla ja utilizou o limite de repescagens permitido (${usedRepechages} de ${maxRepechages}).`
+            });
+        }
+
+        // Elegivel!
+        return c.json({
+            eligible: true,
+            originalRegistrationId,
+            teamName: originalReg.teamName,
+            players: originalReg.players.map(p => ({ order: p.playerOrder, name: p.name })),
+            usedRepechages,
+            maxRepechages,
+        });
+    } catch (error: any) {
+        console.error('[ELIGIBILITY]', error);
+        return c.json({ eligible: false, reason: 'Erro interno ao verificar elegibilidade.' }, 500);
+    }
+});
+
+// =============================================================================
+// POST /api/payments/checkout
+// Criacao de Pagamento com Split.
+// Para ticket_purpose REGISTRATION ou REPECHAGE, quantity forcada = 1.
+// Fluxo: validar -> sale -> sport_registration (pending) -> Asaas
+// =============================================================================
 app.post('/api/payments/checkout', async (c: Context) => {
-    const { ticketId, quantity, buyerName, buyerEmail, buyerCpf, paymentMethod } = await c.req.json();
+    const body = await c.req.json();
+    const { ticketId, buyerId, buyerName, buyerEmail, buyerCpf, paymentMethod, sportData } = body;
+    let { quantity } = body;
 
     try {
-        const ticket = await db.query.tickets.findFirst({ 
+        const ticket = await db.query.tickets.findFirst({
             where: eq(schema.tickets.id, ticketId),
             with: { event: true }
         });
-        if (!ticket) throw new Error('Ingresso não encontrado');
-        
+        if (!ticket) throw new Error('Ingresso nao encontrado');
+
+        // Forcar quantity = 1 para produtos esportivos
+        const isSportTicket = ticket.ticketPurpose === 'REGISTRATION' || ticket.ticketPurpose === 'REPECHAGE';
+        if (isSportTicket) {
+            quantity = 1;
+        } else {
+            quantity = Math.max(1, parseInt(quantity as any) || 1);
+            
+            // Validation for STANDARD tickets
+            const eventSettings = ticket.event.settings as any || {};
+            const maxTicketsPerCpf = Number(eventSettings.max_tickets_per_cpf || 1);
+            
+            // Enforce limit checking paid and pending tickets for this CPF
+            const cpfStr = normalizeCpf(buyerCpf);
+            const userPurchases = await db
+                .select({ count: sql<number>`count(*)::int` })
+                .from(purchasedTickets)
+                .where(
+                    and(
+                        eq(purchasedTickets.eventId, ticket.eventId),
+                        // Usually we check by user ID or we would need to join with Sales to check CPF.
+                        // Assuming buyerId is present, we can check by userId for logged in users:
+                        eq(purchasedTickets.userId, buyerId || ''),
+                        inArray(purchasedTickets.status, ['paid', 'pending', 'active'])
+                    )
+                );
+            const currentCount = userPurchases[0]?.count ?? 0;
+            if (currentCount + quantity > maxTicketsPerCpf) {
+                throw new Error(`Limite atingido. Você só pode comprar no máximo ${maxTicketsPerCpf} ingresso(s) por CPF para este evento.`);
+            }
+        }
+
+        // Para REPECHAGE: validar elegibilidade server-side antes de qualquer cobranca
+        let originalRegistrationId: string | null = null;
+        if (ticket.ticketPurpose === 'REPECHAGE') {
+            if (!sportData?.originalRegistrationId || !sportData?.cpf) {
+                throw new Error('Dados de elegibilidade ausentes para repescagem.');
+            }
+            const cpf = normalizeCpf(sportData.cpf);
+            const eventId = ticket.eventId;
+
+            // Re-verificar elegibilidade (nao confiar no frontend)
+            const now = new Date();
+            const eventData = ticket.event;
+            if (eventData.startDate && now < new Date(eventData.startDate)) {
+                throw new Error('Periodo de repescagem ainda nao iniciou.');
+            }
+            if (eventData.endDate && now > new Date(eventData.endDate)) {
+                throw new Error('Periodo de repescagem encerrado.');
+            }
+
+            const playerCheck = await db
+                .select({ registrationId: sportRegistrationPlayers.registrationId })
+                .from(sportRegistrationPlayers)
+                .innerJoin(sportRegistrations, eq(sportRegistrationPlayers.registrationId, sportRegistrations.id))
+                .where(
+                    and(
+                        eq(sportRegistrationPlayers.cpf, cpf),
+                        eq(sportRegistrations.id, sportData.originalRegistrationId),
+                        eq(sportRegistrations.eventId, eventId),
+                        eq(sportRegistrations.ticketPurpose, 'REGISTRATION'),
+                        eq(sportRegistrations.status, 'paid')
+                    )
+                )
+                .limit(1);
+
+            if (!playerCheck.length) {
+                throw new Error('Inscricao original nao encontrada ou CPF nao pertence a esta dupla.');
+            }
+
+            const eventSettings = eventData.settings as any || {};
+            const maxRepechages = typeof eventSettings.max_repechages_per_registration === 'number'
+                ? eventSettings.max_repechages_per_registration
+                : 0;
+
+            const paidRepechages = await db
+                .select({ count: sql<number>`count(*)::int` })
+                .from(sportRegistrations)
+                .where(
+                    and(
+                        eq(sportRegistrations.originalRegistrationId, sportData.originalRegistrationId),
+                        eq(sportRegistrations.ticketPurpose, 'REPECHAGE'),
+                        inArray(sportRegistrations.status, ['paid', 'pending'])
+                    )
+                );
+            const usedRepechages = paidRepechages[0]?.count ?? 0;
+
+            if (usedRepechages >= maxRepechages) {
+                throw new Error(`Limite de repescagens atingido (${usedRepechages}/${maxRepechages}).`);
+            }
+
+            originalRegistrationId = sportData.originalRegistrationId;
+        }
+
         const organizer = await db.query.organizers.findFirst({
             where: eq(schema.organizers.userId, ticket.event.organizerId)
         });
-
-        if (!organizer) {
-            throw new Error('Organizador não encontrado.');
-        }
+        if (!organizer) throw new Error('Organizador nao encontrado.');
 
         const ticketPrice = Number(ticket.price);
         const subtotal = ticketPrice * quantity;
-        
+
         // Calcular Taxas
         const organizerSettings = organizer.settings as any || {};
         const feePercentage = Number(organizerSettings.feePercentage || 10);
         const feeFixed = Number(organizerSettings.feeFixed || 0);
-        
-        // Puxar a configuração do evento (JSONB)
+
         const eventSettings = ticket.event.settings as any;
         const eventPassFeeToBuyer = eventSettings?.pass_fee_to_buyer;
-        
-        // Prioridade: Evento > Organizador
-        const passFeeToBuyer = eventPassFeeToBuyer !== undefined 
-            ? eventPassFeeToBuyer 
+        const passFeeToBuyer = eventPassFeeToBuyer !== undefined
+            ? eventPassFeeToBuyer
             : (organizerSettings.passFeeToBuyer !== false);
-        
+
         const feeAmount = (subtotal * (feePercentage / 100)) + feeFixed;
         const totalValue = passFeeToBuyer ? subtotal + feeAmount : subtotal;
-
-        // 1. Criar Cliente no Asaas usando a API KEY do Master, 
-        // ou usar o apiKey do organizer se quisermos que a transação aconteça na conta dele?
-        // Como estamos usando "Split", a cobrança é criada na Master Account e dividida.
-        const customer = await asaas.createCustomer({ name: buyerName, email: buyerEmail, cpfCnpj: buyerCpf });
-
-        // 2. Criar Pagamento com Split enviando o feeAmount para a Wallet da Master.
-        // Espera, no Asaas, se a cobrança é feita pela MASTER, o 'split' define quanto vai para outras wallets.
-        // Se a Master faz a cobrança, ela recebe 100%. O split serve para enviar o (subtotal - taxa) para o Produtor.
-        // Ou seja: splitValue para o Produtor = subtotal - (se passFeeToBuyer for false, a taxa é descontada do subtotal).
         const producerNetValue = passFeeToBuyer ? subtotal : (subtotal - feeAmount);
-        
-        // Aqui o asaas.createPayment tem que mandar pra walletId do produtor.
-        // Preciso ajustar no asaas.ts quem é o recebedor do split (walletId do produtor, não do master).
-        
-        // Vamos refatorar o asaas.ts no backend se ele usa walletId fixo da Master.
-        // O asaas.createPayment no asaas.ts estava usando this.walletId (Master).
-        // Isso quer dizer que o produtor está cobrando e passando pra gente?
-        // Ou a gente cobra e passa pro produtor?
-        // A arquitetura Asaas recomendada para Marketplaces é: a Master gera a cobrança, 
-        // e faz um Split repassando o "producerNetValue" para a "organizer.walletId".
-        
-        const payment = await asaas.createPayment({
-            customer: customer.id,
-            billingType: paymentMethod,
-            value: totalValue,
-            dueDate: new Date(Date.now() + 86400000).toISOString().split('T')[0], // Amanhã
-            description: `[A2 Tickets] Compra de ${quantity}x ${ticket.name}`,
-            externalReference: `sale_${Date.now()}`,
-            splitValue: producerNetValue, 
-            splitWalletId: organizerSettings.walletId // Preciso passar isso pro método
-        });
 
-        // 3. Registrar Venda Pendente
+        // 1. Criar Sale ANTES de chamar o Asaas
         const saleResult = await db.insert(schema.sales).values({
             eventId: ticket.eventId,
-            buyerInfo: { name: buyerName, email: buyerEmail },
+            buyerInfo: { name: buyerName, email: buyerEmail, cpf: normalizeCpf(buyerCpf) },
             totalAmount: totalValue.toString(),
-            asaasPaymentId: payment.id,
             paymentStatus: 'pending',
             paymentMethod: paymentMethod
         }).returning({ id: schema.sales.id });
-
         const saleId = saleResult[0].id;
 
-        // 4. Registrar os ingressos comprados (1 ingresso por vez na quantidade)
-        for (let i = 0; i < quantity; i++) {
-            const qrCode = `QR_${Math.random().toString(36).substring(7).toUpperCase()}`;
-            await db.insert(schema.purchasedTickets).values({
+        // 2. Criar purchased_ticket pendente
+        const qrCode = `QR_${Math.random().toString(36).substring(7).toUpperCase()}`;
+        const ptResult = await db.insert(purchasedTickets).values({
+            eventId: ticket.eventId,
+            userId: buyerId || ticket.event.organizerId,
+            ticketId: ticket.id,
+            parentPurchaseId: saleId,
+            status: 'pending',
+            qrCodeData: qrCode
+        }).returning({ id: purchasedTickets.id });
+        const purchasedTicketId = ptResult[0].id;
+
+        // 3. Criar sport_registration pendente (se for ticket esportivo)
+        let sportRegId: string | null = null;
+        if (isSportTicket) {
+            const srValues: any = {
                 eventId: ticket.eventId,
-                userId: ticket.event.organizerId, // Mocking with a guaranteed valid user ID from the event owner
                 ticketId: ticket.id,
-                parentPurchaseId: saleId,
-                status: 'active',
-                qrCodeData: qrCode
-            });
+                saleId: saleId,
+                purchasedTicketId: purchasedTicketId,
+                teamName: sportData?.teamName || null,
+                registrationType: ticket.registrationType || 'INDIVIDUAL',
+                participantsPerRegistration: ticket.participantsPerRegistration || 1,
+                ticketPurpose: ticket.ticketPurpose || 'REGISTRATION',
+                originalRegistrationId: originalRegistrationId,
+                status: 'pending',
+            };
+
+            const srResult = await db.insert(sportRegistrations).values(srValues).returning({ id: sportRegistrations.id });
+            sportRegId = srResult[0].id;
+
+            // Inserir jogadores somente para REGISTRATION
+            if (ticket.ticketPurpose === 'REGISTRATION' && sportData?.players?.length) {
+                const playerInserts = (sportData.players as any[]).map((p: any, idx: number) => ({
+                    registrationId: sportRegId!,
+                    playerOrder: idx + 1,
+                    name: p.name?.trim() || '',
+                    cpf: normalizeCpf(p.cpf),
+                    phone: p.phone?.replace(/\D/g, '') || null,
+                }));
+                await db.insert(sportRegistrationPlayers).values(playerInserts);
+            }
         }
 
-        return c.json({ status: 'success', invoiceUrl: payment.invoiceUrl, paymentId: payment.id });
+        // 4. Criar cliente e pagamento no Asaas
+        let asaasCustomer: any;
+        try {
+            asaasCustomer = await asaas.createCustomer({
+                name: buyerName,
+                email: buyerEmail,
+                cpfCnpj: normalizeCpf(buyerCpf)
+            });
+        } catch (asaasErr: any) {
+            // Se Asaas falhar, manter sale + sport_registration como pending (nao deletar)
+            // O operador pode investigar. Retornar erro ao cliente.
+            console.error('[CHECKOUT] Asaas customer error:', asaasErr.message);
+            throw new Error(`Erro ao criar cliente no Asaas: ${asaasErr.message}`);
+        }
+
+        const payment = await asaas.createPayment({
+            customer: asaasCustomer.id,
+            billingType: paymentMethod,
+            value: totalValue,
+            dueDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+            description: `[A2 Tickets] ${ticket.ticketPurpose === 'REPECHAGE' ? 'Repescagem' : 'Inscricao'}: ${ticket.name}`,
+            externalReference: `sale_${saleId}`,
+            splitValue: producerNetValue,
+            splitWalletId: organizerSettings.walletId
+        });
+
+        // 5. Persistir asaasPaymentId na sale
+        await db.update(schema.sales)
+            .set({ asaasPaymentId: payment.id })
+            .where(eq(schema.sales.id, saleId));
+
+        let pixQrCode = null;
+        if (paymentMethod === 'PIX') {
+            try {
+                pixQrCode = await asaas.getPixQrCode(payment.id);
+            } catch (qrErr: any) {
+                console.error('[CHECKOUT] Erro ao obter QR Code do PIX:', qrErr.message);
+            }
+        }
+
+        return c.json({
+            status: 'success',
+            invoiceUrl: payment.invoiceUrl,
+            paymentId: payment.id,
+            saleId,
+            sportRegistrationId: sportRegId,
+            purchasedTicketId,
+            pixQrCode
+        });
     } catch (error: any) {
+        console.error('[CHECKOUT]', error);
         return c.json({ error: error.message }, 400);
     }
 });
@@ -527,15 +791,13 @@ app.post('/api/payments/promote-event', async (c: Context) => {
     }
 });
 
-// --- Webhook do Asaas ---
+// --- Webhook do Asaas --- IDEMPOTENTE ---
 app.post('/api/webhooks/asaas', async (c: Context) => {
-    // 1. Validar Token de Autenticação do Asaas (Segurança)
+    // 1. Validar Token de Autenticacao do Asaas (Seguranca)
     const asaasToken = c.req.header('asaas-access-token');
     const expectedToken = process.env.ASAAS_WEBHOOK_TOKEN;
-    
-    // Só valida se o servidor tiver a variável configurada, para não quebrar ambientes de dev que não configuraram ainda
     if (expectedToken && asaasToken !== expectedToken) {
-        console.warn('⚠️ Webhook Asaas bloqueado: Token inválido.');
+        console.warn('[WEBHOOK] Asaas bloqueado: Token invalido.');
         return c.json({ error: 'Unauthorized' }, 401);
     }
 
@@ -545,23 +807,66 @@ app.post('/api/webhooks/asaas', async (c: Context) => {
     if (event === 'PAYMENT_CONFIRMED' || event === 'PAYMENT_RECEIVED') {
         const asaasId = payment.id;
 
-        // Tentar atualizar em Sales (Ingressos)
+        // Tentar atualizar sale (Ingressos)
         const saleRecord = await db.query.sales.findFirst({
             where: eq(schema.sales.asaasPaymentId, asaasId)
         });
 
         if (saleRecord) {
-            await db.update(schema.sales)
-                .set({ paymentStatus: 'paid' })
-                .where(eq(schema.sales.asaasPaymentId, asaasId));
+            // Idempotencia: so processa se ainda estiver pending
+            if (saleRecord.paymentStatus === 'pending') {
+                await db.update(schema.sales)
+                    .set({ paymentStatus: 'paid' })
+                    .where(
+                        and(
+                            eq(schema.sales.asaasPaymentId, asaasId),
+                            eq(schema.sales.paymentStatus, 'pending')
+                        )
+                    );
 
-            if (redis) {
-                await redis.set(`ticket:${saleRecord.qrCodeData}`, 'PAID');
+                // Ativar purchased_tickets ligados a esta sale
+                await db.update(purchasedTickets)
+                    .set({ status: 'active' })
+                    .where(eq(purchasedTickets.parentPurchaseId, saleRecord.id));
+
+                // Atualizar sport_registration se houver
+                const sportReg = await db.query.sportRegistrations.findFirst({
+                    where: and(
+                        eq(sportRegistrations.saleId, saleRecord.id),
+                        eq(sportRegistrations.status, 'pending')
+                    )
+                });
+
+                if (sportReg) {
+                    await db.update(sportRegistrations)
+                        .set({ status: 'paid', updatedAt: new Date() })
+                        .where(
+                            and(
+                                eq(sportRegistrations.id, sportReg.id),
+                                eq(sportRegistrations.status, 'pending') // condicao de guarda
+                            )
+                        );
+
+                    // Se for REPECHAGE: incrementar contador na inscricao original
+                    // So incrementa se a transicao pending->paid ocorreu (garante idempotencia)
+                    if (sportReg.ticketPurpose === 'REPECHAGE' && sportReg.originalRegistrationId) {
+                        await db.update(sportRegistrations)
+                            .set({ repechageCount: sql`${sportRegistrations.repechageCount} + 1` })
+                            .where(eq(sportRegistrations.id, sportReg.originalRegistrationId));
+                    }
+                }
+
+                if (redis) {
+                    await redis.set(`sale:${saleRecord.id}`, 'PAID');
+                }
+                console.log(`[WEBHOOK] Sale ${saleRecord.id} confirmada. Sport reg atualizada.`);
+            } else {
+                console.log(`[WEBHOOK] Sale ${saleRecord.id} ja estava ${saleRecord.paymentStatus}. Ignorando (idempotente).`);
             }
             return c.json({ received: true, type: 'ticket' });
         }
 
-        // Se não for ingresso, verificar se é Promoção de Evento
+        // Se nao for ingresso, verificar se e Promocao de Evento
         const eventRecord = await db.query.events.findFirst({
             where: eq(schema.events.featuredAsaasPaymentId, asaasId)
         });
@@ -569,15 +874,13 @@ app.post('/api/webhooks/asaas', async (c: Context) => {
         if (eventRecord) {
             const thirtyDaysFromNow = new Date();
             thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
-
             await db.update(schema.events)
-                .set({ 
-                    isFeatured: true, 
+                .set({
+                    isFeatured: true,
                     featuredPaymentStatus: 'paid',
                     featuredUntil: thirtyDaysFromNow
                 })
                 .where(eq(schema.events.id, eventRecord.id));
-
             return c.json({ received: true, type: 'event_promotion' });
         }
     }
@@ -1977,7 +2280,21 @@ app.put('/api/master/events/:id/featured', async (c: Context) => {
     }
 });
 
+app.get('/api/purchased-tickets/:id/status', async (c: Context) => {
+    try {
+        const id = c.req.param('id');
+        const pt = await db.query.purchasedTickets.findFirst({
+            where: eq(schema.purchasedTickets.id, id),
+            columns: { status: true }
+        });
+        if (!pt) return c.json({ error: 'Not found' }, 404);
+        return c.json({ status: pt.status });
+    } catch (e: any) {
+        return c.json({ error: e.message }, 500);
+    }
+});
+
 export default {
-    port: Number(process.env.PORT) || 3002,
+    port: process.env.PORT || 3002,
     fetch: app.fetch,
 };

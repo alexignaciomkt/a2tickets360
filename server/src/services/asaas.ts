@@ -102,6 +102,11 @@ export class AsaasService {
             externalReference: data.externalReference
         });
     }
+
+    // Obter QR Code do PIX
+    async getPixQrCode(paymentId: string) {
+        return this.request(`/payments/${paymentId}/pixQrCode`, 'GET');
+    }
 }
 
 export const asaas = new AsaasService();
