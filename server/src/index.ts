@@ -1,3 +1,6 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import { Hono, Context } from 'hono';
 import { cors } from 'hono/cors';
 import { db } from './db';
@@ -12,7 +15,6 @@ const {
     organizerPosts
 } = schema;
 import { eq, or, and, isNull, sql, inArray } from 'drizzle-orm';
-import dotenv from 'dotenv';
 import Redis from 'ioredis';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { join } from 'node:path';
@@ -25,10 +27,12 @@ import nodemailer from 'nodemailer';
 import exhibitorRoutes from './routes/exhibitor';
 import aiRoutes from './routes/ai';
 import authRoutes from './routes/auth';
+import integrationRoutes from './routes/integrations';
 
-dotenv.config();
+import { logger } from 'hono/logger';
 
 const app = new Hono();
+app.use('*', logger());
 
 import { AsaasService } from './services/asaas';
 export const asaas = new AsaasService();
@@ -76,6 +80,7 @@ app.use('/*', cors({
 app.route('/api/exhibitor', exhibitorRoutes);
 app.route('/api/ai', aiRoutes);
 app.route('/api/auth', authRoutes);
+app.route('/api/integrations', integrationRoutes);
 
 app.get('/', (c: Context) => c.text('A2 Tickets 360º API - High Performance Ready'));
 
@@ -1973,6 +1978,6 @@ app.put('/api/master/events/:id/featured', async (c: Context) => {
 });
 
 export default {
-    port: 3000,
+    port: Number(process.env.PORT) || 3002,
     fetch: app.fetch,
 };

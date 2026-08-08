@@ -72,7 +72,7 @@ const EventCard = ({ event }: EventCardProps) => {
             <span className="text-xs text-gray-500">A partir de</span>
             <p className="text-primary font-bold">
               {event.tickets.length > 0
-                ? `R$ ${Math.min(...event.tickets.map((t) => t.price)).toFixed(2).replace('.', ',')}`
+                ? `R$ ${Math.min(...event.tickets.map((t) => Number(t.price))).toFixed(2).replace('.', ',')}`
                 : 'Grátis'}
             </p>
           </div>

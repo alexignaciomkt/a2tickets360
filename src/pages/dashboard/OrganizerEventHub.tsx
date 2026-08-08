@@ -29,6 +29,8 @@ import OrganizerTicketDesignerTab from './OrganizerTicketDesignerTab';
 import OrganizerEventInfoTab from './OrganizerEventInfoTab';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { api } from '@/services/api';
+import { useToast } from '@/components/ui/use-toast';
 
 type TabType = 'overview' | 'visitors' | 'promoters' | 'coupons' | 'settings' | 'design' | 'info';
 
@@ -45,39 +47,88 @@ const OrganizerEventHub = () => {
     checkins: 0
   });
 
+  // State isActivatingSports is defined closer to its handler
+  const { toast } = useToast();
+
+  const fetchEventData = async () => {
+    if (!eventId) return;
+    // 1. Event Data with Tickets
+    const { data: eventData } = await supabase
+      .from('events')
+      .select('*, tickets(*)')
+      .eq('id', eventId)
+      .single();
+    
+    if (eventData) {
+      setEvent(eventData);
+      const capacity = eventData.tickets?.reduce((acc: number, t: any) => acc + t.quantity, 0) || 0;
+      
+      // 2. Real-time stats from purchased_tickets
+      const { data: sales } = await supabase
+        .from('purchased_tickets')
+        .select('id, status, validated_at, tickets(price)')
+        .eq('event_id', eventId)
+        .in('status', ['active', 'used', 'confirmed']);
+
+      const sold = sales?.length || 0;
+      const revenue = sales?.reduce((acc: number, s: any) => acc + (s.tickets?.price || 0), 0) || 0;
+      const checkins = sales?.filter((s: any) => s.validated_at).length || 0;
+
+      setStats({ sold, capacity, revenue, checkins });
+    }
+  };
+
   useEffect(() => {
     const fetchData = async () => {
-      if (!eventId) return;
       setLoading(true);
-
-      // 1. Event Data with Tickets
-      const { data: eventData } = await supabase
-        .from('events')
-        .select('*, tickets(*)')
-        .eq('id', eventId)
-        .single();
-      
-      if (eventData) {
-        setEvent(eventData);
-        const capacity = eventData.tickets?.reduce((acc: number, t: any) => acc + t.quantity, 0) || 0;
-        
-        // 2. Real-time stats from purchased_tickets
-        const { data: sales } = await supabase
-          .from('purchased_tickets')
-          .select('id, status, validated_at, tickets(price)')
-          .eq('event_id', eventId)
-          .in('status', ['active', 'used', 'confirmed']);
-
-        const sold = sales?.length || 0;
-        const revenue = sales?.reduce((acc: number, s: any) => acc + (s.tickets?.price || 0), 0) || 0;
-        const checkins = sales?.filter((s: any) => s.validated_at).length || 0;
-
-        setStats({ sold, capacity, revenue, checkins });
-      }
+      await fetchEventData();
       setLoading(false);
     };
     fetchData();
   }, [eventId]);
+
+  const [isActivatingSports, setIsActivatingSports] = useState(false);
+  const [isOpeningSports, setIsOpeningSports] = useState(false);
+
+  const handleActivateSports = async () => {
+    if (!eventId) return;
+    setIsActivatingSports(true);
+    try {
+      await api.post('/api/integrations/sports/provision-event', { event_id: eventId });
+      toast({ title: 'Sucesso', description: 'Ativação esportiva concluída.' });
+      await fetchEventData();
+    } catch (err: any) {
+      toast({ 
+        variant: 'destructive', 
+        title: 'Não foi possível ativar a A2Sports360 agora.', 
+        description: 'Tente novamente em alguns instantes.' 
+      });
+      await fetchEventData();
+    } finally {
+      setIsActivatingSports(false);
+    }
+  };
+
+  const handleOpenSports = async () => {
+    if (!eventId) return;
+    setIsOpeningSports(true);
+    try {
+      const response = await api.post<{ ssoUrl: string }>('/api/integrations/sports/open', { event_id: eventId });
+      if (response && response.ssoUrl) {
+        window.open(response.ssoUrl, '_blank');
+      } else {
+        throw new Error('SSO URL is empty');
+      }
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Não foi possível acessar a A2Sports360 agora.',
+        description: 'Tente novamente em alguns instantes.'
+      });
+    } finally {
+      setIsOpeningSports(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -125,6 +176,8 @@ const OrganizerEventHub = () => {
                 <span className="bg-gray-50 text-gray-400 text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full border border-gray-100">
                   ID: {eventId?.slice(0, 8)}
                 </span>
+                
+
               </div>
               <h1 className="text-4xl font-black text-gray-900 tracking-tight uppercase">{event?.title}</h1>
               <div className="flex flex-wrap items-center gap-4 text-sm font-medium text-gray-500">
@@ -177,7 +230,71 @@ const OrganizerEventHub = () => {
         {/* ── Tab Content ───────────────────────────────── */}
         <div className="min-h-[400px] animate-in fade-in duration-500">
           {activeTab === 'overview' && (
-             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+             <div className="space-y-6">
+               {event?.status === 'published' && event?.category_code === 'SPORT_TRUCO' && (
+                 <div className="bg-indigo-900 text-white p-8 rounded-3xl shadow-xl relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6 border-4 border-indigo-950">
+                   <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+                     <TrendingUp className="w-48 h-48" />
+                   </div>
+                   <div className="relative z-10 flex-1">
+                     <div className="flex items-center gap-3 mb-2">
+                       <h2 className="text-2xl font-black uppercase tracking-tight text-white">A2SPORTS360</h2>
+                       {event.external_championship_id ? (
+                         <span className="bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full flex items-center gap-1 shadow-lg shadow-emerald-500/20">
+                           <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" /> ATIVO
+                         </span>
+                       ) : (
+                         <span className="bg-indigo-800 text-indigo-200 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full border border-indigo-700">
+                           Disponível
+                         </span>
+                       )}
+                     </div>
+                     <p className="text-indigo-200 font-medium max-w-lg mb-1 leading-relaxed">
+                       {event.external_championship_id 
+                         ? "Seu torneio está conectado à A2Sports360."
+                         : "Leve este campeonato para a A2Sports360. Organize duplas, chaves, locais de jogo, placares e toda a operação do torneio em um só lugar."}
+                     </p>
+                   </div>
+                   <div className="relative z-10 shrink-0 w-full md:w-auto">
+                     {event.external_championship_id ? (
+                        <button
+                          onClick={handleOpenSports}
+                          disabled={isOpeningSports}
+                          className="flex items-center justify-center gap-2 bg-white text-indigo-900 px-8 py-4 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-indigo-50 transition-all shadow-xl hover:scale-105 active:scale-95 disabled:opacity-75 w-full"
+                        >
+                          {isOpeningSports ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin text-indigo-900" />
+                              ABRINDO A2SPORTS360...
+                            </>
+                          ) : (
+                            "ABRIR A2SPORTS360"
+                          )}
+                        </button>
+                     ) : (
+                       <button
+                         onClick={handleActivateSports}
+                         disabled={isActivatingSports}
+                         className="flex items-center justify-center gap-2 bg-indigo-500 text-white px-8 py-4 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-indigo-400 transition-all shadow-xl hover:scale-105 active:scale-95 disabled:opacity-70 disabled:hover:scale-100 w-full border-2 border-indigo-400"
+                       >
+                         {isActivatingSports ? (
+                           <>
+                             <Loader2 className="w-4 h-4 animate-spin" />
+                             <div className="text-left">
+                               <div className="leading-tight">PREPARANDO...</div>
+                               <div className="text-[8px] font-medium text-indigo-200 lowercase tracking-normal leading-tight">isso leva só alguns segundos</div>
+                             </div>
+                           </>
+                         ) : (
+                           "ATIVAR A2SPORTS360"
+                         )}
+                       </button>
+                     )}
+                   </div>
+                 </div>
+               )}
+
+               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Ingressos Vendidos</p>
                    <h3 className="text-3xl font-black text-gray-900 tracking-tight">{stats.sold} / {stats.capacity}</h3>
@@ -201,6 +318,7 @@ const OrganizerEventHub = () => {
                       {stats.checkins} de {stats.sold} presentes
                    </p>
                 </div>
+             </div>
              </div>
           )}
 

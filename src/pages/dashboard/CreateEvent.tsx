@@ -68,6 +68,7 @@ const CreateEvent = () => {
   // Form State
   const [eventType, setEventType] = useState<'paid' | 'free'>('paid');
   const [category, setCategory] = useState('');
+  const [categoryCode, setCategoryCode] = useState<string | undefined>('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [imageUrl, setImageUrl] = useState('');
@@ -84,7 +85,7 @@ const CreateEvent = () => {
   const [locationPostalCode, setLocationPostalCode] = useState('');
   const [capacity, setCapacity] = useState(100);
   const [tickets, setTickets] = useState<TicketTier[]>([
-    { id: `temp_${Date.now()}`, name: '', price: 0, quantity: 100, category: 'standard' }
+    { id: `temp_${Date.now()}`, name: '', price: 0, quantity: 100, category: 'standard', registrationType: 'INDIVIDUAL', participantsPerRegistration: 1, ticketPurpose: 'REGISTRATION' }
   ]);
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -130,7 +131,13 @@ const CreateEvent = () => {
       case 1: return !!category;
       case 2: return title.length >= 1 && description.length >= 10;
       case 3: return !!date && !!time && !!locationName && !!locationAddress && capacity > 0;
-      case 4: return tickets.length > 0 && tickets.every(t => t.name.trim().length > 0 && t.quantity > 0);
+      case 4: {
+        const hasValidTickets = tickets.length > 0 && tickets.every(t => t.name.trim().length > 0 && t.quantity > 0);
+        const usedCapacity = tickets
+          .filter(t => t.ticketPurpose === 'REGISTRATION')
+          .reduce((sum, t) => sum + (t.quantity * t.participantsPerRegistration), 0);
+        return hasValidTickets && usedCapacity <= capacity;
+      }
       default: return true;
     }
   };
@@ -165,7 +172,8 @@ const CreateEvent = () => {
         title, 
         slug,
         description, 
-        category, 
+        category,
+        categoryCode,
         eventType, 
         date, 
         time, 
@@ -189,7 +197,10 @@ const CreateEvent = () => {
           name: t.name,
           price: t.price,
           quantity: t.quantity,
-          category: t.category
+          category: t.category,
+          registrationType: t.registrationType,
+          participantsPerRegistration: t.participantsPerRegistration,
+          ticketPurpose: t.ticketPurpose
         }))
       };
       
@@ -200,6 +211,16 @@ const CreateEvent = () => {
         toast({ title: '💾 Rascunho salvo!', description: 'Você pode continuar editando.' });
         navigate('/organizer/events');
         return;
+      }
+
+      if (categoryCode === 'SPORT_TRUCO') {
+        if ((newEvent as any).sportsIntegrationSuccess) {
+          toast({ title: 'Sucesso!', description: 'Evento criado e A2Sports360 ativada.' });
+        } else {
+          toast({ variant: 'destructive', title: 'Atenção!', description: 'Evento criado. A ativação esportiva está pendente e poderá ser tentada novamente.' });
+        }
+      } else {
+        toast({ title: 'Sucesso!', description: 'Evento criado.' });
       }
       
       // Se o usuário quer destacar o evento, criar o pagamento real no Asaas
@@ -304,7 +325,7 @@ const CreateEvent = () => {
         <p className="text-sm text-gray-500 mb-4">
           Selecione uma categoria existente ou crie uma nova. Categorias criadas ficam disponíveis para todos os produtores.
         </p>
-        <CategoryCombobox value={category} onChange={setCategory} />
+        <CategoryCombobox value={category} onChange={(val, code) => { setCategory(val); setCategoryCode(code); }} />
         {category && (
           <div className="mt-3 flex items-center gap-2">
             <span className="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-sm font-medium border border-indigo-200">
@@ -465,7 +486,7 @@ const CreateEvent = () => {
           {eventType === 'free' ? 'Defina como os participantes se inscreverão' : 'Crie os lotes e categorias de ingressos'}
         </p>
       </div>
-      <TicketBuilder tickets={tickets} onChange={setTickets} eventType={eventType} />
+      <TicketBuilder tickets={tickets} onChange={setTickets} eventType={eventType} capacity={capacity} categoryCode={categoryCode} />
       
       {/* Bloco de Promoters / Afiliados */}
       <div className="mt-8 bg-indigo-50/50 border border-indigo-100 rounded-2xl p-6">

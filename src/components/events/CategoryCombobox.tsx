@@ -6,7 +6,7 @@ import { organizerService, EventCategory } from '@/services/organizerService';
 
 interface CategoryComboboxProps {
     value: string;
-    onChange: (value: string) => void;
+    onChange: (value: string, code?: string) => void;
 }
 
 const CategoryCombobox = ({ value, onChange }: CategoryComboboxProps) => {
@@ -28,7 +28,7 @@ const CategoryCombobox = ({ value, onChange }: CategoryComboboxProps) => {
                 if (search.trim() && !value) {
                     const match = categories.find(c => c.name.toLowerCase() === search.trim().toLowerCase());
                     if (match) {
-                        onChange(match.name);
+                        onChange(match.name, match.code);
                     }
                 }
                 setSearch('');
@@ -58,7 +58,7 @@ const CategoryCombobox = ({ value, onChange }: CategoryComboboxProps) => {
             const newCat = await organizerService.createEventCategory(search.trim());
             if (newCat && newCat.name) {
                 setCategories(prev => [...prev, newCat].sort((a, b) => a.name.localeCompare(b.name)));
-                onChange(newCat.name);
+                onChange(newCat.name, newCat.code);
                 setSearch('');
                 setIsOpen(false);
             }
@@ -97,7 +97,7 @@ const CategoryCombobox = ({ value, onChange }: CategoryComboboxProps) => {
                             e.preventDefault();
                             const match = categories.find(c => c.name.toLowerCase() === search.trim().toLowerCase());
                             if (match) {
-                                onChange(match.name);
+                                onChange(match.name, match.code);
                                 setSearch('');
                                 setIsOpen(false);
                             } else if (!exactMatch) {
@@ -120,7 +120,7 @@ const CategoryCombobox = ({ value, onChange }: CategoryComboboxProps) => {
                                     key={cat.id}
                                     type="button"
                                     onClick={() => {
-                                        onChange(cat.name);
+                                        onChange(cat.name, cat.code);
                                         setSearch('');
                                         setIsOpen(false);
                                     }}

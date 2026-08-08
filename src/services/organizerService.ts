@@ -3,10 +3,12 @@ import { MINIO_CONFIG } from '@/lib/supabase-config';
 import { webhookService } from './webhookService';
 import { Event, Ticket, SalesChannel, FinancialSummary, Sale } from '@/interfaces/organizer';
 import { v4 as uuidv4 } from 'uuid';
+import { api } from '@/services/api';
 
 export interface EventCategory {
   id: string;
   name: string;
+  code?: string;
   icon: string;
   createdAt: string;
 }
@@ -153,8 +155,10 @@ class OrganizerService {
       slug: eventData.slug || uuidv4().substring(0, 8),
       description: eventData.description,
       category: eventData.category,
+      category_code: eventData.categoryCode,
       organizer_id: eventData.organizerId,
       status: initialStatus,
+      sports_integration_status: eventData.categoryCode === 'SPORT_TRUCO' ? 'pending' : 'not_applicable',
       start_date: this.combineDateTime(eventData.date || eventData.startDate, eventData.time),
       end_date: this.combineDateTime(eventData.endDate, eventData.endTime),
       location_name: eventData.locationName,
@@ -183,9 +187,16 @@ class OrganizerService {
         price: t.price,
         quantity: t.quantity,
         remaining: t.quantity,
-        category: t.category || 'standard'
+        category: t.category || 'standard',
+        registration_type: t.registrationType || 'INDIVIDUAL',
+        participants_per_registration: t.participantsPerRegistration || 1,
+        ticket_purpose: t.ticketPurpose || 'REGISTRATION'
       }));
-      await supabase.from('tickets').insert(ticketsData);
+      const { error: ticketError } = await supabase.from('tickets').insert(ticketsData);
+      if (ticketError) {
+        console.error('Erro ao inserir tickets:', ticketError);
+        throw new Error(`Evento criado, mas falha ao salvar ingressos: ${ticketError.message}`);
+      }
     }
 
     // Webhook: Evento Criado (dispara para rascunhos e publicações)

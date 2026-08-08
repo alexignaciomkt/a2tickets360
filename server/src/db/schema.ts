@@ -50,6 +50,7 @@ export const organizers = pgTable('organizer_details', {
 export const eventCategories = pgTable('event_categories', {
     id: uuid('id').primaryKey().defaultRandom(),
     name: text('name').unique().notNull(),
+    code: text('code').unique(), // Código técnico estático (ex: SPORT_TRUCO)
     icon: text('icon'), // Nome do ícone Lucide (ex: 'Briefcase')
     createdAt: timestamp('created_at').defaultNow(),
 });
@@ -62,6 +63,12 @@ export const events = pgTable('events', {
     slug: text('slug'),
     description: text('description'),
     category: text('category'),
+    categoryCode: text('category_code'),
+    externalChampionshipId: text('external_championship_id'),
+    sportsIntegrationStatus: text('sports_integration_status').notNull().default('not_applicable'),
+    sportsIntegrationErrorCode: text('sports_integration_error_code'),
+    sportsIntegrationError: text('sports_integration_error'),
+    sportsLastSyncAt: timestamp('sports_last_sync_at', { withTimezone: true }),
     eventType: text('event_type').default('paid'),
     status: text('status').default('draft'),
     startDate: timestamp('start_date'),
@@ -101,6 +108,9 @@ export const tickets = pgTable('tickets', {
     isActive: boolean('is_active').default(true),
     capacityPerUnit: integer('capacity_per_unit'),
     maxPerCpf: integer('max_per_cpf'),
+    registrationType: text('registration_type').default('INDIVIDUAL'),
+    participantsPerRegistration: integer('participants_per_registration').default(1),
+    ticketPurpose: text('ticket_purpose').default('REGISTRATION'),
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow(),
 });

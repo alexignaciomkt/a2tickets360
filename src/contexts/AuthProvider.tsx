@@ -153,6 +153,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') && session?.user) {
+        localStorage.setItem('A2Tickets_token', session.access_token);
         const profile = await fetchUserProfile(session.user.id, session.user.email!);
         if (profile) {
           console.log('✅ [AuthProvider] Perfil Carregado:', profile.role);
@@ -161,6 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } else if (event === 'SIGNED_OUT') {
         console.warn('⚠️ [AuthProvider] Supabase disparou SIGNED_OUT.');
+        localStorage.removeItem('A2Tickets_token');
         const savedUser = localStorage.getItem('A2Tickets_user');
         if (!savedUser) {
           setUser(null);
@@ -227,6 +229,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           throw new Error('Sua conta está suspensa.');
         }
 
+        if (data.session) {
+          localStorage.setItem('A2Tickets_token', data.session.access_token);
+        }
         setUser(profile);
         localStorage.setItem('A2Tickets_user', JSON.stringify(profile));
         return true;
