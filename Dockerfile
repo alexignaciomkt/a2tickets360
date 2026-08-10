@@ -3,10 +3,14 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# Public API URL used by the Vite frontend during build
+ARG VITE_API_URL=https://api.a2tickets360.com.br
+ENV VITE_API_URL=${VITE_API_URL}
+
 # Copy dependency files
 COPY package.json package-lock.json ./
 
-# Install dependencies (ci is faster and more reliable)
+# Install dependencies
 RUN npm ci
 
 # Copy the rest of the code
@@ -14,6 +18,7 @@ COPY . .
 
 # Build (generates dist/)
 RUN npm run build
+
 
 # Stage 2: Nginx web server with crawler detection
 FROM nginx:alpine
@@ -27,7 +32,7 @@ COPY .docker/nginx.conf.template /etc/nginx/templates/default.conf.template
 # Copy the built files from the builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Default API upstream — override via environment variable in docker-compose/swarm
+# Internal API upstream used by Nginx/server-side proxy features
 ENV OG_API_UPSTREAM=http://ticketera-api:3000
 
 EXPOSE 80

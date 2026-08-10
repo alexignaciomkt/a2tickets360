@@ -2,18 +2,19 @@ name: Build and Publish Docker Image
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: ["main", "master"]
+
   # Permite rodar o workflow manualmente pela interface do GitHub
   workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
-  # O nome da imagem será igual ao nome do repositório (ex: alexignaciomkt/a2tickets360)
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   build-and-push-image:
     runs-on: ubuntu-latest
+
     permissions:
       contents: read
       packages: write
@@ -45,3 +46,5 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VITE_API_URL=https://api.a2tickets360.com.br
