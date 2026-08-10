@@ -533,6 +533,43 @@ app.post('/api/payments/checkout', async (c: Context) => {
         });
         if (!ticket) throw new Error('Ingresso nao encontrado');
 
+        // Idempotency check: prevent duplicate clicks/requests generating multiple Asaas charges
+        if (buyerCpf) {
+            const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1000);
+            const recentPendingSale = await db
+                .select({ id: schema.sales.id })
+                .from(schema.sales)
+                .where(
+                    and(
+                        eq(schema.sales.buyerCpf, normalizeCpf(buyerCpf)),
+                        eq(schema.sales.paymentStatus, 'pending'),
+                        isNotNull(schema.sales.asaasPaymentId),
+                        gt(schema.sales.createdAt, fiveMinsAgo)
+                    )
+                )
+                .limit(1);
+
+            if (recentPendingSale.length > 0) {
+                // To be precise on the exact ticket being double-clicked, we could join purchased_tickets,
+                // but if a user just created a valid pending sale via Asaas 5 mins ago, they shouldn't be
+                // slamming the checkout button again so fast anyway.
+                const recentPurchases = await db
+                    .select({ id: purchasedTickets.id })
+                    .from(purchasedTickets)
+                    .where(
+                        and(
+                            eq(purchasedTickets.parentPurchaseId, recentPendingSale[0].id),
+                            eq(purchasedTickets.ticketId, ticketId)
+                        )
+                    )
+                    .limit(1);
+
+                if (recentPurchases.length > 0) {
+                    throw new Error('Você já possui uma transação recente em andamento para este ingresso. Aguarde alguns minutos ou verifique seus ingressos pendentes.');
+                }
+            }
+        }
+
         // Forcar quantity = 1 para produtos esportivos
         const isSportTicket = ticket.ticketPurpose === 'REGISTRATION' || ticket.ticketPurpose === 'REPECHAGE';
         if (isSportTicket) {
@@ -544,18 +581,25 @@ app.post('/api/payments/checkout', async (c: Context) => {
             const eventSettings = ticket.event.settings as any || {};
             const maxTicketsPerCpf = Number(eventSettings.max_tickets_per_cpf || 1);
             
-            // Enforce limit checking paid and pending tickets for this CPF
+            // Enforce limit checking paid and valid pending tickets for this user
             const cpfStr = normalizeCpf(buyerCpf);
             const userPurchases = await db
                 .select({ count: sql<number>`count(*)::int` })
                 .from(purchasedTickets)
+                .leftJoin(schema.sales, eq(purchasedTickets.parentPurchaseId, schema.sales.id))
                 .where(
                     and(
                         eq(purchasedTickets.eventId, ticket.eventId),
-                        // Usually we check by user ID or we would need to join with Sales to check CPF.
                         // Assuming buyerId is present, we can check by userId for logged in users:
                         eq(purchasedTickets.userId, buyerId || ''),
-                        inArray(purchasedTickets.status, ['paid', 'pending', 'active'])
+                        or(
+                            eq(purchasedTickets.status, 'paid'),
+                            eq(purchasedTickets.status, 'active'),
+                            and(
+                                eq(purchasedTickets.status, 'pending'),
+                                isNotNull(schema.sales.asaasPaymentId)
+                            )
+                        )
                     )
                 );
             const currentCount = userPurchases[0]?.count ?? 0;
@@ -610,11 +654,18 @@ app.post('/api/payments/checkout', async (c: Context) => {
             const paidRepechages = await db
                 .select({ count: sql<number>`count(*)::int` })
                 .from(sportRegistrations)
+                .leftJoin(schema.sales, eq(sportRegistrations.saleId, schema.sales.id))
                 .where(
                     and(
                         eq(sportRegistrations.originalRegistrationId, sportData.originalRegistrationId),
                         eq(sportRegistrations.ticketPurpose, 'REPECHAGE'),
-                        inArray(sportRegistrations.status, ['paid', 'pending'])
+                        or(
+                            eq(sportRegistrations.status, 'paid'),
+                            and(
+                                eq(sportRegistrations.status, 'pending'),
+                                isNotNull(schema.sales.asaasPaymentId)
+                            )
+                        )
                     )
                 );
             const usedRepechages = paidRepechages[0]?.count ?? 0;
@@ -705,29 +756,36 @@ app.post('/api/payments/checkout', async (c: Context) => {
 
         // 4. Criar cliente e pagamento no Asaas
         let asaasCustomer: any;
+        let payment: any;
         try {
             asaasCustomer = await asaas.createCustomer({
                 name: buyerName,
                 email: buyerEmail,
                 cpfCnpj: normalizeCpf(buyerCpf)
             });
+            
+            payment = await asaas.createPayment({
+                customer: asaasCustomer.id,
+                billingType: paymentMethod,
+                value: totalValue,
+                dueDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+                description: `[A2 Tickets] ${ticket.ticketPurpose === 'REPECHAGE' ? 'Repescagem' : 'Inscricao'}: ${ticket.name}`,
+                externalReference: `sale_${saleId}`,
+                splitValue: producerNetValue,
+                splitWalletId: organizerSettings.walletId
+            });
         } catch (asaasErr: any) {
-            // Se Asaas falhar, manter sale + sport_registration como pending (nao deletar)
-            // O operador pode investigar. Retornar erro ao cliente.
-            console.error('[CHECKOUT] Asaas customer error:', asaasErr.message);
-            throw new Error(`Erro ao criar cliente no Asaas: ${asaasErr.message}`);
-        }
+            console.error('[CHECKOUT] Asaas API error:', asaasErr.message);
+            // ROLLBACK: Deletar registros locais pendentes órfãos
+            if (sportRegId) {
+                await db.delete(sportRegistrationPlayers).where(eq(sportRegistrationPlayers.registrationId, sportRegId));
+                await db.delete(sportRegistrations).where(eq(sportRegistrations.id, sportRegId));
+            }
+            await db.delete(purchasedTickets).where(eq(purchasedTickets.id, purchasedTicketId));
+            await db.delete(schema.sales).where(eq(schema.sales.id, saleId));
 
-        const payment = await asaas.createPayment({
-            customer: asaasCustomer.id,
-            billingType: paymentMethod,
-            value: totalValue,
-            dueDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
-            description: `[A2 Tickets] ${ticket.ticketPurpose === 'REPECHAGE' ? 'Repescagem' : 'Inscricao'}: ${ticket.name}`,
-            externalReference: `sale_${saleId}`,
-            splitValue: producerNetValue,
-            splitWalletId: organizerSettings.walletId
-        });
+            throw new Error(`Erro ao comunicar com provedor de pagamento (Asaas): ${asaasErr.message}`);
+        }
 
         // 5. Persistir asaasPaymentId na sale
         await db.update(schema.sales)
