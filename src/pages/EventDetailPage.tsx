@@ -59,6 +59,7 @@ const EventDetailPage = () => {
   const [adsenseConfig, setAdsenseConfig] = useState<any>(null);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
+  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const cardRef = React.useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -497,35 +498,53 @@ const EventDetailPage = () => {
                   <div className="p-8 space-y-6">
                     <div className="space-y-1">
                       <h3 className="text-xl font-black tracking-tight uppercase text-slate-900">Seleção de Ingressos</h3>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Escolha sua experiência</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Escolha o tipo de ingresso</p>
                     </div>
 
                     <div className="space-y-4">
-                      {event.tickets.map(ticket => (
-                        <div key={ticket.id} className="flex items-center justify-between p-5 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-200 transition-all cursor-pointer">
-                          <div className="space-y-1">
-                            <span className="font-black text-slate-900 text-sm tracking-tight uppercase">{ticket.name}</span>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase">
-                               {ticket.price === 0 ? 'Inscrição Gratuita' : `R$ ${ticket.price}`}
-                            </p>
-                            {ticket.description && (
-                               <p className="text-[8px] text-slate-400 font-medium uppercase mt-1 leading-tight max-w-[150px]">
-                                  {ticket.description}
-                               </p>
-                            )}
+                      {event.tickets.map(ticket => {
+                        const isSelected = selectedTicketId === ticket.id;
+                        return (
+                          <div 
+                            key={ticket.id} 
+                            onClick={() => setSelectedTicketId(ticket.id)}
+                            className={`flex items-center justify-between p-5 rounded-2xl border transition-all cursor-pointer ${
+                              isSelected 
+                                ? 'bg-indigo-50 border-indigo-500 shadow-md ring-2 ring-indigo-500/20' 
+                                : 'bg-slate-50 border-slate-100 hover:border-indigo-200'
+                            }`}
+                          >
+                            <div className="space-y-1">
+                              <span className="font-black text-slate-900 text-sm tracking-tight uppercase">{ticket.name}</span>
+                              <p className="text-[10px] font-bold text-slate-400 uppercase">
+                                 {ticket.price === 0 ? 'Inscrição Gratuita' : `R$ ${ticket.price}`}
+                              </p>
+                              {ticket.description && (
+                                 <p className="text-[8px] text-slate-400 font-medium uppercase mt-1 leading-tight max-w-[150px]">
+                                    {ticket.description}
+                                 </p>
+                              )}
+                            </div>
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-[10px] font-black shadow-lg transition-colors ${
+                              isSelected ? 'bg-indigo-600 shadow-indigo-200' : 'bg-slate-300 shadow-slate-200'
+                            }`}>
+                              {isSelected ? <Check className="w-5 h-5 text-white" /> : (ticket.id.includes('vip') ? 'VIP' : '01')}
+                            </div>
                           </div>
-                          <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white text-[10px] font-black shadow-lg shadow-indigo-100">
-                            {ticket.id.includes('vip') ? 'VIP' : '01'}
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
 
                     <Button 
-                      className="w-full bg-slate-600 text-white hover:bg-slate-700 h-14 rounded-xl font-black text-xs uppercase tracking-widest shadow-xl flex gap-2 group transition-all"
-                      onClick={() => navigate(`/checkout/${event.id}/${event.tickets[0]?.id || 'individual'}`)}
+                      disabled={!selectedTicketId}
+                      className="w-full bg-slate-600 text-white hover:bg-slate-700 disabled:opacity-50 h-14 rounded-xl font-black text-xs uppercase tracking-widest shadow-xl flex gap-2 group transition-all"
+                      onClick={() => {
+                        if (selectedTicketId) {
+                          navigate(`/checkout/${event.id}/${selectedTicketId}`);
+                        }
+                      }}
                     >
-                      Comprar Ingressos
+                      {selectedTicketId ? 'Comprar Ingressos' : 'Selecione um Ingresso'}
                     </Button>
                   </div>
                 </div>
