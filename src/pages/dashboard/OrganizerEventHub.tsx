@@ -231,7 +231,11 @@ const OrganizerEventHub = () => {
         <div className="min-h-[400px] animate-in fade-in duration-500">
           {activeTab === 'overview' && (
              <div className="space-y-6">
-               {event?.status === 'published' && (event?.category_code?.startsWith('SPORT_') || event?.external_championship_id) && (
+               {event?.status === 'published' && (
+                 event?.category_code?.startsWith('SPORT_') || 
+                 event?.external_championship_id || 
+                 event?.tickets?.some((t: any) => t.ticket_purpose === 'REGISTRATION' || t.ticket_purpose === 'REPECHAGE')
+               ) && (
                  <div className="bg-indigo-900 text-white p-8 rounded-3xl shadow-xl relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6 border-4 border-indigo-950">
                    <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
                      <TrendingUp className="w-48 h-48" />

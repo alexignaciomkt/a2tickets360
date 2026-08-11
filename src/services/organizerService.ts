@@ -27,6 +27,7 @@ class OrganizerService {
       return data.map(d => ({
         id: d.id,
         name: d.name,
+        code: d.code,
         icon: d.icon || 'tag',
         createdAt: d.created_at
       }));
