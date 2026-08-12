@@ -160,10 +160,25 @@ router.post('/sports/provision-event', async (c: Context) => {
                     sports_last_sync_at = NOW()
                 WHERE id = ${event_id};
             `);
-            
+
+            // Backfill síncrono com falha parcial tolerada:
+            // Sincroniza inscrições pagas (REGISTRATION) que já existiam antes da ativação.
+            // Falhas individuais NÃO revertem a criação do campeonato.
+            let backfill = null;
+            try {
+                backfill = await sportsIntegrationService.syncPaidRegistrationsForEvent(
+                    event_id,
+                    result.championshipId!
+                );
+            } catch (backfillErr: any) {
+                console.error('[INTEGRATION-ROUTE] Erro no backfill (não revertendo campeonato):', backfillErr.message);
+                backfill = { total: 0, synced: 0, failed: 0, failures: [{ registrationId: 'N/A', error: backfillErr.message }] };
+            }
+
             return c.json({
                 message: 'Integração concluída com sucesso.',
-                championshipId: result.championshipId
+                championshipId: result.championshipId,
+                backfill
             }, 200);
         } else {
             await db.execute(sql`
@@ -256,6 +271,82 @@ router.post('/sports/open', async (c: Context) => {
     } catch (err: any) {
         console.error('[INTEGRATION-ROUTE] Erro ao abrir SSO:', err);
         return c.json({ error: 'INTERNAL_ERROR', message: err.message }, 500);
+    }
+});
+
+// =============================================================================
+// Backfill manual para eventos JÁ integrados
+// =============================================================================
+router.post('/sports/sync-registrations', async (c: Context) => {
+    try {
+        const body = await c.req.json();
+        const { event_id } = body;
+
+        if (!event_id) {
+            return c.json({ error: 'event_id é obrigatório.' }, 400);
+        }
+
+        const payload = c.get('jwtPayload');
+        const userId = payload.id;
+        const userRole = payload.role;
+
+        // 1. Buscar evento
+        const eventData = await db.query.events.findFirst({
+            where: eq(events.id, event_id)
+        });
+
+        if (!eventData) {
+            return c.json({ error: 'Evento não encontrado.' }, 404);
+        }
+
+        // 2. Validar permissão (organizador dono, master ou admin)
+        const organizerData = await db.query.organizers.findFirst({
+            where: eq(organizers.userId, eventData.organizerId)
+        });
+
+        if (userRole === 'organizer' && organizerData?.userId !== userId) {
+            return c.json({ error: 'Você não tem permissão para sincronizar inscrições deste evento.' }, 403);
+        }
+
+        // 3. Exigir integração ativa
+        if (eventData.sportsIntegrationStatus !== 'integrated') {
+            return c.json({
+                error: 'INTEGRATION_NOT_ACTIVE',
+                message: `O evento precisa estar com integração ativa (status atual: ${eventData.sportsIntegrationStatus}).`
+            }, 400);
+        }
+
+        if (!eventData.externalChampionshipId) {
+            return c.json({
+                error: 'MISSING_CHAMPIONSHIP_ID',
+                message: 'O evento está integrado mas não possui external_championship_id. Contate o suporte.'
+            }, 400);
+        }
+
+        // 4. Executar backfill síncrono (mesmo método reutilizável)
+        const result = await sportsIntegrationService.syncPaidRegistrationsForEvent(
+            eventData.id,
+            eventData.externalChampionshipId
+        );
+
+        // 5. Atualizar sports_last_sync_at
+        await db.execute(sql`
+            UPDATE events
+            SET sports_last_sync_at = NOW()
+            WHERE id = ${event_id};
+        `);
+
+        return c.json({
+            success: true,
+            total: result.total,
+            synced: result.synced,
+            failed: result.failed,
+            failures: result.failures
+        }, 200);
+
+    } catch (error: any) {
+        console.error('[INTEGRATION-ROUTE] Erro ao sincronizar inscrições:', error);
+        return c.json({ error: 'INTERNAL_ERROR', message: 'Erro interno ao sincronizar inscrições.' }, 500);
     }
 });
 
