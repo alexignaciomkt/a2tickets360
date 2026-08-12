@@ -18,7 +18,8 @@ import {
   Globe,
   Palette,
   HelpCircle,
-  Image as ImageIcon
+  Image as ImageIcon,
+  RefreshCw
 } from 'lucide-react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import OrganizerVisitors from './OrganizerVisitors';
@@ -89,6 +90,7 @@ const OrganizerEventHub = () => {
 
   const [isActivatingSports, setIsActivatingSports] = useState(false);
   const [isOpeningSports, setIsOpeningSports] = useState(false);
+  const [isSyncingRegistrations, setIsSyncingRegistrations] = useState(false);
 
   const handleActivateSports = async () => {
     if (!eventId) return;
@@ -127,6 +129,46 @@ const OrganizerEventHub = () => {
       });
     } finally {
       setIsOpeningSports(false);
+    }
+  };
+
+  const handleSyncRegistrations = async () => {
+    if (!eventId) return;
+    setIsSyncingRegistrations(true);
+    try {
+      const result = await api.post<{
+        success: boolean;
+        total: number;
+        synced: number;
+        failed: number;
+        failures: Array<{ registrationId: string; error: string }>;
+      }>('/api/integrations/sports/sync-registrations', { event_id: eventId });
+
+      if (result.failed > 0) {
+        toast({
+          variant: 'destructive',
+          title: 'Sincronização concluída parcialmente',
+          description: `${result.synced} enviada(s), ${result.failed} com falha.`,
+        });
+      } else if (result.synced > 0) {
+        toast({
+          title: 'Sincronização concluída',
+          description: `${result.synced} inscrição(ões) enviada(s) para a A2Sports360.`,
+        });
+      } else {
+        toast({
+          title: 'Tudo sincronizado',
+          description: 'Todas as inscrições já estão sincronizadas.',
+        });
+      }
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Não foi possível sincronizar as inscrições agora.',
+        description: 'Tente novamente em alguns instantes.',
+      });
+    } finally {
+      setIsSyncingRegistrations(false);
     }
   };
 
@@ -259,22 +301,41 @@ const OrganizerEventHub = () => {
                          : "Leve este campeonato para a A2Sports360. Organize duplas, chaves, locais de jogo, placares e toda a operação do torneio em um só lugar."}
                      </p>
                    </div>
-                   <div className="relative z-10 shrink-0 w-full md:w-auto">
+                   <div className="relative z-10 shrink-0 w-full md:w-auto flex flex-col gap-3">
                      {event.external_championship_id ? (
-                        <button
-                          onClick={handleOpenSports}
-                          disabled={isOpeningSports}
-                          className="flex items-center justify-center gap-2 bg-white text-indigo-900 px-8 py-4 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-indigo-50 transition-all shadow-xl hover:scale-105 active:scale-95 disabled:opacity-75 w-full"
-                        >
-                          {isOpeningSports ? (
-                            <>
-                              <Loader2 className="w-4 h-4 animate-spin text-indigo-900" />
-                              ABRINDO A2SPORTS360...
-                            </>
-                          ) : (
-                            "ABRIR A2SPORTS360"
-                          )}
-                        </button>
+                        <>
+                         <button
+                           onClick={handleOpenSports}
+                           disabled={isOpeningSports}
+                           className="flex items-center justify-center gap-2 bg-white text-indigo-900 px-8 py-4 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-indigo-50 transition-all shadow-xl hover:scale-105 active:scale-95 disabled:opacity-75 w-full"
+                         >
+                           {isOpeningSports ? (
+                             <>
+                               <Loader2 className="w-4 h-4 animate-spin text-indigo-900" />
+                               ABRINDO A2SPORTS360...
+                             </>
+                           ) : (
+                             "ABRIR A2SPORTS360"
+                           )}
+                         </button>
+                         <button
+                           onClick={handleSyncRegistrations}
+                           disabled={isSyncingRegistrations}
+                           className="flex items-center justify-center gap-2 bg-transparent text-indigo-200 border border-indigo-500 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-800 hover:text-white transition-all active:scale-95 disabled:opacity-60 disabled:hover:bg-transparent w-full"
+                         >
+                           {isSyncingRegistrations ? (
+                             <>
+                               <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                               SINCRONIZANDO...
+                             </>
+                           ) : (
+                             <>
+                               <RefreshCw className="w-3.5 h-3.5" />
+                               SINCRONIZAR INSCRIÇÕES
+                             </>
+                           )}
+                         </button>
+                        </>
                      ) : (
                        <button
                          onClick={handleActivateSports}
