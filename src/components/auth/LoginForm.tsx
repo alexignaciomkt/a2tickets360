@@ -53,7 +53,7 @@ const LoginForm = () => {
               navigate('/organizer/dashboard');
             }
           } else if (user.role === 'staff') {
-            navigate('/staff/portal');
+            navigate('/dashboard/staff/invites');
           } else {
             navigate('/dashboard');
           }

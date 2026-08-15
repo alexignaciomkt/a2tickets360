@@ -7,6 +7,9 @@ import { AuthContext } from './AuthContext';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [personalModules, setPersonalModules] = useState<{tickets: boolean, promoter: boolean, staff: boolean} | undefined>(undefined);
+  const [staffPendingInvites, setStaffPendingInvites] = useState<number | undefined>(undefined);
+  const [contexts, setContexts] = useState<any[] | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   
@@ -112,6 +115,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return profilePromiseRef.current;
   }, []);
 
+  const refreshCapabilities = useCallback(async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3002';
+      const response = await fetch(`${apiUrl}/api/me/contexts`, {
+          headers: { 'Authorization': `Bearer ${session.access_token}` }
+      });
+      const data = await response.json();
+      
+      if (data?.success) {
+        setPersonalModules(data.personalModules || { tickets: true, promoter: false, staff: false });
+        setStaffPendingInvites(data.staffPendingInvites || 0);
+        setContexts(data.contexts || []);
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar capacidades:', error);
+      // Fallback para evitar spinner infinito caso a API falhe
+      setPersonalModules({ tickets: true, promoter: false, staff: false });
+    }
+  }, []);
+
   useEffect(() => {
     const checkSession = async () => {
       try {
@@ -130,6 +156,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setUser(profile);
             localStorage.setItem('A2Tickets_user', JSON.stringify(profile));
           }
+          await refreshCapabilities();
         } else if (!savedUser) {
           // No session and no saved user
           setUser(null);
@@ -160,6 +187,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(profile);
           localStorage.setItem('A2Tickets_user', JSON.stringify(profile));
         }
+        await refreshCapabilities();
       } else if (event === 'SIGNED_OUT') {
         console.warn('⚠️ [AuthProvider] Supabase disparou SIGNED_OUT.');
         localStorage.removeItem('A2Tickets_token');
@@ -430,12 +458,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
+        personalModules,
+        staffPendingInvites,
+        contexts,
         loading,
         login,
         register,
         logout,
         isAuthenticated: !!user,
         refreshUser,
+        refreshCapabilities,
         sendPasswordRecovery,
       }}
     >

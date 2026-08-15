@@ -37,6 +37,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import SupportBot from './SupportBot';
+import ContextSelector from './ContextSelector';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -44,8 +45,7 @@ interface DashboardLayoutProps {
 }
 
 const DashboardLayout = ({ children, userType }: DashboardLayoutProps) => {
-  const { user } = useAuth();
-  const [isPromoter, setIsPromoter] = useState(false);
+  const { user, personalModules, staffPendingInvites } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(() => {
     return localStorage.getItem('A2_Tickets_sidebar_collapsed') === 'true';
@@ -56,50 +56,59 @@ const DashboardLayout = ({ children, userType }: DashboardLayoutProps) => {
     localStorage.setItem('A2_Tickets_sidebar_collapsed', desktopSidebarCollapsed.toString());
   }, [desktopSidebarCollapsed]);
 
-  useEffect(() => {
-    if (user?.id) {
-      import('@/lib/supabase').then(({ supabase }) => {
-        supabase.from('promoters').select('id, is_active').eq('user_id', user.id).single()
-          .then(({ data }) => {
-            if (data?.is_active) {
-              setIsPromoter(true);
-            }
-          });
-      });
-    }
-  }, [user]);
-
-  // Define navigation items based on user type
+  // Define navigation items based on user type or capabilities
   const getNavItems = () => {
-    switch (userType) {
-      case 'customer':
-      case 'promoter': {
-        const customerItems = [
-          {
-            category: 'Minha Conta',
-            items: [
-              { name: 'Meus Ingressos', path: '/dashboard/tickets', icon: Calendar },
-              { name: 'Perfil e Configurações', path: '/dashboard/settings', icon: Settings },
-            ]
-          }
-        ];
-        
-        // Se for promoter, adiciona a área do promoter (independentemente de estar na aba customer ou promoter)
-        const promoterItems = (userType === 'promoter' || isPromoter) ? [
-          {
-            category: 'Área do Promoter',
-            items: [
-              { name: 'Painel', path: '/promoter', icon: LayoutDashboard },
-              { name: 'Eventos para Trabalhar', path: '/promoter/events', icon: Calendar },
-              { name: 'Mailing', path: '/promoter/mailing', icon: Users },
-              { name: 'Marketing & Links', path: '/promoter/marketing', icon: Share2 },
-              { name: 'Recebimentos', path: '/promoter/settings', icon: DollarSign },
-            ]
-          }
-        ] : [];
-        
-        return [...customerItems, ...promoterItems];
+    // If the active dashboard layout is for personal modules
+    if (userType === 'customer' || userType === 'promoter') {
+      let items: any[] = [
+        {
+          category: 'Para Você',
+          items: [
+            { name: 'Meus Ingressos', path: '/dashboard/tickets', icon: Calendar },
+          ]
+        }
+      ];
+      
+      if (personalModules?.promoter) {
+        items.push({
+          category: 'Promoção',
+          items: [
+            { name: 'Painel', path: '/promoter', icon: LayoutDashboard },
+            { name: 'Eventos para Trabalhar', path: '/promoter/events', icon: Calendar },
+            { name: 'Mailing', path: '/promoter/mailing', icon: Users },
+            { name: 'Marketing & Links', path: '/promoter/marketing', icon: Share2 },
+            { name: 'Recebimentos', path: '/promoter/settings', icon: DollarSign },
+          ]
+        });
       }
+      
+      if (personalModules?.staff) {
+        items.push({
+          category: 'Trabalho em Eventos',
+          items: [
+            { 
+              name: `Convites${staffPendingInvites ? ` (${staffPendingInvites})` : ''}`, 
+              path: '/dashboard/staff/invites', 
+              icon: UserCheck 
+            },
+            { name: 'Minha Escala', path: '/dashboard/staff/agenda', icon: Calendar },
+            { name: 'Minha Credencial', path: '/dashboard/staff/credential', icon: ShieldCheck },
+            { name: 'Perfil Profissional', path: '/dashboard/staff/profile', icon: User },
+          ]
+        });
+      }
+      items.push({
+        category: 'Sua Conta',
+        items: [
+          { name: 'Dados Cadastrais', path: '/dashboard/settings', icon: Settings },
+        ]
+      });
+      
+      return items;
+    }
+    
+    // Default organizer / admin items
+    switch (userType) {
       case 'organizer':
         return [
           {
@@ -271,6 +280,9 @@ const DashboardLayout = ({ children, userType }: DashboardLayoutProps) => {
             <div className="mt-6 flex items-center gap-2">
                <div className="w-1.5 h-4 bg-indigo-600 rounded-full" />
                <p className="text-xs text-slate-500 font-semibold">{getDashboardTitle()}</p>
+            </div>
+            <div className="mt-4 px-1">
+               <ContextSelector />
             </div>
           </div>
 

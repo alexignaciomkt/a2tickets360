@@ -1,200 +1,395 @@
-
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Link } from 'react-router-dom';
 import {
     Calendar,
-    MapPin,
-    Star,
     Clock,
-    FileCheck,
-    ChevronRight,
-    TrendingUp,
     Briefcase,
-    AlertCircle,
-    Award
+    CheckCircle,
+    Inbox,
+    UserCircle,
+    ShieldCheck
 } from 'lucide-react';
-import StaffPortalLayout from '@/components/layout/StaffPortalLayout';
+import DashboardLayout from '@/components/layout/DashboardLayout';
+import { staffService } from '@/services/staffService';
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 const StaffPortalDashboard = () => {
-    // Mock data for the worker
-    const stats = [
-        { label: 'Eventos Realizados', value: '12', icon: FileCheck, color: 'text-green-500' },
-        { label: 'Nota Média', value: '4.9', icon: Star, color: 'text-yellow-500' },
-        { label: 'Ganhos no Mês', value: 'R$ 1.250', icon: TrendingUp, color: 'text-blue-500' },
-    ];
+    const { toast } = useToast();
+    const { user, refreshCapabilities } = useAuth();
+    const [proposals, setProposals] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
 
-    const proposals = [
-        {
-            id: 'prop1',
-            event: 'Festival de Verão 2025',
-            organizer: 'A2 MKT Agência',
-            role: 'Coordenador de Bar',
-            pay: 'R$ 250/dia',
-            date: '15 Jan - 18 Jan',
-            status: 'pending'
-        },
-        {
-            id: 'prop2',
-            event: 'Congresso Tech Vale',
-            organizer: 'Nexus Produtora',
-            role: 'Hostess / Recepção',
-            pay: 'R$ 180/dia',
-            date: '22 Jan',
-            status: 'pending'
-        }
-    ];
+    useEffect(() => {
+        if (user) loadProposals();
+    }, [user]);
 
-    const upcomingShifts = [
-        {
-            id: 'shift1',
-            event: 'Show Jorge & Mateus',
-            role: 'Staff de Apoio',
-            time: '18:00 - 02:00',
-            date: 'Amanhã',
-            location: 'Arena Vale'
+    const loadProposals = async () => {
+        try {
+            setLoading(true);
+            const data = await staffService.getMyInvites();
+            setProposals(data);
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setLoading(false);
         }
-    ];
+    };
+
+    const handleAccept = async (id: string) => {
+        try {
+            await staffService.acceptInvite(id);
+            toast({ title: 'Sucesso', description: 'Convite aceito com sucesso!' });
+            await loadProposals();
+            if (refreshCapabilities) await refreshCapabilities();
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Erro', description: error.response?.data?.error || 'Erro ao aceitar convite' });
+        }
+    };
+
+    const handleDecline = async (id: string) => {
+        try {
+            await staffService.declineInvite(id);
+            toast({ title: 'Sucesso', description: 'Convite recusado.' });
+            await loadProposals();
+            if (refreshCapabilities) await refreshCapabilities();
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Erro', description: error.response?.data?.error || 'Erro ao recusar convite' });
+        }
+    };
+
+    // Filtros
+    const pendingInvites = proposals.filter(p => p.status === 'PENDING_ACCEPTANCE');
+    const activeJobs = proposals.filter(p => p.status === 'ACTIVE');
+    
+    // Ordena os trabalhos ativos por data (mais próximo primeiro)
+    const sortedActiveJobs = [...activeJobs].sort((a, b) => {
+        if (!a.shiftStart) return 1;
+        if (!b.shiftStart) return -1;
+        return new Date(a.shiftStart).getTime() - new Date(b.shiftStart).getTime();
+    });
+
+    const nextJob = sortedActiveJobs.length > 0 ? sortedActiveJobs[0] : null;
+
+    // Função de formatação de data curta
+    const formatDateShort = (dateString?: string) => {
+        if (!dateString) return '—';
+        const date = new Date(dateString);
+        return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).toUpperCase();
+    };
 
     return (
-        <StaffPortalLayout>
-            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                {/* Welcome Section */}
+        <DashboardLayout userType="customer">
+            <div className="max-w-[1400px] mx-auto p-4 sm:p-6 space-y-8 pb-20 font-sans">
+                {/* 1. CABEÇALHO */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                     <div>
-                        <h1 className="text-4xl font-black text-white italic tracking-tight uppercase leading-none">
-                            Bem-vindo, <span className="text-primary not-italic">João!</span>
+                        <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tight">
+                            Trabalho em Eventos
                         </h1>
-                        <p className="text-gray-500 font-medium mt-2">Você tem <span className="text-white">2 novas propostas</span> de trabalho hoje.</p>
+                        <p className="text-slate-500 font-medium mt-1">
+                            {user?.name ? `Olá, ${user.name.split(' ')[0]}. ` : ''} 
+                            Organize seus convites e próximos trabalhos.
+                        </p>
                     </div>
-                    <div className="flex gap-3">
-                        <Button className="bg-primary hover:bg-primary/90 text-white font-black uppercase tracking-widest text-xs px-6 rounded-2xl shadow-lg shadow-primary/20">
+                    <div className="flex gap-3 shrink-0">
+                        <Button className="bg-primary hover:bg-primary/90 text-white font-bold uppercase text-xs px-6 rounded-lg shadow-sm">
                             Disponível para Trabalho
                         </Button>
                     </div>
                 </div>
 
-                {/* Stats Grid */}
+                {/* 2. RESUMO OPERACIONAL */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {stats.map((stat) => (
-                        <Card key={stat.label} className="bg-[#0A0A0A] border-white/5 rounded-3xl overflow-hidden group hover:border-primary/50 transition-all duration-300">
-                            <CardContent className="p-6">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">{stat.label}</p>
-                                        <h3 className="text-2xl font-black text-white">{stat.value}</h3>
-                                    </div>
-                                    <div className={`p-3 rounded-2xl bg-white/5 group-hover:scale-110 transition-transform ${stat.color}`}>
-                                        <stat.icon className="w-6 h-6" />
-                                    </div>
+                    <Card className="bg-white border border-slate-200 shadow-sm rounded-2xl">
+                        <CardContent className="p-5 flex flex-col justify-center">
+                            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Convites Pendentes</p>
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-3xl font-black text-amber-500">{pendingInvites.length}</h3>
+                                <div className="p-3 bg-amber-50 rounded-xl">
+                                    <Inbox className="w-6 h-6 text-amber-500" />
                                 </div>
-                            </CardContent>
-                        </Card>
-                    ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="bg-white border border-slate-200 shadow-sm rounded-2xl">
+                        <CardContent className="p-5 flex flex-col justify-center">
+                            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Próximo Trabalho</p>
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-3xl font-black text-slate-900">{formatDateShort(nextJob?.shiftStart)}</h3>
+                                <div className="p-3 bg-slate-100 rounded-xl">
+                                    <Calendar className="w-6 h-6 text-slate-500" />
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="bg-white border border-slate-200 shadow-sm rounded-2xl">
+                        <CardContent className="p-5 flex flex-col justify-center">
+                            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Trabalhos Ativos</p>
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-3xl font-black text-emerald-600">{activeJobs.length}</h3>
+                                <div className="p-3 bg-emerald-50 rounded-xl">
+                                    <CheckCircle className="w-6 h-6 text-emerald-600" />
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
                 </div>
 
+                {/* HIERARQUIA VISUAL 70/30 */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* Main Area: Proposals */}
-                    <div className="lg:col-span-2 space-y-6">
-                        <div className="flex items-center justify-between">
-                            <h2 className="text-xl font-black text-white uppercase tracking-tight flex items-center gap-2">
-                                <Briefcase className="w-5 h-5 text-primary" />
-                                Novas Propostas
+                    {/* COLUNA ESQUERDA (70%) */}
+                    <div className="lg:col-span-2 space-y-10">
+                        
+                        {/* CONVITES PARA TRABALHAR */}
+                        <section className="space-y-4">
+                            <h2 className="text-lg font-black text-slate-900 uppercase tracking-tight flex items-center gap-2">
+                                <Briefcase className="w-5 h-5 text-amber-500" />
+                                Convites para Trabalhar
                             </h2>
-                            <Button variant="link" className="text-primary text-xs font-bold uppercase tracking-widest">Ver Todas</Button>
-                        </div>
 
-                        <div className="grid grid-cols-1 gap-4">
-                            {proposals.map((prop) => (
-                                <Card key={prop.id} className="bg-[#0A0A0A] border-white/5 rounded-3xl overflow-hidden hover:bg-[#111] transition-all group">
-                                    <CardContent className="p-6">
-                                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                                            <div className="flex gap-4">
-                                                <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10 overflow-hidden shrink-0">
-                                                    <img src={`https://source.unsplash.com/featured/?event,concert,${prop.id}`} alt="Event" className="w-full h-full object-cover opacity-50 group-hover:opacity-80 transition-opacity" />
+                            {loading ? (
+                                <div className="p-8 text-center bg-white border border-slate-200 rounded-2xl">
+                                    <p className="text-slate-500 font-medium">Carregando convites...</p>
+                                </div>
+                            ) : pendingInvites.length === 0 ? (
+                                <div className="p-10 text-center bg-white border border-slate-200 rounded-2xl flex flex-col items-center justify-center space-y-3">
+                                    <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-2">
+                                        <Inbox className="w-8 h-8 text-slate-300" />
+                                    </div>
+                                    <h3 className="text-base font-bold text-slate-800">Nenhum convite pendente</h3>
+                                    <p className="text-sm text-slate-500 max-w-sm">
+                                        Quando um produtor convidar você para trabalhar em um evento, o convite aparecerá aqui.
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    {pendingInvites.map((prop) => (
+                                        <Card key={prop.id} className="bg-white border-l-4 border-l-amber-500 border-y border-r border-slate-200 shadow-sm rounded-2xl overflow-hidden">
+                                            <CardContent className="p-5 md:p-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                                                <div className="flex-1 space-y-4">
+                                                    <div>
+                                                        <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">{prop.eventName || 'Evento'}</h3>
+                                                        <p className="text-sm text-slate-500 font-semibold">{prop.organizerName}</p>
+                                                    </div>
+                                                    
+                                                    <div className="flex flex-wrap gap-x-6 gap-y-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                                        <div className="flex flex-col">
+                                                            <span className="text-[10px] font-bold text-slate-400 uppercase">Função</span>
+                                                            <span className="text-sm font-semibold text-slate-700">{prop.role}</span>
+                                                        </div>
+                                                        {prop.shiftStart && (
+                                                            <div className="flex flex-col">
+                                                                <span className="text-[10px] font-bold text-slate-400 uppercase">Data</span>
+                                                                <span className="text-sm font-semibold text-slate-700 flex items-center gap-1">
+                                                                    <Calendar className="w-3 h-3 text-slate-400" />
+                                                                    {new Date(prop.shiftStart).toLocaleDateString('pt-BR')}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                        {prop.shiftStart && prop.shiftEnd && (
+                                                            <div className="flex flex-col">
+                                                                <span className="text-[10px] font-bold text-slate-400 uppercase">Horário</span>
+                                                                <span className="text-sm font-semibold text-slate-700 flex items-center gap-1">
+                                                                    <Clock className="w-3 h-3 text-slate-400" />
+                                                                    {new Date(prop.shiftStart).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} às {new Date(prop.shiftEnd).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <Badge className="mb-2 bg-primary/20 text-primary border-none text-[10px] font-black uppercase">Convite Aberto</Badge>
-                                                    <h3 className="text-lg font-black text-white uppercase tracking-tight">{prop.event}</h3>
-                                                    <p className="text-xs text-gray-500 font-bold uppercase tracking-tight">{prop.organizer} • {prop.role}</p>
+
+                                                <div className="flex flex-col sm:flex-row md:flex-col items-center sm:justify-end gap-3 shrink-0 pt-4 md:pt-0 border-t md:border-t-0 border-slate-100">
+                                                    <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-none font-bold uppercase text-[10px] mb-2 self-start md:self-end">
+                                                        Aguardando sua resposta
+                                                    </Badge>
+                                                    <div className="flex gap-2 w-full sm:w-auto">
+                                                        <Button 
+                                                            onClick={() => handleDecline(prop.id)} 
+                                                            variant="outline" 
+                                                            className="flex-1 md:flex-none border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 font-bold uppercase text-xs"
+                                                        >
+                                                            Recusar
+                                                        </Button>
+                                                        <Button 
+                                                            onClick={() => handleAccept(prop.id)} 
+                                                            className="flex-1 md:flex-none bg-primary hover:bg-primary/90 text-white font-bold uppercase text-xs"
+                                                        >
+                                                            Aceitar Convite
+                                                        </Button>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                            <div className="flex flex-col items-end gap-2">
-                                                <div className="text-right">
-                                                    <p className="text-xl font-black text-white">{prop.pay}</p>
-                                                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest flex items-center justify-end gap-1">
-                                                        <Calendar className="w-3 h-3" /> {prop.date}
-                                                    </p>
+                                            </CardContent>
+                                        </Card>
+                                    ))}
+                                </div>
+                            )}
+                        </section>
+
+                        {/* MEUS PRÓXIMOS TRABALHOS (ACTIVE) */}
+                        <section className="space-y-4">
+                            <h2 className="text-lg font-black text-slate-900 uppercase tracking-tight flex items-center gap-2">
+                                <CheckCircle className="w-5 h-5 text-emerald-500" />
+                                Meus Próximos Trabalhos
+                            </h2>
+
+                            {!loading && activeJobs.length === 0 && (
+                                <div className="p-8 text-center bg-slate-50 border border-slate-200 border-dashed rounded-2xl">
+                                    <p className="text-slate-500 text-sm font-medium">Nenhum trabalho confirmado no momento.</p>
+                                </div>
+                            )}
+
+                            {!loading && activeJobs.length > 0 && (
+                                <div className="space-y-4">
+                                    {sortedActiveJobs.map((prop) => (
+                                        <Card key={prop.id} className="bg-white border border-slate-200 shadow-sm rounded-2xl overflow-hidden relative">
+                                            <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500" />
+                                            <CardContent className="p-5 md:p-6 space-y-4">
+                                                <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                                                    <div>
+                                                        <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none font-bold uppercase text-[10px] mb-3">
+                                                            Confirmado
+                                                        </Badge>
+                                                        <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">{prop.eventName || 'Evento'}</h3>
+                                                        <p className="text-sm text-slate-500 font-semibold">{prop.organizerName}</p>
+                                                    </div>
+                                                    
+                                                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 shrink-0 min-w-[200px]">
+                                                        <div className="flex flex-col space-y-2">
+                                                            <span className="text-[10px] font-bold text-slate-400 uppercase">Função</span>
+                                                            <span className="text-sm font-semibold text-slate-700">{prop.role}</span>
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                                <div className="flex gap-2">
-                                                    <Button variant="outline" className="border-white/10 hover:bg-red-500/10 hover:text-red-400 text-xs font-black uppercase tracking-widest px-4 rounded-xl">Recusar</Button>
-                                                    <Button className="bg-white text-black hover:bg-gray-200 text-xs font-black uppercase tracking-widest px-6 rounded-xl">Aceitar</Button>
+
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                                                    {prop.shiftStart && (
+                                                        <div className="flex items-center gap-2 text-sm font-medium text-slate-600">
+                                                            <Calendar className="w-4 h-4 text-slate-400" />
+                                                            {new Date(prop.shiftStart).toLocaleDateString('pt-BR')}
+                                                        </div>
+                                                    )}
+                                                    {prop.shiftStart && prop.shiftEnd && (
+                                                        <div className="flex items-center gap-2 text-sm font-medium text-slate-600">
+                                                            <Clock className="w-4 h-4 text-slate-400" />
+                                                            {new Date(prop.shiftStart).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} às {new Date(prop.shiftEnd).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                                        </div>
+                                                    )}
+                                                    {prop.location && (
+                                                        <div className="flex items-center gap-2 text-sm font-medium text-slate-600">
+                                                            <span className="text-slate-400">📍</span>
+                                                            {prop.location}
+                                                        </div>
+                                                    )}
                                                 </div>
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            ))}
-                        </div>
+
+                                                {/* ACESSO OPERACIONAL (Estrutura Preparada) */}
+                                                {/* Se a flag "hasOperationalAccess" existir e for true, mostramos. */}
+                                                {prop.hasOperationalAccess && (
+                                                    <div className="mt-4 pt-4 border-t border-slate-100">
+                                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-primary/5 border border-primary/10 rounded-xl p-4">
+                                                            <div className="flex items-start gap-3">
+                                                                <div className="p-2 bg-primary/10 rounded-lg shrink-0">
+                                                                    <ShieldCheck className="w-5 h-5 text-primary" />
+                                                                </div>
+                                                                <div>
+                                                                    <h4 className="text-sm font-bold text-slate-900">Acesso Operacional Liberado</h4>
+                                                                    <p className="text-xs text-slate-600 mt-1">Você possui acesso ao Controle de Acesso deste evento.</p>
+                                                                </div>
+                                                            </div>
+                                                            <Button className="bg-primary hover:bg-primary/90 text-white font-bold uppercase text-xs shrink-0">
+                                                                Acessar Ferramenta
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </CardContent>
+                                        </Card>
+                                    ))}
+                                </div>
+                            )}
+                        </section>
                     </div>
 
-                    {/* Sidebar Area: Agenda & Health */}
+                    {/* COLUNA DIREITA (30%) */}
                     <div className="space-y-6">
-                        <h2 className="text-xl font-black text-white uppercase tracking-tight flex items-center gap-2">
-                            <Clock className="w-5 h-5 text-primary" />
-                            Próximo Trabalho
-                        </h2>
-                        {upcomingShifts.map(shift => (
-                            <Card key={shift.id} className="bg-[#0A0A0A] border-primary/20 rounded-3xl overflow-hidden border-2 border-dashed">
-                                <CardContent className="p-6 space-y-4">
-                                    <div className="flex items-start justify-between">
+                        
+                        {/* PRÓXIMO TRABALHO */}
+                        <Card className="bg-white border border-slate-200 shadow-sm rounded-2xl overflow-hidden">
+                            <CardHeader className="bg-slate-50 border-b border-slate-100 pb-4">
+                                <CardTitle className="text-sm font-black text-slate-900 uppercase tracking-tight flex items-center gap-2">
+                                    <Clock className="w-4 h-4 text-slate-500" />
+                                    Próximo Trabalho
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-5">
+                                {nextJob ? (
+                                    <div className="space-y-4">
+                                        <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none font-bold uppercase text-[10px]">
+                                            Confirmado
+                                        </Badge>
                                         <div>
-                                            <p className="text-primary text-[10px] font-black uppercase tracking-[0.2em] mb-1">{shift.date}</p>
-                                            <h4 className="text-lg font-black text-white uppercase tracking-tight">{shift.event}</h4>
+                                            <h4 className="text-lg font-black text-slate-900 uppercase tracking-tight leading-tight">
+                                                {nextJob.eventName || 'Evento'}
+                                            </h4>
+                                            <p className="text-sm font-semibold text-slate-500 mt-1">{nextJob.role}</p>
                                         </div>
-                                        <div className="p-2 bg-primary/10 rounded-xl">
-                                            <Calendar className="w-5 h-5 text-primary" />
+                                        <div className="space-y-2 pt-2 border-t border-slate-100">
+                                            {nextJob.shiftStart && (
+                                                <div className="flex items-center gap-2 text-sm text-slate-600">
+                                                    <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
+                                                    <span>{new Date(nextJob.shiftStart).toLocaleDateString('pt-BR')}</span>
+                                                </div>
+                                            )}
+                                            {nextJob.shiftStart && nextJob.shiftEnd && (
+                                                <div className="flex items-center gap-2 text-sm text-slate-600">
+                                                    <Clock className="w-4 h-4 text-slate-400 shrink-0" />
+                                                    <span>{new Date(nextJob.shiftStart).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} às {new Date(nextJob.shiftEnd).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                                                </div>
+                                            )}
                                         </div>
+                                        <Button variant="outline" className="w-full text-xs font-bold uppercase border-slate-200 mt-2">
+                                            Ver Detalhes
+                                        </Button>
                                     </div>
-
-                                    <div className="space-y-2">
-                                        <div className="flex items-center gap-3 text-sm text-gray-400">
-                                            <Clock className="w-4 h-4 text-gray-600" />
-                                            <span className="font-bold text-gray-300">{shift.time}</span>
-                                        </div>
-                                        <div className="flex items-center gap-3 text-sm text-gray-400">
-                                            <MapPin className="w-4 h-4 text-gray-600" />
-                                            <span className="font-bold text-gray-300">{shift.location}</span>
-                                        </div>
+                                ) : (
+                                    <div className="py-6 text-center space-y-2">
+                                        <p className="text-sm font-medium text-slate-900">Nenhum trabalho confirmado.</p>
+                                        <p className="text-xs text-slate-500">Aceite um convite para adicioná-lo à sua escala.</p>
                                     </div>
-
-                                    <Button className="w-full bg-[#111] hover:bg-white hover:text-black border border-white/5 text-white text-[10px] font-black uppercase tracking-widest h-12 rounded-2xl transition-all">
-                                        Ver Instruções de Acesso
-                                    </Button>
-                                </CardContent>
-                            </Card>
-                        ))}
-
-                        {/* Certifications Alert */}
-                        <Card className="bg-gradient-to-br from-indigo-900/40 to-black border-indigo-500/30 rounded-3xl overflow-hidden relative">
-                            <div className="absolute top-0 right-0 p-4 opacity-20">
-                                <Award className="w-12 h-12 text-white" />
-                            </div>
-                            <CardContent className="p-6">
-                                <h3 className="text-white font-black uppercase tracking-tight mb-2">Pefil Incompleto</h3>
-                                <p className="text-indigo-200 text-xs font-medium mb-4 leading-relaxed">
-                                    Adicione seus certificados **(NR-10, NR-35, etc)** para aumentar suas chances de contratação em grandes festivais.
-                                </p>
-                                <Button variant="link" className="text-white p-0 h-auto text-[10px] font-black uppercase tracking-widest flex items-center gap-1">
-                                    Atualizar Agora <ChevronRight className="w-3 h-3" />
-                                </Button>
+                                )}
                             </CardContent>
                         </Card>
+
+                        {/* PERFIL PROFISSIONAL */}
+                        <Card className="bg-white border border-slate-200 shadow-sm rounded-2xl overflow-hidden">
+                            <CardHeader className="bg-slate-50 border-b border-slate-100 pb-4">
+                                <CardTitle className="text-sm font-black text-slate-900 uppercase tracking-tight flex items-center gap-2">
+                                    <UserCircle className="w-4 h-4 text-slate-500" />
+                                    Seu Perfil Profissional
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-5 text-center space-y-4">
+                                <p className="text-sm text-slate-600 font-medium">
+                                    Complete seu perfil profissional para estar preparado para novas oportunidades.
+                                </p>
+                                <Link to="/dashboard/staff/profile" className="block">
+                                    <Button className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold uppercase text-xs">
+                                        Completar Perfil
+                                    </Button>
+                                </Link>
+                            </CardContent>
+                        </Card>
+
                     </div>
                 </div>
             </div>
-        </StaffPortalLayout>
+        </DashboardLayout>
     );
 };
 

@@ -71,7 +71,7 @@ const Header = () => {
                   <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">Minha Conta</p>
                   <p className="text-lg font-black truncate mt-1">{user.name}</p>
                   <p className="text-[10px] font-bold text-indigo-400 uppercase mt-1">
-                    {user.role === 'master' ? '👑 Master Admin' : user.role === 'organizer' ? '🚀 Produtor' : '⚡ Participante'}
+                    {user.role === 'master' ? '👑 Master Admin' : user.role === 'organizer' ? '🚀 Produtor' : user.role === 'staff' ? '⭐ STAFF' : '⚡ Participante'}
                   </p>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator className="bg-white/5 mx-2" />

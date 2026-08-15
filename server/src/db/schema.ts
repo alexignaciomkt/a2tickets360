@@ -1,20 +1,31 @@
-import { pgTable, text, timestamp, serial, integer, boolean, decimal, jsonb, uuid, index, AnyPgColumn } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, serial, integer, boolean, decimal, jsonb, uuid, index, AnyPgColumn, unique, primaryKey } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
-// Administradores da Plataforma (Master)
-export const admins = pgTable('admins', {
-    id: uuid('id').primaryKey().defaultRandom(),
-    name: text('name').notNull(),
-    email: text('email').unique().notNull(),
-    passwordHash: text('password_hash').notNull(),
-    role: text('role', { enum: ['master', 'admin'] }).default('master'),
+// Platform Masters (Contexto Global)
+export const platformMasters = pgTable('platform_masters', {
+    userId: uuid('user_id').primaryKey(), // FK to auth.users.id
+    status: text('status').default('active'),
     createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
 });
 
-// Organizadores (Donos dos Eventos)
+// Perfis de Usuários (Extensão Universal do auth.users)
+export const profiles = pgTable('profiles', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id').unique().notNull(), // FK to auth.users.id
+    name: text('name').notNull(),
+    email: text('email').notNull(),
+    role: text('role').default('customer'),
+    status: text('status').default('pending'),
+    profileComplete: boolean('profile_complete').default(false),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// Organizadores (Donos dos Eventos / Tenants)
 export const organizers = pgTable('organizer_details', {
     id: uuid('id').primaryKey().defaultRandom(),
-    userId: uuid('user_id').notNull(),
+    userId: uuid('user_id').unique().notNull(), // FK to auth.users.id (Tenant ID Real)
     companyName: text('company_name'),
     slug: text('slug').unique(),
     cnpj: text('cnpj'),
@@ -45,6 +56,192 @@ export const organizers = pgTable('organizer_details', {
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow(),
 });
+
+// Funcionários (Employees) - Vínculo Pessoa -> Produtora
+export const employees = pgTable('employees', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id').notNull(), // FK to auth.users.id (ou profiles.user_id)
+    organizerId: uuid('organizer_id').notNull(), // FK to organizer_details.user_id / auth.users.id
+    credentialPhotoUrl: text('credential_photo_url'),
+    status: text('status', { enum: ['active', 'suspended', 'pending'] }).notNull().default('active'),
+    accessScope: text('access_scope', { enum: ['ALL_EVENTS', 'SELECTED_EVENTS'] }).notNull().default('ALL_EVENTS'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+}, (t) => ({
+    unqMembership: unique('unq_employee_membership').on(t.userId, t.organizerId)
+}));
+
+// Acesso Específico a Eventos (para SELECTED_EVENTS)
+export const employeeEventAccess = pgTable('employee_event_access', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    employeeId: uuid('employee_id').references(() => employees.id, { onDelete: 'cascade' }).notNull(),
+    eventId: uuid('event_id').notNull(), // Referencia events.id
+    createdAt: timestamp('created_at').defaultNow(),
+}, (t) => ({
+    unqAccess: unique('unq_employee_event_access').on(t.employeeId, t.eventId)
+}));
+
+// =============================================================================
+// RBAC (ROLES & PERMISSIONS)
+// =============================================================================
+
+// Catálogo Global de Roles
+export const roles = pgTable('roles', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    systemKey: text('system_key').unique().notNull(), // Ex: 'CHECKIN_OPERATOR'
+    displayName: text('display_name').notNull(), // Ex: 'Operador de Check-in'
+    description: text('description'),
+    isActive: boolean('is_active').default(true),
+    createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Catálogo Global de Permissões
+export const permissions = pgTable('permissions', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    systemKey: text('system_key').unique().notNull(), // Ex: 'checkin.scan'
+    description: text('description'),
+    createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Permissões Padrão das Roles
+export const rolePermissions = pgTable('role_permissions', {
+    roleId: uuid('role_id').references(() => roles.id, { onDelete: 'cascade' }).notNull(),
+    permissionId: uuid('permission_id').references(() => permissions.id, { onDelete: 'cascade' }).notNull(),
+    createdAt: timestamp('created_at').defaultNow(),
+}, (t) => ({
+    pk: primaryKey({ columns: [t.roleId, t.permissionId] })
+}));
+
+// Atribuição de Roles aos Funcionários
+export const employeeRoles = pgTable('employee_roles', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    employeeId: uuid('employee_id').references(() => employees.id, { onDelete: 'cascade' }).notNull(),
+    roleId: uuid('role_id').references(() => roles.id, { onDelete: 'cascade' }).notNull(),
+    createdAt: timestamp('created_at').defaultNow(),
+}, (t) => ({
+    unqEmployeeRole: unique('unq_employee_role').on(t.employeeId, t.roleId)
+}));
+
+// Exceções de Permissão por Funcionário (Overrides)
+export const employeePermissionOverrides = pgTable('employee_permission_overrides', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    employeeId: uuid('employee_id').references(() => employees.id, { onDelete: 'cascade' }).notNull(),
+    permissionId: uuid('permission_id').references(() => permissions.id, { onDelete: 'cascade' }).notNull(),
+    overrideType: text('override_type', { enum: ['GRANT', 'DENY'] }).notNull(),
+    createdAt: timestamp('created_at').defaultNow(),
+}, (t) => ({
+    unqEmployeePermission: unique('unq_employee_permission').on(t.employeeId, t.permissionId)
+}));
+
+// =============================================================================
+// STAFF PROFILE & EVENT STAFF (FASE 4)
+// =============================================================================
+
+// RG Profissional do Staff
+export const staffProfiles = pgTable('staff_profiles', {
+    userId: uuid('user_id').primaryKey(), // Referencia auth.users(id)
+    fullName: text('full_name').notNull(),
+    document: text('document'), // CPF/RG (Opcional nesta versão)
+    phone: text('phone'),
+    bio: text('bio'),
+    avatarUrl: text('avatar_url'), // Selfie persistente do credenciamento
+    isPublic: boolean('is_public').default(true),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// Funções Operacionais Customizáveis
+export const staffFunctions = pgTable('staff_functions', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizerId: uuid('organizer_id').notNull(), // Referencia auth.users(id) da realidade atual
+    name: text('name').notNull(),
+    description: text('description'),
+    defaultSystemRoleId: uuid('default_system_role_id').references(() => roles.id, { onDelete: 'set null' }), // Sugestão
+    isActive: boolean('is_active').default(true),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// Vínculo Event Staff e Convites
+export const eventStaff = pgTable('event_staff', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    eventId: uuid('event_id').references(() => events.id, { onDelete: 'cascade' }).notNull(),
+    userId: uuid('user_id').notNull(), // Identidade
+    organizerId: uuid('organizer_id').notNull(), // Contexto Cross-Tenant
+    staffFunctionId: uuid('staff_function_id').references(() => staffFunctions.id, { onDelete: 'set null' }),
+    status: text('status', { enum: ['PENDING_PROFILE', 'PENDING_ACCEPTANCE', 'ACTIVE', 'DECLINED', 'CANCELLED', 'COMPLETED'] }).notNull().default('PENDING_PROFILE'),
+    shiftStart: timestamp('shift_start'),
+    shiftEnd: timestamp('shift_end'),
+    invitedBy: uuid('invited_by'), // Quem convidou
+    invitedAt: timestamp('invited_at').defaultNow(),
+    acceptedAt: timestamp('accepted_at'),
+    declinedAt: timestamp('declined_at'),
+    cancelledAt: timestamp('cancelled_at'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+}, (t) => ({
+    unqEventStaff: unique('unq_event_staff').on(t.eventId, t.userId)
+}));
+
+// Atribuição de Roles para Event Staff
+export const eventStaffRoles = pgTable('event_staff_roles', {
+    eventStaffId: uuid('event_staff_id').references(() => eventStaff.id, { onDelete: 'cascade' }).notNull(),
+    roleId: uuid('role_id').references(() => roles.id, { onDelete: 'cascade' }).notNull(),
+    createdAt: timestamp('created_at').defaultNow(),
+}, (t) => ({
+    pk: primaryKey({ columns: [t.eventStaffId, t.roleId] })
+}));
+
+// Overrides de Permissão para Event Staff
+export const eventStaffPermissionOverrides = pgTable('event_staff_permission_overrides', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    eventStaffId: uuid('event_staff_id').references(() => eventStaff.id, { onDelete: 'cascade' }).notNull(),
+    permissionId: uuid('permission_id').references(() => permissions.id, { onDelete: 'cascade' }).notNull(),
+    overrideType: text('override_type', { enum: ['GRANT', 'DENY'] }).notNull(),
+    createdAt: timestamp('created_at').defaultNow(),
+}, (t) => ({
+    unqEventStaffPermission: unique('unq_event_staff_permission').on(t.eventStaffId, t.permissionId)
+}));
+
+// =============================================================================
+// CREDENCIAIS, SELFIE E PRESENÇA (FASE 5)
+// =============================================================================
+
+// Credencial Temporária de Staff
+export const staffCredentials = pgTable('staff_credentials', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    eventStaffId: uuid('event_staff_id').references(() => eventStaff.id, { onDelete: 'cascade' }).notNull(),
+    credentialToken: text('credential_token').unique().notNull(), // Secure random token
+    status: text('status', { enum: ['ACTIVE', 'REVOKED'] }).default('ACTIVE').notNull(),
+    issuedAt: timestamp('issued_at').defaultNow(),
+    revokedAt: timestamp('revoked_at'),
+    expiresAt: timestamp('expires_at'),
+    createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Credencial Permanente de Employee
+export const employeeCredentials = pgTable('employee_credentials', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    employeeId: uuid('employee_id').references(() => employees.id, { onDelete: 'cascade' }).notNull(),
+    credentialToken: text('credential_token').unique().notNull(),
+    status: text('status', { enum: ['ACTIVE', 'REVOKED'] }).default('ACTIVE').notNull(),
+    issuedAt: timestamp('issued_at').defaultNow(),
+    revokedAt: timestamp('revoked_at'),
+    createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Registro Operacional de Presença (Attendance)
+export const staffAttendance = pgTable('staff_attendance', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    eventStaffId: uuid('event_staff_id').references(() => eventStaff.id, { onDelete: 'cascade' }),
+    employeeId: uuid('employee_id').references(() => employees.id, { onDelete: 'cascade' }),
+    eventId: uuid('event_id').references(() => events.id, { onDelete: 'cascade' }).notNull(),
+    checkedInAt: timestamp('checked_in_at').defaultNow().notNull(),
+    checkedInBy: uuid('checked_in_by').references(() => platformMasters.userId), // Quem conferiu e confirmou (auth.users)
+    credentialId: text('credential_id').notNull(), // Pode ser staff_credentials.id ou employee_credentials.id
+    createdAt: timestamp('created_at').defaultNow(),
+});
+
 
 // Categorias de Eventos (Banco Global Colaborativo)
 export const eventCategories = pgTable('event_categories', {
@@ -152,6 +349,18 @@ export const purchasedTickets = pgTable('purchased_tickets', {
     validatedAt: timestamp('validated_at'),
     validatedBy: uuid('validated_by'),
     createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Logs de Check-in (Auditoria Fase 6)
+export const ticketCheckinLogs = pgTable('ticket_checkin_logs', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    purchasedTicketId: uuid('purchased_ticket_id').references(() => purchasedTickets.id).notNull(),
+    eventId: uuid('event_id').references(() => events.id).notNull(),
+    operatorId: uuid('operator_id').notNull(), // Quem operou (User ID)
+    action: text('action', { enum: ['CHECK_IN', 'UNDO'] }).notNull(),
+    reason: text('reason'), // Opcional para CHECK_IN, obrigatório para UNDO
+    deviceInfo: jsonb('device_info'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
 // =============================================================================

@@ -3,12 +3,20 @@ import { User, RegisterData } from '@/types/auth';
 
 export interface AuthContextType {
   user: User | null;
+  personalModules?: {
+    tickets: boolean;
+    promoter: boolean;
+    staff: boolean;
+  };
+  staffPendingInvites?: number;
+  contexts?: any[];
   loading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   register: (data: RegisterData) => Promise<{ success: boolean; error?: string }>;
   logout: (silent?: boolean) => Promise<void>;
   isAuthenticated: boolean;
   refreshUser: () => Promise<void>;
+  refreshCapabilities: () => Promise<void>;
   sendPasswordRecovery: (email: string) => Promise<boolean>;
 }
 

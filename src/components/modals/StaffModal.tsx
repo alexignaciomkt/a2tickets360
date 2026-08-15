@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { staffService } from '@/services/staffService';
-import { StaffMember, StaffRole } from '@/interfaces/staff';
+import { StaffMember } from '@/interfaces/staff';
 
 interface StaffModalProps {
   open: boolean;
@@ -47,16 +47,19 @@ export const StaffModal = ({
 }: StaffModalProps) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [roles, setRoles] = useState<StaffRole[]>([]);
+  const [isCreatingFunction, setIsCreatingFunction] = useState(false);
+  const [newFunctionName, setNewFunctionName] = useState('');
+  const [newFunctionDefaultRole, setNewFunctionDefaultRole] = useState('');
+  const [roles, setRoles] = useState<any[]>([]);
+  const [functions, setFunctions] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phone: '',
     eventId: '',
-    roleId: '',
-    eventFunction: '',
+    systemRoleIds: [] as string[],
+    staffFunctionId: '',
     isActive: true,
-    sendCredentials: true,
     // Phase 2 fields
     contractType: 'daily' as 'daily' | 'clt' | 'freelance' | 'volunteer',
     paymentValue: 0,
@@ -81,15 +84,24 @@ export const StaffModal = ({
   };
 
   useEffect(() => {
-    loadRoles();
+    loadData();
   }, []);
 
-  const loadRoles = async () => {
+  const loadData = async () => {
     try {
-      const data = await staffService.getRoles();
-      setRoles(data);
-    } catch (error) {
-      console.error('Failed to load roles');
+      const [rolesData, funcsData] = await Promise.all([
+        staffService.getRoles(),
+        staffService.getFunctions()
+      ]);
+      setRoles(rolesData);
+      setFunctions(funcsData);
+    } catch (error: any) {
+      console.error('Failed to load roles and functions');
+      toast({
+        variant: 'destructive',
+        title: 'Erro de Autenticação / Conexão',
+        description: error.message || 'Não foi possível carregar os acessos do sistema.',
+      });
     }
   };
 
@@ -100,10 +112,9 @@ export const StaffModal = ({
         email: staff.email,
         phone: staff.phone || '',
         eventId: staff.eventId,
-        roleId: staff.roleId || '',
-        eventFunction: staff.eventFunction || '',
+        systemRoleIds: staff.systemRoleIds || [],
+        staffFunctionId: staff.staffFunctionId || '',
         isActive: staff.isActive,
-        sendCredentials: staff.sendCredentials,
         contractType: staff.contractType || 'daily',
         paymentValue: staff.paymentValue || 0,
         paymentType: staff.paymentType || 'fixed',
@@ -120,10 +131,9 @@ export const StaffModal = ({
         email: initialData?.email || '',
         phone: initialData?.phone || '',
         eventId: events.length > 0 ? events[0].id : '',
-        roleId: initialData?.roleId || (roles.length > 0 ? roles[0].id : ''),
-        eventFunction: '',
+        systemRoleIds: initialData?.systemRoleIds || [],
+        staffFunctionId: initialData?.staffFunctionId || '',
         isActive: true,
-        sendCredentials: true,
         contractType: 'daily',
         paymentValue: 0,
         paymentType: 'fixed',
@@ -136,24 +146,41 @@ export const StaffModal = ({
     }
   }, [staff, open, events, roles, initialData]);
 
-  const generateTemporaryPassword = () => {
-    return Math.random().toString(36).slice(-8);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      // Encontrar o role selecionado para pegar o nome legacy (opcional)
-      const selectedRole = roles.find(r => r.id === formData.roleId);
-      const legacyRole = selectedRole?.name.toLowerCase().includes('admin') || selectedRole?.name.toLowerCase().includes('gerente')
-        ? 'supervisor'
-        : 'operator';
+      let functionIdToUse = formData.staffFunctionId;
+
+      if (isCreatingFunction && newFunctionName.trim()) {
+        const roleIdToSend = (newFunctionDefaultRole === 'none' || !newFunctionDefaultRole) ? undefined : newFunctionDefaultRole;
+        
+        const newFunc = await staffService.createFunction({
+          name: newFunctionName,
+          defaultSystemRoleId: roleIdToSend
+        });
+        
+        // Update local list
+        setFunctions(prev => [...prev, newFunc]);
+        functionIdToUse = newFunc.id;
+
+        // Auto-assign default role if not already in systemRoleIds
+        if (roleIdToSend && !formData.systemRoleIds.includes(roleIdToSend)) {
+          formData.systemRoleIds.push(roleIdToSend);
+        }
+      }
+
+      if (!functionIdToUse) {
+        toast({ variant: 'destructive', title: 'Erro', description: 'Por favor, selecione ou crie uma Função no evento.' });
+        setLoading(false);
+        return;
+      }
 
       const dataToSave = {
         ...formData,
-        role: legacyRole as 'supervisor' | 'operator' // Maintain legacy field
+        staffFunctionId: functionIdToUse
       } as any;
 
       if (staff) {
@@ -163,22 +190,11 @@ export const StaffModal = ({
           description: 'As informações do membro da equipe foram atualizadas.',
         });
       } else {
-        const newStaff = await staffService.createStaffMember(formData.eventId, dataToSave);
-
-        if (formData.sendCredentials) {
-          const temporaryPassword = generateTemporaryPassword();
-          await staffService.sendStaffCredentials(newStaff, temporaryPassword);
-
-          toast({
-            title: 'Membro da equipe criado',
-            description: `Credenciais enviadas para ${formData.email}`,
-          });
-        } else {
-          toast({
-            title: 'Membro da equipe criado',
-            description: 'Membro criado sem envio de credenciais.',
-          });
-        }
+        await staffService.createStaffMember(formData.eventId, dataToSave);
+        toast({
+          title: 'Membro da equipe criado',
+          description: `Membro criado e acesso enviado por email.`,
+        });
       }
 
       onSuccess();
@@ -204,7 +220,7 @@ export const StaffModal = ({
           <DialogDescription>
             {staff
               ? 'Edite as informações do membro da equipe.'
-              : 'Adicione um novo membro, defina cargo e dados de contratação.'
+              : 'Adicione um novo membro, defina sua função e dados de contratação.'
             }
           </DialogDescription>
         </DialogHeader>
@@ -270,6 +286,7 @@ export const StaffModal = ({
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     placeholder="email@exemplo.com"
                     required
+                    disabled={!!staff}
                   />
                 </div>
               </div>
@@ -306,45 +323,110 @@ export const StaffModal = ({
               </div>
 
               <div className="space-y-4 pt-2">
-                <div className="space-y-2">
-                  <Label htmlFor="role">Cargo / Permissão</Label>
-                  <Select
-                    value={formData.roleId}
-                    onValueChange={(value) => setFormData({ ...formData, roleId: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione um cargo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {roles.map((role) => (
-                        <SelectItem key={role.id} value={role.id}>
-                          <div className="flex items-center gap-2">
-                            <div
-                              className="w-2 h-2 rounded-full"
-                              style={{ backgroundColor: role.color }}
-                            />
-                            {role.name}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-gray-500">
-                    O nível de acesso ao sistema (App, Painel, etc).
-                  </p>
+                <div className="space-y-2 bg-gray-50 p-4 rounded-md border">
+                  <Label htmlFor="staffFunction">Função no evento</Label>
+                  
+                  {!isCreatingFunction ? (
+                    <>
+                      <Select
+                        value={formData.staffFunctionId}
+                        onValueChange={(value) => {
+                          const selectedFunc = functions.find(f => f.id === value);
+                          const newSystemRoleIds = [...formData.systemRoleIds];
+                          
+                          if (selectedFunc?.defaultSystemRoleId && !newSystemRoleIds.includes(selectedFunc.defaultSystemRoleId)) {
+                            newSystemRoleIds.push(selectedFunc.defaultSystemRoleId);
+                          }
+                          
+                          setFormData({ ...formData, staffFunctionId: value, systemRoleIds: newSystemRoleIds });
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione a função" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {functions.length === 0 && (
+                            <div className="p-2 text-sm text-gray-500 italic">Nenhuma função cadastrada</div>
+                          )}
+                          {functions.map((func) => (
+                            <SelectItem key={func.id} value={func.id}>
+                              {func.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <div className="flex justify-between items-center mt-1">
+                        <p className="text-xs text-gray-500">
+                          A função que ele irá desempenhar na prática durante o evento.
+                        </p>
+                        <Button type="button" variant="link" className="h-auto p-0 text-xs" onClick={() => setIsCreatingFunction(true)}>
+                          + Criar nova função
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="space-y-3 p-3 bg-white border border-blue-100 rounded-md">
+                      <div className="flex justify-between items-center mb-1">
+                        <Label className="text-blue-700 font-semibold">Criar Nova Função</Label>
+                        <Button type="button" variant="ghost" className="h-6 w-6 p-0" onClick={() => setIsCreatingFunction(false)}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs">Nome da função</Label>
+                        <Input 
+                          placeholder="Ex: Segurança Portaria" 
+                          value={newFunctionName}
+                          onChange={(e) => setNewFunctionName(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs text-gray-500">Acesso sugerido (opcional)</Label>
+                        <Select
+                          value={newFunctionDefaultRole}
+                          onValueChange={setNewFunctionDefaultRole}
+                        >
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue placeholder="Nenhum acesso automático" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Nenhum acesso automático</SelectItem>
+                            {roles.map((role) => (
+                              <SelectItem key={role.id} value={role.id}>
+                                {role.displayName || role.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="eventFunction">Função Operacional</Label>
-                  <Input
-                    id="eventFunction"
-                    value={formData.eventFunction}
-                    onChange={(e) => setFormData({ ...formData, eventFunction: e.target.value })}
-                    placeholder="Ex: Segurança Portão A, Barman Principal..."
-                    required
-                  />
+                  <Label>Acessos no sistema</Label>
+                  <div className="grid grid-cols-2 gap-2 mt-2 bg-white p-3 rounded-md border">
+                    {roles.map((role) => (
+                      <div key={role.id} className="flex items-center space-x-2">
+                        <Checkbox 
+                          id={`role-${role.id}`}
+                          checked={formData.systemRoleIds.includes(role.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setFormData({ ...formData, systemRoleIds: [...formData.systemRoleIds, role.id] });
+                            } else {
+                              setFormData({ ...formData, systemRoleIds: formData.systemRoleIds.filter(id => id !== role.id) });
+                            }
+                          }}
+                        />
+                        <Label htmlFor={`role-${role.id}`} className="text-sm font-normal cursor-pointer">
+                          {role.displayName || role.name}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
                   <p className="text-xs text-gray-500">
-                    A função que ele irá desempenhar na prática durante o evento.
+                    Define o nível de permissão do usuário no painel e aplicativo.
                   </p>
                 </div>
               </div>
@@ -456,36 +538,7 @@ export const StaffModal = ({
               />
               <Label htmlFor="isActive">Membro ativo</Label>
             </div>
-
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="sendCredentials"
-                checked={formData.sendCredentials}
-                onCheckedChange={(checked) => setFormData({ ...formData, sendCredentials: !!checked })}
-              />
-              <Label htmlFor="sendCredentials" className="text-sm">
-                Enviar credenciais de acesso por email
-              </Label>
-            </div>
           </div>
-
-          {!staff && !formData.sendCredentials && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-              <p className="text-sm text-yellow-800">
-                <strong>Atenção:</strong> As credenciais não serão enviadas.
-                Você precisará informar manualmente os dados de acesso ao membro da equipe.
-              </p>
-            </div>
-          )}
-
-          {!staff && formData.sendCredentials && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-              <p className="text-sm text-blue-800">
-                <strong>Importante:</strong> Após criar o membro da equipe,
-                as credenciais de acesso serão enviadas automaticamente por email.
-              </p>
-            </div>
-          )}
 
           <div className="flex justify-end space-x-2 pt-4">
             <Button

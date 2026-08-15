@@ -4,16 +4,55 @@ import { StaffMember, StaffRole } from '@/interfaces/staff';
 
 class StaffService {
   /**
-   * Obtém as roles de staff
+   * Obtém as roles de staff do catálogo global
    */
-  async getRoles(): Promise<StaffRole[]> {
-    // Retorna roles básicas mockadas ou do banco, se existir tabela
-    return [
-      { id: '1', name: 'Supervisor', color: '#4f46e5' },
-      { id: '2', name: 'Operador de Caixa', color: '#10b981' },
-      { id: '3', name: 'Validador/Portaria', color: '#f59e0b' },
-      { id: '4', name: 'Segurança', color: '#ef4444' }
-    ];
+  async getRoles(): Promise<any[]> {
+    try {
+      const { api } = await import('@/services/api');
+      return await api.get('/api/staff/roles');
+    } catch (e) {
+      console.error('[STAFF_SERVICE] Erro ao buscar roles:', e);
+      throw e;
+    }
+  }
+
+  /**
+   * Obtém as funções operacionais
+   */
+  async getFunctions(): Promise<any[]> {
+    try {
+      const { api } = await import('@/services/api');
+      return await api.get('/api/staff/functions');
+    } catch (e) {
+      console.error('[STAFF_SERVICE] Erro ao buscar functions:', e);
+      throw e;
+    }
+  }
+
+  /**
+   * Cria uma nova função operacional
+   */
+  async createFunction(data: { name: string, description?: string, defaultSystemRoleId?: string }): Promise<any> {
+    try {
+      const { api } = await import('@/services/api');
+      return await api.post('/api/staff/functions', data);
+    } catch (e) {
+      console.error('[STAFF_SERVICE] Erro ao criar function:', e);
+      throw e;
+    }
+  }
+
+  /**
+   * Obtém a lista de convites e vínculos do Staff atual
+   */
+  async getMyInvites(): Promise<any[]> {
+    try {
+      const { api } = await import('@/services/api');
+      return await api.get('/api/staff/my-invites');
+    } catch (e) {
+      console.error('[STAFF_SERVICE] Erro ao buscar convites do staff:', e);
+      return [];
+    }
   }
 
   /**
@@ -21,31 +60,26 @@ class StaffService {
    */
   async getEventStaff(eventId: string): Promise<StaffMember[]> {
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData?.user) return [];
-
-      let query = supabase.from('staff').select('*');
-      if (eventId !== 'all') {
-         query = query.eq('event_id', eventId);
-      } else {
-         query = query.eq('organizer_id', userData.user.id);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-
-      return (data || []).map(s => ({
-        id: s.id,
-        organizerId: s.organizer_id,
-        eventId: s.event_id,
-        name: s.name,
+      const { api } = await import('@/services/api');
+      const data = await api.get<any[]>(`/api/staff/event-staff?eventId=${eventId === 'all' ? '' : eventId}`);
+      
+      return data.map(s => ({
+        id: s.eventStaffId, // Mapeamos o id real do event_staff
+        organizerId: s.organizerId,
+        eventId: s.eventId,
+        name: s.nome,
         email: s.email,
-        roleId: s.role_id,
-        eventFunction: s.event_function,
-        isActive: s.is_active,
-        photoUrl: s.photo_url,
-        createdAt: s.created_at
-      } as StaffMember));
+        roleId: s.funcaoId, // ID da função operacional
+        staffFunctionId: s.funcaoId, // Mapeamento novo para o modal
+        systemRoleIds: s.systemRoleIds || [], // Mapeamento novo para o modal
+        eventFunction: s.funcao, // Nome da função
+        isActive: s.status === 'ACTIVE',
+        status: s.status,
+        phone: s.telefone,
+        createdAt: s.createdAt,
+        shiftStart: s.shiftStart,
+        shiftEnd: s.shiftEnd,
+      } as any));
     } catch (e) {
       console.error('[STAFF_SERVICE] Erro ao buscar equipe:', e);
       return [];
@@ -53,34 +87,79 @@ class StaffService {
   }
 
   /**
-   * Cria um membro da equipe (cria no Auth e na tabela staff)
+   * Cria um membro da equipe usando a nova arquitetura (Fase 4)
+   * Agora usamos api.post('/api/staff/invite') ao invés do INSERT no frontend.
    */
   async createStaffMember(eventId: string, data: any): Promise<any> {
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData?.user) throw new Error('Não autenticado');
+      const { api } = await import('@/services/api');
+      
+      const payload = {
+        eventId: eventId === 'all' || eventId === '' ? null : eventId,
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        staffFunctionId: data.staffFunctionId,
+        shiftStart: data.shiftStart,
+        shiftEnd: data.shiftEnd,
+        systemRoleIds: data.systemRoleIds
+      };
 
-      // 1. Gera uma senha temporária (o envio mandará esta senha)
-      const tempPassword = Math.random().toString(36).slice(-8);
-
-      // 2. Insere na tabela 'staff'
-      const { data: newStaff, error } = await supabase.from('staff').insert({
-         organizer_id: userData.user.id,
-         event_id: eventId,
-         name: data.name,
-         email: data.email,
-         role_id: data.roleId || 'validador',
-         event_function: data.eventFunction,
-         is_active: data.isActive,
-         photo_url: data.photoUrl,
-         password_hash: tempPassword // Guardando mock para retrocompatibilidade
-      }).select().single();
-
-      if (error) throw error;
-
-      return { ...newStaff, tempPassword }; // Retorna a senha pro sendStaffCredentials
+      const response = await api.post<{ eventStaffId: string, status: string, success: boolean, accessDelivery: string }>('/api/staff/invite', payload);
+      
+      return response;
     } catch (e) {
       console.error('[STAFF_SERVICE] Erro ao criar staff:', e);
+      throw e;
+    }
+  }
+
+  /**
+   * Envia o acesso (convite ou recuperação) para o Staff.
+   */
+  async sendAccess(eventStaffId: string): Promise<any> {
+    try {
+      const { api } = await import('@/services/api');
+      return await api.post(`/api/staff/${eventStaffId}/send-access`, {});
+    } catch (e) {
+      console.error('[STAFF_SERVICE] Erro ao enviar acesso:', e);
+      throw e;
+    }
+  }
+
+  /**
+   * Envia recuperação de senha (para staffs já ativos)
+   */
+  async sendRecovery(eventStaffId: string): Promise<any> {
+    try {
+      const { api } = await import('@/services/api');
+      return await api.post(`/api/staff/${eventStaffId}/send-access-recovery`, {});
+    } catch (e) {
+      console.error('[STAFF_SERVICE] Erro ao enviar recuperação:', e);
+      throw e;
+    }
+  }
+
+  /**
+   * Aceita um convite de Staff
+   */
+  async acceptInvite(eventStaffId: string): Promise<any> {
+    try {
+      const { api } = await import('@/services/api');
+      return await api.post(`/api/staff/accept/${eventStaffId}`, {});
+    } catch (e) {
+      throw e;
+    }
+  }
+
+  /**
+   * Recusa um convite de Staff
+   */
+  async declineInvite(eventStaffId: string): Promise<any> {
+    try {
+      const { api } = await import('@/services/api');
+      return await api.post(`/api/staff/decline/${eventStaffId}`, {});
+    } catch (e) {
       throw e;
     }
   }
@@ -90,6 +169,7 @@ class StaffService {
    */
   async updateStaffMember(id: string, data: any): Promise<void> {
     const { error } = await supabase.from('staff').update({
+       event_id: data.eventId === 'all' || data.eventId === '' ? null : data.eventId,
        name: data.name,
        email: data.email,
        role_id: data.roleId,
@@ -109,29 +189,6 @@ class StaffService {
     if (error) throw error;
   }
 
-  /**
-   * Envia as credenciais e tenta criar a conta no Auth (se não existir)
-   */
-  async sendStaffCredentials(staffData: any, manualPassword?: string): Promise<void> {
-    // 1. Criar perfil real no Supabase Auth usando signUp
-    const password = manualPassword || staffData.tempPassword || 'A2tickets@2026';
-    
-    // Tenta criar no Auth (pode falhar se o admin já o fez ou se já existe)
-    // Usamos um signUp comum. Pode exigir confirmação de e-mail dependendo da configuração
-    await supabase.auth.signUp({
-      email: staffData.email,
-      password: password,
-      options: {
-        data: {
-          name: staffData.name,
-          role: 'staff'
-        }
-      }
-    });
-
-    // Em produção, isso faria uma chamada para a API que enviaria o e-mail
-    console.log(`[STAFF_SERVICE] Simulando envio de email para ${staffData.email} com senha: ${password}`);
-  }
 
   /**
    * Sincroniza a lista de ingressos do Supabase para o IndexedDB local.

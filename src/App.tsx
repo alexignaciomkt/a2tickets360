@@ -41,6 +41,7 @@ import TicketValidation from '@/pages/dashboard/TicketValidation';
 import TicketDesigner from '@/pages/dashboard/TicketDesigner';
 import SalesPoints from '@/pages/dashboard/SalesPoints';
 import CheckinPage from '@/pages/dashboard/CheckinPage';
+import TicketScannerPage from '@/pages/dashboard/TicketScannerPage';
 import ProducerFanPage from '@/pages/ProducerFanPage';
 import ProducerCareersPage from '@/pages/ProducerCareersPage';
 import EventsPage from '@/pages/EventsPage';
@@ -59,6 +60,7 @@ import PromoterLanding from '@/pages/PromoterLanding';
 import PromoterLP from '@/pages/promoter/PromoterLP';
 import PromoterOnboardingPage from '@/pages/promoter/PromoterOnboardingPage';
 import WorkerProfilePage from '@/pages/staff/WorkerProfilePage';
+import WorkerCredentialPage from '@/pages/staff/WorkerCredentialPage';
 import ProposalsPage from '@/pages/staff/ProposalsPage';
 import AgendaPage from '@/pages/staff/AgendaPage';
 import VisitorRegistrationPage from '@/pages/VisitorRegistrationPage';
@@ -68,6 +70,8 @@ import MesaRedeemPage from '@/pages/MesaRedeemPage';
 import ExhibitorDashboard from '@/pages/dashboard/ExhibitorDashboard';
 import ProductCheckoutPage from '@/pages/ProductCheckoutPage';
 import CheckInPage from '@/pages/staff/CheckInPage';
+import SetupPasswordPage from '@/pages/auth/SetupPasswordPage';
+import ResetPasswordPage from '@/pages/auth/ResetPasswordPage';
 
 import BuyerProfilePage from '@/pages/BuyerProfilePage';
 import MasterAdminPanel from '@/pages/dashboard/MasterAdminPanel';
@@ -88,6 +92,7 @@ import MasterSiteManagement from '@/pages/dashboard/MasterSiteManagement';
 
 import { AnimatePresence } from 'framer-motion';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import PortariaAppRoutes from '@/components/layout/PortariaAppRoutes';
 
 const queryClient = new QueryClient();
 
@@ -98,7 +103,11 @@ function App() {
         <NotificationProvider>
           <ErrorBoundary>
             <Router>
-              <AppRoutes />
+              {window.location.hostname.includes('portaria.a2tickets360.com.br') || window.location.hostname.startsWith('portaria.') ? (
+                <PortariaAppRoutes />
+              ) : (
+                <AppRoutes />
+              )}
               <Toaster />
             </Router>
           </ErrorBoundary>
@@ -132,10 +141,18 @@ function AppRoutes() {
         <Route path="/validador" element={<CheckInPage />} />
         <Route path="/staff/check-in/:eventId" element={<CheckInPage />} />
         <Route path="/staff/reader" element={<StaffReaderPage />} />
+        <Route path="/dashboard/:slug/scanner" element={<TicketScannerPage />} />
+        <Route path="/auth/setup-password" element={<SetupPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/auth/verify" element={<VerifyEmailPage />} />
         <Route path="/events" element={<EventsPage />} />
         <Route path="/events/:id" element={<EventDetailPage />} />
         <Route path="/e/:id" element={<EventDetailPage />} />
+        {import.meta.env.DEV && (
+          <>
+            <Route path="/dev/setup-password-preview" element={<SetupPasswordPage />} />
+          </>
+        )}
         <Route path="/p/:slug" element={<ProducerFanPage />} />
         <Route path="/producer-fan/:slug" element={<ProducerFanPage />} />
         <Route path="/producer-page/:slug" element={<ProducerFanPage />} />
@@ -388,30 +405,25 @@ function AppRoutes() {
           </ProtectedRoute>
         } />
 
-        {/* ═══ STAFF PORTAL ROUTES ═══ */}
-        <Route path="/staff/portal" element={
+        {/* ═══ STAFF MODULE ROUTES ═══ */}
+        <Route path="/dashboard/staff/invites" element={
           <ProtectedRoute allowedRoles={['staff']}>
             <StaffPortalDashboard />
           </ProtectedRoute>
         } />
-        <Route path="/staff/portal/proposals" element={
-          <ProtectedRoute allowedRoles={['staff']}>
-            <ProposalsPage />
-          </ProtectedRoute>
-        } />
-        <Route path="/staff/portal/agenda" element={
+        <Route path="/dashboard/staff/agenda" element={
           <ProtectedRoute allowedRoles={['staff']}>
             <AgendaPage />
           </ProtectedRoute>
         } />
-        <Route path="/staff/portal/financial" element={
-          <ProtectedRoute allowedRoles={['staff']}>
-            <StaffPortalDashboard />
-          </ProtectedRoute>
-        } />
-        <Route path="/staff/portal/profile" element={
+        <Route path="/dashboard/staff/profile" element={
           <ProtectedRoute allowedRoles={['staff']}>
             <WorkerProfilePage />
+          </ProtectedRoute>
+        } />
+        <Route path="/dashboard/staff/credential" element={
+          <ProtectedRoute allowedRoles={['staff']}>
+            <WorkerCredentialPage />
           </ProtectedRoute>
         } />
         <Route path="/organizer/feed" element={

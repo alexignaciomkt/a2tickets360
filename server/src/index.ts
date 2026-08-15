@@ -22,12 +22,18 @@ import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { v4 as uuidv4 } from 'uuid';
 import nodemailer from 'nodemailer';
+import crypto from 'node:crypto';
 
 // Router Imports
 import exhibitorRoutes from './routes/exhibitor';
 import aiRoutes from './routes/ai';
-import authRoutes from './routes/auth';
 import integrationRoutes from './routes/integrations';
+import contextsRoutes from './routes/contexts';
+import permissionsRoutes from './routes/permissions';
+import staffRoutes from './routes/staff';
+import credentialsRoutes from './routes/credentials';
+import ticketCheckinRoutes from './routes/ticketCheckin';
+import portariaRoutes from './routes/portaria';
 
 import { logger } from 'hono/logger';
 
@@ -79,8 +85,13 @@ app.use('/*', cors({
 // API Routes
 app.route('/api/exhibitor', exhibitorRoutes);
 app.route('/api/ai', aiRoutes);
-app.route('/api/auth', authRoutes);
 app.route('/api/integrations', integrationRoutes);
+app.route('/api/me/contexts', contextsRoutes);
+app.route('/api/me/permissions', permissionsRoutes);
+app.route('/api/staff', staffRoutes);
+app.route('/api/credentials', credentialsRoutes);
+app.route('/api/checkin/tickets', ticketCheckinRoutes);
+app.route('/api/portaria', portariaRoutes);
 
 app.get('/', (c: Context) => c.text('A2 Tickets 360º API - High Performance Ready'));
 
@@ -230,75 +241,7 @@ app.post('/api/upload', async (c: Context) => {
     }
 });
 
-// --- AUTENTICAÇÃO REAL ---
 
-app.post('/api/login', async (c: Context) => {
-    const { email, password } = await c.req.json();
-    const secret = process.env.JWT_SECRET || 'fallback_secret_for_dev_only';
-
-    try {
-        // 1. Tentar Login como Admin Master
-        const adminUser = await db.query.admins.findFirst({
-            where: eq(admins.email, email)
-        });
-
-        if (adminUser) {
-            const isMatch = await Bun.password.verify(password, adminUser.passwordHash);
-            console.log(`[AUTH] Admin find: ${email}, Match: ${isMatch}`);
-            if (isMatch) {
-                const token = await sign({
-                    id: adminUser.id,
-                    email: adminUser.email,
-                    role: adminUser.role,
-                    exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24) // 24h
-                }, secret);
-                return c.json({ user: { ...adminUser, role: adminUser.role }, token });
-            }
-        }
-
-        // 2. Tentar Login como Organizador
-        const organizer = await db.query.organizers.findFirst({
-            where: eq(organizersTable.email, email)
-        });
-
-        if (organizer) {
-            const isMatch = await Bun.password.verify(password, organizer.passwordHash);
-            console.log(`[AUTH] Organizer find: ${email}, Match: ${isMatch}`);
-            if (isMatch) {
-                const token = await sign({
-                    id: organizer.id,
-                    email: organizer.email,
-                    role: 'organizer',
-                    exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24)
-                }, secret);
-                return c.json({ user: { ...organizer, role: 'organizer' }, token });
-            }
-        }
-
-        // 3. Tentar Login como Staff
-        const staffUser = await db.query.staff.findFirst({
-            where: eq(staff.email, email)
-        });
-
-        if (staffUser) {
-            const isMatch = await Bun.password.verify(password, staffUser.passwordHash);
-            console.log(`[AUTH] Staff find: ${email}, Match: ${isMatch}`);
-            if (isMatch) {
-                const token = await sign({
-                    id: staffUser.id,
-                    email: staffUser.email,
-                    role: 'staff',
-                    exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24)
-                }, secret);
-                return c.json({ user: { ...staffUser, role: 'staff' }, token });
-            }
-        }
-
-        return c.json({ error: 'E-mail ou senha incorretos' }, 401);
-    } catch (error: any) {
-        return c.json({ error: error.message }, 500);
-    }
-});
 
 // --- Rota de Cadastro de Organizador (Com Asaas e Verificação) ---
 app.post('/api/organizers/register', async (c: Context) => {
@@ -711,7 +654,7 @@ app.post('/api/payments/checkout', async (c: Context) => {
         const saleId = saleResult[0].id;
 
         // 2. Criar purchased_ticket pendente
-        const qrCode = `QR_${Math.random().toString(36).substring(7).toUpperCase()}`;
+        const qrCode = `TKT_${crypto.randomBytes(16).toString('hex')}`;
         const ptResult = await db.insert(purchasedTickets).values({
             eventId: ticket.eventId,
             userId: buyerId || ticket.event.organizerId,
@@ -1217,9 +1160,8 @@ app.post('/api/webhooks/asaas', async (c) => {
                     where: eq(schema.users.email, sale.buyerEmail)
                 });
                 
-                // 3. Gerar purchased_tickets
-                // Note: Para simplicidade, usamos um hash MD5 ou string aleatória como QR Code real
-                const realQrCode = sale.qrCodeData || `A2_${Math.random().toString(36).substring(2).toUpperCase()}`;
+                // 3. Gerar purchased_tickets com QR code criptograficamente seguro
+                const realQrCode = sale.qrCodeData || `TKT_${crypto.randomBytes(16).toString('hex')}`;
 
                 await db.insert(schema.purchasedTickets).values({
                     userId: user?.id || 'guest',

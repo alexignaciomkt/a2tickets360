@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Users, Mail, Phone, UserCheck, UserX, Clock, DollarSign } from 'lucide-react';
+import { Plus, Edit, Trash2, Users, Mail, Phone, UserCheck, UserX, Clock, DollarSign, KeyRound } from 'lucide-react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -24,10 +24,13 @@ import { useToast } from '@/hooks/use-toast';
 import { StaffModal } from '@/components/modals/StaffModal';
 import { staffService } from '@/services/staffService';
 import { organizerService } from '@/services/organizerService';
+import { portariaService } from '@/services/portariaService';
 import { StaffMember } from '@/interfaces/staff';
+import { useAuth } from '@/contexts/AuthContext';
 
 const OrganizerStaff = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,13 +40,16 @@ const OrganizerStaff = () => {
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (user?.id) {
+      loadData();
+    }
+  }, [user?.id]);
 
   const loadData = async () => {
+    if (!user?.id) return;
     try {
       setLoading(true);
-      const organizerId = '1'; // Mock organizer ID
+      const organizerId = user.id;
       const [eventsData, staffData] = await Promise.all([
         organizerService.getEvents(organizerId),
         staffService.getEventStaff('all')
@@ -113,27 +119,49 @@ const OrganizerStaff = () => {
     }
   };
 
-  const handleSendCredentials = async (staffMember: StaffMember) => {
+  const handleSendAccess = async (staffMember: StaffMember) => {
     try {
-      const temporaryPassword = Math.random().toString(36).slice(-8);
-      await staffService.sendStaffCredentials(staffMember, temporaryPassword);
+      await staffService.sendAccess(staffMember.id);
       toast({
-        title: 'Credenciais enviadas',
-        description: `Credenciais de acesso enviadas para ${staffMember.email}`,
+        title: 'Sucesso',
+        description: `Acesso enviado para o e-mail cadastrado.`,
       });
-    } catch (error) {
+    } catch (error: any) {
+      const msg = error.response?.data?.error || 'Não foi possível enviar o acesso.';
       toast({
         variant: 'destructive',
-        title: 'Erro ao enviar credenciais',
-        description: 'Não foi possível enviar as credenciais.',
+        title: 'Erro',
+        description: msg,
+      });
+    }
+  };
+
+  const handleSendRecovery = async (staffMember: StaffMember) => {
+    try {
+      await staffService.sendRecovery(staffMember.id);
+      toast({
+        title: 'Sucesso',
+        description: `Link de recuperação enviado para o e-mail cadastrado.`,
+      });
+    } catch (error: any) {
+      const msg = error.response?.data?.error || 'Não foi possível enviar a recuperação.';
+      toast({
+        variant: 'destructive',
+        title: 'Erro',
+        description: msg,
       });
     }
   };
 
   const filteredStaff = staff.filter(s => {
-    const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const term = searchTerm.toLowerCase();
+    const safeName = (s.name ?? '').toLowerCase();
+    const safeEmail = (s.email ?? '').toLowerCase();
+    const safeFunction = (s.eventFunction ?? '').toLowerCase();
+
+    const matchesSearch = safeName.includes(term) || safeEmail.includes(term) || safeFunction.includes(term);
     const matchesEvent = selectedEvent === 'all' || s.eventId === selectedEvent;
+    
     return matchesSearch && matchesEvent;
   });
 
@@ -275,23 +303,11 @@ const OrganizerStaff = () => {
                 {filteredStaff.map((staffMember) => (
                   <TableRow key={staffMember.id}>
                     <TableCell>
-                      <div className="font-medium">{staffMember.name}</div>
-                      <div className="text-sm text-gray-500">{staffMember.email}</div>
+                      <div className="font-medium">{staffMember.name || '-'}</div>
+                      <div className="text-sm text-gray-500">{staffMember.email || '-'}</div>
                     </TableCell>
                     <TableCell>
-                      {staffMember.customRole ? (
-                        <div className="flex flex-col gap-1">
-                          <Badge
-                            style={{ backgroundColor: staffMember.customRole.color }}
-                            className="w-fit text-white hover:opacity-90"
-                          >
-                            {staffMember.customRole.name}
-                          </Badge>
-                          <span className="text-xs text-gray-500">{staffMember.eventFunction}</span>
-                        </div>
-                      ) : (
-                        getRoleBadge(staffMember.role || 'operator')
-                      )}
+                      <div className="font-medium text-gray-900">{staffMember.eventFunction || '-'}</div>
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">
@@ -316,7 +332,9 @@ const OrganizerStaff = () => {
                       {staffMember.shiftStart ? (
                         <div className="flex items-center text-sm">
                           <Clock className="w-3 h-3 mr-1 text-gray-500" />
-                          {staffMember.shiftStart} - {staffMember.shiftEnd}
+                          {new Date(staffMember.shiftStart).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} 
+                          {' - '} 
+                          {staffMember.shiftEnd ? new Date(staffMember.shiftEnd).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '?'}
                         </div>
                       ) : (
                         <span className="text-gray-400 text-sm">-</span>
@@ -326,12 +344,24 @@ const OrganizerStaff = () => {
                       {events.find(e => e.id === staffMember.eventId)?.title || 'N/A'}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={staffMember.isActive ? 'default' : 'secondary'}>
-                        {staffMember.isActive ? 'Ativo' : 'Inativo'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {staffMember.lastLogin ? formatDate(staffMember.lastLogin) : 'Nunca'}
+                      {(() => {
+                        switch (staffMember.status) {
+                          case 'PENDING_PROFILE':
+                            return <Badge variant="secondary">Cadastro incompleto</Badge>;
+                          case 'PENDING_ACCEPTANCE':
+                            return <Badge variant="outline" className="text-yellow-600 border-yellow-400">Aguardando aceite</Badge>;
+                          case 'ACTIVE':
+                            return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Ativo</Badge>;
+                          case 'DECLINED':
+                            return <Badge variant="destructive">Recusado</Badge>;
+                          case 'CANCELLED':
+                            return <Badge variant="secondary">Cancelado</Badge>;
+                          case 'COMPLETED':
+                            return <Badge variant="outline">Concluído</Badge>;
+                          default:
+                            return <Badge variant="secondary">{staffMember.isActive ? 'Ativo' : 'Inativo'}</Badge>;
+                        }
+                      })()}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end space-x-2">
@@ -353,13 +383,26 @@ const OrganizerStaff = () => {
                             <UserCheck className="h-4 w-4" />
                           )}
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleSendCredentials(staffMember)}
-                        >
-                          <Mail className="h-4 w-4" />
-                        </Button>
+                        {(staffMember.status === 'PENDING_PROFILE' || staffMember.status === 'PENDING_ACCEPTANCE') && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleSendAccess(staffMember)}
+                            title="Enviar Acesso"
+                          >
+                            <Mail className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {(staffMember.status === 'ACTIVE' || staffMember.status === 'COMPLETED') && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleSendRecovery(staffMember)}
+                            title="Recuperar Acesso"
+                          >
+                            <KeyRound className="h-4 w-4" />
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="sm"

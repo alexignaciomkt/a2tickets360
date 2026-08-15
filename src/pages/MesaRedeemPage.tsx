@@ -100,8 +100,7 @@ const MesaRedeemPage = () => {
           event_id: groupData.event_id,
           ticket_id: groupData.ticket_id,
           parent_purchase_id: groupData.id,
-          status: 'active',
-          qr_code_data: `GUEST-${groupData.id}-${Math.random().toString(36).slice(2, 9).toUpperCase()}`
+          status: 'active'
         });
 
       if (tErr) throw tErr;

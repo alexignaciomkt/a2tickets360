@@ -1,8 +1,16 @@
+import { supabase } from '@/lib/supabase';
+
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 console.log('API Conectada em:', API_URL);
 
 export async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    const token = localStorage.getItem('A2Tickets_token');
+    // Sempre pegar o token atualizado diretamente da sessão do Supabase (Fonte Única de Verdade)
+    // Ignoramos o localStorage para o token pois ele pode conter tokens JWT antigos/legados
+    let token = null;
+    const { data } = await supabase.auth.getSession();
+    if (data.session) {
+        token = data.session.access_token;
+    }
 
     const isFormData = options.body instanceof FormData;
 
@@ -18,6 +26,12 @@ export async function request<T>(endpoint: string, options: RequestInit = {}): P
     });
 
     if (!response.ok) {
+        if (response.status === 401) {
+            localStorage.removeItem('A2Tickets_user');
+            if (window.location.pathname !== '/login') {
+                window.location.href = '/login';
+            }
+        }
         const errorData = await response.json().catch(() => ({}));
         const errorMessage = errorData.error || errorData.message || 'Erro na requisição ao servidor';
         console.error(`❌ API Error [${options.method || 'GET'}] ${endpoint}:`, errorMessage);

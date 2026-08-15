@@ -509,8 +509,7 @@ const CheckoutPage = () => {
                     event_id: eventId,
                     ticket_id: (ticketId && ticketId !== 'individual') ? ticketId : null,
                     status: 'active',
-                    photo_url: photoUrl,
-                    qr_code_data: `TICKET-${Math.random().toString(36).substr(2, 9).toUpperCase()}`
+                    photo_url: photoUrl
                 };
 
                 // Registrar a conversão se houver promoter

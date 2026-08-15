@@ -373,15 +373,23 @@ class OrganizerService {
         ContentType: file.type || 'image/jpeg',
       });
 
-      await s3Client.send(command);
+      // Add a 5-second timeout so it doesn't hang indefinitely if MinIO is down
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Tempo limite de upload excedido (MinIO não responde)')), 5000)
+      );
+
+      await Promise.race([
+        s3Client.send(command),
+        timeoutPromise
+      ]);
 
       const publicUrl = `${MINIO_CONFIG.endpoint}/${bucketName}/${filePath}`;
       
       console.log(`✅ Upload concluído via MinIO: ${publicUrl}`);
       return { url: publicUrl };
     } catch (storageError: any) {
-      console.error('❌ Falha crítica no upload pelo MinIO:', storageError);
-      throw new Error(`Não foi possível carregar a imagem para o MinIO. Erro original: ${storageError?.message || 'Verifique sua conexão.'}`);
+      console.error('❌ Falha no upload pelo MinIO:', storageError);
+      throw new Error(`Não foi possível carregar a imagem. O servidor de imagens pode estar fora do ar.`);
     }
   }
 

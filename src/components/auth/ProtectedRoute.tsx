@@ -14,7 +14,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     allowedRoles,
     requireApproved = true,
 }) => {
-    const { user, loading, isAuthenticated } = useAuth();
+    const { user, loading, isAuthenticated, personalModules } = useAuth();
     const location = useLocation();
 
     // Show loading while checking session
@@ -59,7 +59,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
     // Caso tenhamos sessão mas o perfil ainda não chegou (user nulo),
     // mantemos o loading em vez de redirecionar para o login.
-    if (isAuthenticated && !user && !loading) {
+    if (isAuthenticated && (!user || personalModules === undefined) && !loading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-950">
                 <div className="flex flex-col items-center gap-4">
@@ -71,14 +71,24 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     }
 
     // Role not allowed -> redirect to appropriate dashboard
-    if (!allowedRoles.includes(user.role)) {
-        const redirectMap: Record<UserRole, string> = {
+    let isAllowed = allowedRoles.includes(user!.role);
+    if (!isAllowed && personalModules) {
+        if (allowedRoles.includes('staff' as UserRole) && personalModules.staff) isAllowed = true;
+        if (allowedRoles.includes('promoter' as UserRole) && personalModules.promoter) isAllowed = true;
+        if (allowedRoles.includes('customer' as UserRole) && personalModules.tickets) isAllowed = true;
+    }
+
+    if (!isAllowed) {
+        const redirectMap: Record<string, string> = {
             master: '/master',
             organizer: '/organizer/dashboard',
-            staff: '/staff/portal',
+            staff: '/dashboard/staff/invites',
             exhibitor: '/organizer/exhibitor',
             customer: '/dashboard',
         };
+        if (personalModules?.tickets) {
+            return <Navigate to="/dashboard" replace />;
+        }
         return <Navigate to={redirectMap[user.role] || '/'} replace />;
     }
 
