@@ -42,12 +42,20 @@ const Index = () => {
   const [showPromoterPopup, setShowPromoterPopup] = useState(false);
 
   useEffect(() => {
-    // Show popup after 2 seconds on every load
-    const timer = setTimeout(() => {
-      setShowPromoterPopup(true);
-    }, 2000);
-    return () => clearTimeout(timer);
+    // Show popup after 2 seconds only once per browser
+    const hasSeenPopup = localStorage.getItem('a2tickets_promoter_popup_seen');
+    if (!hasSeenPopup) {
+      const timer = setTimeout(() => {
+        setShowPromoterPopup(true);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
   }, []);
+
+  const handleClosePopup = () => {
+    setShowPromoterPopup(false);
+    localStorage.setItem('a2tickets_promoter_popup_seen', 'true');
+  };
 
   // Mock Blog Data
   const blogPosts = [
@@ -156,7 +164,7 @@ const Index = () => {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-                onClick={() => setShowPromoterPopup(false)}
+                onClick={handleClosePopup}
               />
               <motion.div 
                 initial={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -165,12 +173,12 @@ const Index = () => {
                 className="relative z-10 w-full max-w-2xl bg-zinc-900 rounded-3xl overflow-hidden shadow-2xl border border-white/10"
               >
                 <button 
-                  onClick={() => setShowPromoterPopup(false)}
+                  onClick={handleClosePopup}
                   className="absolute top-4 right-4 z-20 w-8 h-8 flex items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/80 transition"
                 >
                   <Minus className="w-4 h-4 rotate-45" /> {/* Close icon */}
                 </button>
-                <Link to="/seja-promoter" onClick={() => setShowPromoterPopup(false)}>
+                <Link to="/seja-promoter" onClick={handleClosePopup}>
                   <img src="/popup-promoter.png" alt="Seja Promoter" className="w-full h-auto cursor-pointer" />
                 </Link>
               </motion.div>
