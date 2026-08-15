@@ -93,6 +93,7 @@ app.route('/api/staff', staffRoutes);
 app.route('/api/credentials', credentialsRoutes);
 app.route('/api/checkin/tickets', ticketCheckinRoutes);
 app.route('/api/portaria', portariaRoutes);
+app.route('/api/uploads', uploadsRoutes);
 
 app.get('/', (c: Context) => c.text('A2 Tickets 360º API - High Performance Ready'));
 
