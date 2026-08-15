@@ -34,6 +34,7 @@ import staffRoutes from './routes/staff';
 import credentialsRoutes from './routes/credentials';
 import ticketCheckinRoutes from './routes/ticketCheckin';
 import portariaRoutes from './routes/portaria';
+import uploadsRoutes from './routes/uploads';
 
 import { logger } from 'hono/logger';
 

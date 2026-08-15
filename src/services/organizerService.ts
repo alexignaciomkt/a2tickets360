@@ -1,5 +1,4 @@
 import { supabase } from '@/lib/supabase';
-import { MINIO_CONFIG } from '@/lib/supabase-config';
 import { webhookService } from './webhookService';
 import { Event, Ticket, SalesChannel, FinancialSummary, Sale } from '@/interfaces/organizer';
 import { v4 as uuidv4 } from 'uuid';
@@ -341,52 +340,42 @@ class OrganizerService {
 
   async uploadImage(file: File, userId?: string, producerName?: string, customFileName?: string, role: string = 'producer'): Promise<{ url: string }> {
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = customFileName ? `${customFileName}.${fileExt}` : `${uuidv4()}.${fileExt}`;
+      const isLogo = customFileName?.includes('logo');
+      const type = isLogo ? 'producer-logo' : 'producer-banner';
       
-      const roleFolder = role === 'organizer' || role === 'producer' ? 'producers' : 
-                         role === 'customer' ? 'customers' : 
-                         role === 'staff' ? 'staff' : 'others';
+      const { api } = await import('@/services/api');
+
+      // 1. Solicita URL pré-assinada do backend
+      console.log(`[UPLOAD] Solicitando URL pré-assinada para ${file.name}`);
+      const presignResponse = await api.post<{ presignedUrl: string, objectKey: string, publicUrl: string }>('/api/uploads/presign', {
+        type,
+        fileName: file.name,
+        contentType: file.type || 'image/jpeg',
+        fileSize: file.size
+      });
       
-      let filePath: string;
-      if (userId) {
-        const sanitized = producerName ? this.sanitizePathName(producerName) : 'user';
-        filePath = `${roleFolder}/${sanitized}-${userId}/${fileName}`;
-      } else {
-        filePath = `public/${fileName}`;
-      }
+      const { presignedUrl, publicUrl } = presignResponse.data;
 
-      console.log(`[UPLOAD] Iniciando upload para o MinIO (S3): ${filePath}`);
-
-      const { s3Client } = await import('@/lib/s3-client');
-      const { PutObjectCommand } = await import('@aws-sdk/client-s3');
-      const { MINIO_CONFIG } = await import('@/lib/supabase-config');
-
-      const bucketName = MINIO_CONFIG.bucket;
-      const command = new PutObjectCommand({
-        Bucket: bucketName,
-        Key: filePath,
-        Body: file,
-        ContentType: file.type || 'image/jpeg',
+      // 2. Faz o upload diretamente para o MinIO usando a URL pré-assinada
+      console.log(`[UPLOAD] Iniciando envio direto para o MinIO: ${publicUrl}`);
+      
+      const uploadResponse = await fetch(presignedUrl, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': file.type || 'image/jpeg'
+        }
       });
 
-      // Add a 60-second timeout so it doesn't hang indefinitely if MinIO is down
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Tempo limite de upload excedido (MinIO não responde)')), 60000)
-      );
-
-      await Promise.race([
-        s3Client.send(command),
-        timeoutPromise
-      ]);
-
-      const publicUrl = `${MINIO_CONFIG.endpoint}/${bucketName}/${filePath}`;
+      if (!uploadResponse.ok) {
+        throw new Error(`Upload failed with status ${uploadResponse.status}`);
+      }
       
-      console.log(`✅ Upload concluído via MinIO: ${publicUrl}`);
+      console.log(`✅ Upload concluído via MinIO Presigned URL: ${publicUrl}`);
       return { url: publicUrl };
     } catch (storageError: any) {
       console.error('❌ Falha no upload pelo MinIO:', storageError);
-      throw new Error(`Não foi possível carregar a imagem. O servidor de imagens pode estar fora do ar.`);
+      throw new Error(`Não foi possível carregar a imagem. O servidor de imagens pode estar fora do ar ou o arquivo é muito grande.`);
     }
   }
 

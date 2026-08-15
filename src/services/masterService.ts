@@ -1,5 +1,5 @@
 import { supabase, supabaseAdmin } from '@/lib/supabase';
-import { ProfileStatus, MINIO_CONFIG } from '@/lib/supabase-config';
+import { ProfileStatus } from '@/lib/supabase-config';
 import { webhookService } from './webhookService';
 
 class MasterService {

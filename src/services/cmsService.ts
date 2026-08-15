@@ -1,6 +1,4 @@
-
 import { supabase, supabaseAdmin } from '@/lib/supabase';
-import { MINIO_CONFIG } from '@/lib/supabase-config';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface SiteSection {
@@ -288,24 +286,27 @@ class CMSService {
 
     async uploadBannerImage(file: File): Promise<string> {
         try {
-            const fileExt = file.name.split('.').pop();
-            const fileName = `${uuidv4()}.${fileExt}`;
-            const filePath = `cms/hero-banners/${fileName}`;
+            const { api } = await import('@/services/api');
+            const presignResponse = await api.post<{ presignedUrl: string, objectKey: string, publicUrl: string }>('/api/uploads/presign', {
+                type: 'cms-hero-banner',
+                fileName: file.name,
+                contentType: file.type || 'image/jpeg',
+                fileSize: file.size
+            });
+            const { presignedUrl, publicUrl } = presignResponse.data;
 
-            const { s3Client } = await import('@/lib/s3-client');
-            const { PutObjectCommand } = await import('@aws-sdk/client-s3');
-
-            const arrayBuffer = await file.arrayBuffer();
-            const command = new PutObjectCommand({
-                Bucket: MINIO_CONFIG.bucket,
-                Key: filePath,
-                Body: new Uint8Array(arrayBuffer),
-                ContentType: file.type || 'image/jpeg',
+            const uploadResponse = await fetch(presignedUrl, {
+                method: 'PUT',
+                body: file,
+                headers: {
+                    'Content-Type': file.type || 'image/jpeg'
+                }
             });
 
-            await s3Client.send(command);
+            if (!uploadResponse.ok) {
+                throw new Error(`Upload failed with status ${uploadResponse.status}`);
+            }
 
-            const publicUrl = `${MINIO_CONFIG.endpoint}/${MINIO_CONFIG.bucket}/${filePath}`;
             console.log(`✅ Banner uploaded to MinIO: ${publicUrl}`);
             return publicUrl;
         } catch (err: any) {
