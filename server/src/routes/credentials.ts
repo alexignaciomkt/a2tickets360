@@ -33,7 +33,7 @@ function generateCredentialToken(): string {
 router.post('/issue-staff/:eventStaffId', async (c: Context) => {
     try {
         const payload = c.get('jwtPayload');
-        const userId = payload.sub;
+        const userId = payload.id;
         const { eventStaffId } = c.req.param();
 
         // Must be the staff themselves or an owner/master
@@ -68,7 +68,7 @@ router.post('/issue-staff/:eventStaffId', async (c: Context) => {
 router.post('/validate', async (c: Context) => {
     try {
         const payload = c.get('jwtPayload');
-        const scannerId = payload.sub; // The user operating the scanner
+        const scannerId = payload.id; // The user operating the scanner
         
         const body = await c.req.json();
         const { credentialToken, eventId, organizerId } = body;
@@ -206,7 +206,7 @@ router.post('/validate', async (c: Context) => {
 router.post('/confirm', async (c: Context) => {
     try {
         const payload = c.get('jwtPayload');
-        const scannerId = payload.sub;
+        const scannerId = payload.id;
         
         const body = await c.req.json();
         const { credentialId, eventId, eventStaffId, employeeId, shiftStart } = body;

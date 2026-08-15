@@ -16,7 +16,7 @@ router.get('/current-operation', async (c: Context) => {
     try {
         const payload = c.get('jwtPayload');
         if (!payload) return c.json({ error: 'Unauthorized' }, 401);
-        const userId = payload.sub;
+        const userId = payload.id;
 
         // 1. Encontrar todos os eventos potencialmente acessíveis
         // Para otimização, coletamos os IDs de eventos vinculados (Staff ou Employee).

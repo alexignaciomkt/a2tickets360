@@ -16,10 +16,10 @@ router.use('/*', authMiddleware);
  */
 router.get('/', async (c: Context) => {
     const payload = c.get('jwtPayload');
-    if (!payload || !payload.sub) {
+    if (!payload || !payload.id) {
         return c.json({ error: 'Unauthorized' }, 401);
     }
-    const userId = payload.sub;
+    const userId = payload.id;
     const organizerId = c.req.query('organizerId');
     const eventId = c.req.query('eventId');
 

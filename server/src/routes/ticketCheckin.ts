@@ -15,7 +15,7 @@ router.post('/validate', async (c: Context) => {
     try {
         const payload = c.get('jwtPayload');
         if (!payload) return c.json({ error: 'Unauthorized' }, 401);
-        const operatorId = payload.sub; // User ID do operador
+        const operatorId = payload.id; // User ID do operador
 
         const body = await c.req.json();
         const { qrCode, eventId } = body;
@@ -144,7 +144,7 @@ router.post('/undo', async (c: Context) => {
     try {
         const payload = c.get('jwtPayload');
         if (!payload) return c.json({ error: 'Unauthorized' }, 401);
-        const adminId = payload.sub; // User ID
+        const adminId = payload.id; // User ID
 
         const body = await c.req.json();
         const { qrCode, eventId, reason } = body;
