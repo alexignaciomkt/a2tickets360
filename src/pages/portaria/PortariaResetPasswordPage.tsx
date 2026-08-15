@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 export default function PortariaResetPasswordPage() {
     const [password, setPassword] = useState('');
     const [confirm, setConfirm] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [validSession, setValidSession] = useState(false);
     const { toast } = useToast();
@@ -83,22 +85,33 @@ export default function PortariaResetPasswordPage() {
                 </CardHeader>
                 <CardContent>
                     <form onSubmit={handleUpdate} className="space-y-4">
-                        <Input
-                            type="password"
-                            placeholder="Nova senha"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            className="bg-zinc-800/50 border-zinc-700"
-                            required
-                        />
-                        <Input
-                            type="password"
-                            placeholder="Confirmar senha"
-                            value={confirm}
-                            onChange={(e) => setConfirm(e.target.value)}
-                            className="bg-zinc-800/50 border-zinc-700"
-                            required
-                        />
+                        <div className="relative">
+                            <Input
+                                type={showPassword ? "text" : "password"}
+                                placeholder="Nova senha"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="bg-zinc-800/50 border-zinc-700 pr-10"
+                                required
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-300"
+                            >
+                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                            </button>
+                        </div>
+                        <div className="relative">
+                            <Input
+                                type={showPassword ? "text" : "password"}
+                                placeholder="Confirmar senha"
+                                value={confirm}
+                                onChange={(e) => setConfirm(e.target.value)}
+                                className="bg-zinc-800/50 border-zinc-700 pr-10"
+                                required
+                            />
+                        </div>
                         <Button type="submit" className="w-full" disabled={loading}>
                             {loading ? 'Atualizando...' : 'Atualizar Senha'}
                         </Button>

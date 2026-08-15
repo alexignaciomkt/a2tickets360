@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/form';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { Mail, User, Lock, Phone, MapPin, Loader2, CheckCircle, ChevronDown, Rocket, ArrowRight, PartyPopper } from 'lucide-react';
+import { Mail, User, Lock, Phone, MapPin, Loader2, CheckCircle, ChevronDown, Rocket, ArrowRight, PartyPopper, Eye, EyeOff } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -91,6 +91,7 @@ const RegisterPage = () => {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [availableCities, setAvailableCities] = useState<string[]>([]);
 
   const form = useForm<RegisterFormData>({
@@ -209,7 +210,14 @@ const RegisterPage = () => {
                           <FormControl>
                             <div className="relative">
                               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600" />
-                              <Input type="password" placeholder="******" className="h-14 bg-[#111] border-white/5 rounded-2xl pl-12 text-white placeholder:text-gray-700 focus:ring-primary focus:border-primary" {...field} />
+                              <Input type={showPassword ? "text" : "password"} placeholder="******" className="h-14 bg-[#111] border-white/5 rounded-2xl pl-12 pr-12 text-white placeholder:text-gray-700 focus:ring-primary focus:border-primary" {...field} />
+                              <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                              >
+                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                              </button>
                             </div>
                           </FormControl>
                           <FormMessage />

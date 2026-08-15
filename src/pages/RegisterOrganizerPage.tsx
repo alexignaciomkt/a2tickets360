@@ -19,7 +19,7 @@ import {
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { organizerService } from '@/services/organizerService';
-import { Mail, User, Lock, Phone, CreditCard, Loader2, CheckCircle, ChevronDown, Rocket, Shield, BarChart3, Calendar, Sparkles, Users, Camera, ArrowRight, PartyPopper } from 'lucide-react';
+import { Mail, User, Lock, Phone, CreditCard, Loader2, CheckCircle, ChevronDown, Rocket, Shield, BarChart3, Calendar, Sparkles, Users, Camera, ArrowRight, PartyPopper, Eye, EyeOff } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -71,6 +71,21 @@ function isValidCnpj(cnpj: string) {
   return true;
 }
 
+function maskCpfCnpj(v: string) {
+  v = v.replace(/\D/g, "");
+  if (v.length <= 11) {
+    v = v.replace(/(\d{3})(\d)/, "$1.$2");
+    v = v.replace(/(\d{3})(\d)/, "$1.$2");
+    v = v.replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+  } else {
+    v = v.replace(/^(\d{2})(\d)/, "$1.$2");
+    v = v.replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3");
+    v = v.replace(/\.(\d{3})(\d)/, ".$1/$2");
+    v = v.replace(/(\d{4})(\d)/, "$1-$2");
+  }
+  return v;
+}
+
 const registerSchema = z.object({
   name: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres'),
   email: z.string().email('E-mail inválido'),
@@ -95,6 +110,7 @@ const RegisterOrganizerPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const form = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
@@ -136,7 +152,7 @@ const RegisterOrganizerPage = () => {
         role: 'organizer',
         phone: data.mobilePhone,
         companyName: data.name,
-        cnpj: data.cpfCnpj,
+        cnpj: data.cpfCnpj.replace(/\D/g, ''),
         slug: data.slug,
       } as any);
 
@@ -145,7 +161,7 @@ const RegisterOrganizerPage = () => {
       if (result.success) {
         localStorage.setItem('A2Tickets_PendingRegistration', JSON.stringify({
             slug: data.slug,
-            cnpj: data.cpfCnpj,
+            cnpj: data.cpfCnpj.replace(/\D/g, ''),
             phone: data.mobilePhone,
             companyName: data.name
         }));
@@ -317,7 +333,13 @@ const RegisterOrganizerPage = () => {
                                 <FormControl>
                                   <div className="relative">
                                     <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600" />
-                                    <Input placeholder="00.000.000/0001-00" className="h-14 bg-[#111] border-white/5 rounded-2xl pl-12 text-white placeholder:text-gray-700 focus:ring-indigo-500" {...field} />
+                                    <Input 
+                                      placeholder="000.000.000-00 ou 00.000.000/0001-00" 
+                                      maxLength={18}
+                                      className="h-14 bg-[#111] border-white/5 rounded-2xl pl-12 text-white placeholder:text-gray-700 focus:ring-indigo-500" 
+                                      {...field} 
+                                      onChange={(e) => field.onChange(maskCpfCnpj(e.target.value))}
+                                    />
                                   </div>
                                 </FormControl>
                                 <FormMessage />
@@ -353,7 +375,14 @@ const RegisterOrganizerPage = () => {
                                 <FormControl>
                                   <div className="relative">
                                     <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600" />
-                                    <Input type="password" placeholder="Mínimo 8 caracteres" className="h-14 bg-[#111] border-white/5 rounded-2xl pl-12 text-white placeholder:text-gray-700 focus:ring-indigo-500" {...field} />
+                                    <Input type={showPassword ? "text" : "password"} placeholder="Mínimo 8 caracteres" className="h-14 bg-[#111] border-white/5 rounded-2xl pl-12 pr-12 text-white placeholder:text-gray-700 focus:ring-indigo-500" {...field} />
+                                    <button
+                                      type="button"
+                                      onClick={() => setShowPassword(!showPassword)}
+                                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                                    >
+                                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                    </button>
                                   </div>
                                 </FormControl>
                                 <FormMessage />

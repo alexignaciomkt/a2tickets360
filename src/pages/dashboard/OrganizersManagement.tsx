@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Users, CheckCircle, XCircle, MoreHorizontal, Plus, Edit, Trash2, ShieldAlert, AlertTriangle, MessageSquare, Eye, Phone, MapPin, ExternalLink, FileText, User, Search, Loader2, ArrowRight, ShieldCheck, Zap, ChevronRight, Target, Database, Cpu, Mail } from 'lucide-react';
+import { Users, CheckCircle, XCircle, MoreHorizontal, Plus, Edit, Trash2, ShieldAlert, AlertTriangle, MessageSquare, Eye, EyeOff, Phone, MapPin, ExternalLink, FileText, User, Search, Loader2, ArrowRight, ShieldCheck, Zap, ChevronRight, Target, Database, Cpu, Mail } from 'lucide-react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -40,6 +40,7 @@ const OrganizersManagement = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [selectedOrg, setSelectedOrg] = useState<Organizer | null>(null);
   const [newOrg, setNewOrg] = useState({ name: '', email: '', password: '' });
   const [editForm, setEditForm] = useState({ name: '', email: '' });
@@ -338,13 +339,22 @@ const OrganizersManagement = () => {
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-slate-600 ml-1">Senha Inicial</Label>
-              <Input
-                type="password"
-                value={newOrg.password}
-                onChange={(e) => setNewOrg({ ...newOrg, password: e.target.value })}
-                placeholder="••••••••"
-                className="h-10 rounded-md border-slate-200 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all px-3"
-              />
+              <div className="relative">
+                <Input
+                  type={showPassword ? "text" : "password"}
+                  value={newOrg.password}
+                  onChange={(e) => setNewOrg({ ...newOrg, password: e.target.value })}
+                  placeholder="••••••••"
+                  className="h-10 rounded-md border-slate-200 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all px-3 pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
             </div>
           </div>
           <DialogFooter className="gap-2 sm:gap-0 mt-2">

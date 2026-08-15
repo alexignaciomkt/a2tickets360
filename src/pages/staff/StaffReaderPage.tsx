@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Shield, QrCode, LogOut, Check, X, Camera, Info, User, Lock, Mail } from "lucide-react";
+import { Shield, QrCode, LogOut, Check, X, Camera, Info, User, Lock, Mail, Eye, EyeOff } from "lucide-react";
 import Logo from "@/components/ui/logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,7 @@ const StaffReaderPage = () => {
     const [loading, setLoading] = useState(false);
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
     const [selectedEventId, setSelectedEventId] = useState("");
     const [scanResult, setScanResult] = useState<"success" | "error" | null>(null);
     const [ticketData, setTicketData] = useState<any>(null);
@@ -244,13 +245,20 @@ const StaffReaderPage = () => {
                                         <div className="relative">
                                             <Lock className="absolute left-4 top-4 h-5 w-5 text-gray-400" />
                                             <Input
-                                                type="password"
+                                                type={showPassword ? "text" : "password"}
                                                 value={password}
                                                 onChange={(e) => setPassword(e.target.value)}
                                                 placeholder="••••••••"
-                                                className="bg-white/5 border-white/10 text-white rounded-2xl h-12 pl-12 focus:ring-indigo-500"
+                                                className="bg-white/5 border-white/10 text-white rounded-2xl h-12 pl-12 pr-12 focus:ring-indigo-500"
                                                 required
                                             />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPassword(!showPassword)}
+                                                className="absolute right-4 top-4 text-gray-400 hover:text-gray-300"
+                                            >
+                                                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
