@@ -71,19 +71,26 @@ function isValidCnpj(cnpj: string) {
   return true;
 }
 
-function maskCpfCnpj(v: string) {
-  v = v.replace(/\D/g, "");
+function maskCpfCnpj(value: string) {
+  let v = value.replace(/\D/g, '');
   if (v.length <= 11) {
-    v = v.replace(/(\d{3})(\d)/, "$1.$2");
-    v = v.replace(/(\d{3})(\d)/, "$1.$2");
-    v = v.replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+    return v.replace(/(\d{3})(\d{1,3})?(\d{1,3})?(\d{1,2})?/, function(_match, p1, p2, p3, p4) {
+      let res = p1;
+      if (p2) res += '.' + p2;
+      if (p3) res += '.' + p3;
+      if (p4) res += '-' + p4;
+      return res;
+    });
   } else {
-    v = v.replace(/^(\d{2})(\d)/, "$1.$2");
-    v = v.replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3");
-    v = v.replace(/\.(\d{3})(\d)/, ".$1/$2");
-    v = v.replace(/(\d{4})(\d)/, "$1-$2");
+    return v.replace(/(\d{2})(\d{1,3})?(\d{1,3})?(\d{1,4})?(\d{1,2})?/, function(_match, p1, p2, p3, p4, p5) {
+      let res = p1;
+      if (p2) res += '.' + p2;
+      if (p3) res += '.' + p3;
+      if (p4) res += '/' + p4;
+      if (p5) res += '-' + p5;
+      return res;
+    });
   }
-  return v;
 }
 
 const registerSchema = z.object({
