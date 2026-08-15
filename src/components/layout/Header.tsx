@@ -99,32 +99,47 @@ const Header = () => {
                     </DropdownMenuItem>
                   )}
 
-                  <DropdownMenuItem className="p-3 rounded-2xl cursor-pointer hover:bg-white/5 group" asChild>
-                    <Link to="/dashboard/tickets" className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-white/5 text-gray-400 rounded-xl flex items-center justify-center group-hover:bg-white group-hover:text-black transition">
-                        <Ticket className="w-5 h-5" />
-                      </div>
-                      <span className="font-black text-[10px] uppercase tracking-widest">Meus Ingressos</span>
-                    </Link>
-                  </DropdownMenuItem>
+                  {user.role !== 'staff' && (
+                    <>
+                      <DropdownMenuItem className="p-3 rounded-2xl cursor-pointer hover:bg-white/5 group" asChild>
+                        <Link to="/dashboard/tickets" className="flex items-center gap-4">
+                          <div className="w-10 h-10 bg-white/5 text-gray-400 rounded-xl flex items-center justify-center group-hover:bg-white group-hover:text-black transition">
+                            <Ticket className="w-5 h-5" />
+                          </div>
+                          <span className="font-black text-[10px] uppercase tracking-widest">Meus Ingressos</span>
+                        </Link>
+                      </DropdownMenuItem>
 
-                  <DropdownMenuItem className="p-3 rounded-2xl cursor-pointer hover:bg-white/5 group" asChild>
-                    <Link to="/promoter/events" className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-emerald-500/10 text-emerald-400 rounded-xl flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-white transition">
-                        <LayoutDashboard className="w-5 h-5" />
-                      </div>
-                      <span className="font-black text-[10px] uppercase tracking-widest">Painel Promoter</span>
-                    </Link>
-                  </DropdownMenuItem>
+                      <DropdownMenuItem className="p-3 rounded-2xl cursor-pointer hover:bg-white/5 group" asChild>
+                        <Link to="/promoter/events" className="flex items-center gap-4">
+                          <div className="w-10 h-10 bg-emerald-500/10 text-emerald-400 rounded-xl flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-white transition">
+                            <LayoutDashboard className="w-5 h-5" />
+                          </div>
+                          <span className="font-black text-[10px] uppercase tracking-widest">Painel Promoter</span>
+                        </Link>
+                      </DropdownMenuItem>
 
-                  <DropdownMenuItem className="p-3 rounded-2xl cursor-pointer hover:bg-white/5 group" asChild>
-                    <Link to="/dashboard/settings" className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-white/5 text-gray-400 rounded-xl flex items-center justify-center group-hover:bg-white group-hover:text-black transition">
-                        <Settings className="w-5 h-5" />
-                      </div>
-                      <span className="font-black text-[10px] uppercase tracking-widest">Perfil & Segurança</span>
-                    </Link>
-                  </DropdownMenuItem>
+                      <DropdownMenuItem className="p-3 rounded-2xl cursor-pointer hover:bg-white/5 group" asChild>
+                        <Link to="/dashboard/settings" className="flex items-center gap-4">
+                          <div className="w-10 h-10 bg-white/5 text-gray-400 rounded-xl flex items-center justify-center group-hover:bg-white group-hover:text-black transition">
+                            <Settings className="w-5 h-5" />
+                          </div>
+                          <span className="font-black text-[10px] uppercase tracking-widest">Perfil & Segurança</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+
+                  {user.role === 'staff' && (
+                    <DropdownMenuItem className="p-3 rounded-2xl cursor-pointer hover:bg-white/5 group" asChild>
+                      <Link to="/dashboard/staff/invites" className="flex items-center gap-4">
+                        <div className="w-10 h-10 bg-indigo-600/20 text-indigo-400 rounded-xl flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition">
+                          <LayoutDashboard className="w-5 h-5" />
+                        </div>
+                        <span className="font-black text-[10px] uppercase tracking-widest">Meu Painel Staff</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                 </div>
 
                 <DropdownMenuSeparator className="bg-white/5 mx-2" />

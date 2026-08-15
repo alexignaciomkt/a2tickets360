@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { motion } from 'framer-motion';
+import { Eye, EyeOff } from 'lucide-react';
 
 const LoginForm = () => {
   const { login, sendPasswordRecovery } = useAuth();
@@ -11,6 +12,7 @@ const LoginForm = () => {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleForgotPassword = async () => {
@@ -93,25 +95,36 @@ const LoginForm = () => {
       </div>
 
       <div className="relative">
-        <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1 font-bold uppercase tracking-widest text-[10px]">
-          Senha
-        </label>
-        <input
-          id="password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:border-primary focus:bg-white transition-all"
-          placeholder="********"
-          required
-        />
-        <button
-          type="button"
-          onClick={handleForgotPassword}
-          className="absolute right-0 top-0 text-[10px] font-bold text-primary hover:underline uppercase tracking-widest p-0.5"
-        >
-          Esqueci a senha
-        </button>
+        <div className="flex justify-between items-center mb-1">
+          <label htmlFor="password" className="block text-sm font-medium text-gray-700 font-bold uppercase tracking-widest text-[10px]">
+            Senha
+          </label>
+          <button
+            type="button"
+            onClick={handleForgotPassword}
+            className="text-[10px] font-bold text-primary hover:underline uppercase tracking-widest"
+          >
+            Esqueci a senha
+          </button>
+        </div>
+        <div className="relative">
+          <input
+            id="password"
+            type={showPassword ? "text" : "password"}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 pr-12 text-sm focus:ring-primary focus:border-primary focus:bg-white transition-all"
+            placeholder="********"
+            required
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        </div>
       </div>
 
       <div className="pt-2">
