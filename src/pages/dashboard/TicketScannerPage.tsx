@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { ticketCheckinService, CheckinValidationResponse } from '@/services/ticketCheckinService';
-import { organizerService } from '@/services/organizerService';
+import { portariaService } from '@/services/portariaService';
 import { Camera, CheckCircle, AlertTriangle, XCircle, RotateCcw, Keyboard, Users } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -29,16 +29,13 @@ export default function TicketScannerPage() {
         const loadEvent = async () => {
             try {
                 if (!slug) return;
-                const events = await organizerService.getEvents();
-                // Simple logic for matching slug (assuming events have slug or we match somehow)
-                // In A2Tickets360, organizerService.getEvents gets all events for current tenant.
-                // We will find by slug.
+                const events = await portariaService.getCurrentOperations();
                 const event = events.find(e => e.slug === slug || e.id === slug);
                 if (event) {
                     setEventId(event.id);
                     setEventName(event.title);
                 } else {
-                    toast({ title: "Evento não encontrado", variant: "destructive" });
+                    toast({ title: "Evento não encontrado na sua operação", variant: "destructive" });
                 }
             } catch (err) {
                 console.error(err);
