@@ -362,20 +362,17 @@ class OrganizerService {
       const { PutObjectCommand } = await import('@aws-sdk/client-s3');
       const { MINIO_CONFIG } = await import('@/lib/supabase-config');
 
-      // Convert File to ArrayBuffer/Buffer
-      const arrayBuffer = await file.arrayBuffer();
-      
       const bucketName = MINIO_CONFIG.bucket;
       const command = new PutObjectCommand({
         Bucket: bucketName,
         Key: filePath,
-        Body: new Uint8Array(arrayBuffer),
+        Body: file,
         ContentType: file.type || 'image/jpeg',
       });
 
-      // Add a 5-second timeout so it doesn't hang indefinitely if MinIO is down
+      // Add a 60-second timeout so it doesn't hang indefinitely if MinIO is down
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Tempo limite de upload excedido (MinIO não responde)')), 5000)
+        setTimeout(() => reject(new Error('Tempo limite de upload excedido (MinIO não responde)')), 60000)
       );
 
       await Promise.race([
