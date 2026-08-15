@@ -75,7 +75,7 @@ export default function PortariaLoginPage() {
                                     placeholder="E-mail cadastrado"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    className="bg-zinc-800/50 border-zinc-700 h-14 text-base focus:border-white/50 focus:ring-white/20"
+                                    className="bg-zinc-800/50 border-zinc-700 h-14 text-base text-white placeholder:text-zinc-500 focus:border-white/50 focus:ring-white/20"
                                     required
                                 />
                                 <div className="relative">
@@ -84,7 +84,7 @@ export default function PortariaLoginPage() {
                                         placeholder="Senha"
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
-                                        className="bg-zinc-800/50 border-zinc-700 h-14 text-base pr-12 focus:border-white/50 focus:ring-white/20"
+                                        className="bg-zinc-800/50 border-zinc-700 h-14 text-base text-white placeholder:text-zinc-500 pr-12 focus:border-white/50 focus:ring-white/20"
                                         required
                                     />
                                     <button
@@ -110,7 +110,7 @@ export default function PortariaLoginPage() {
                                 placeholder="Seu email cadastrado"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
-                                className="bg-zinc-800/50 border-zinc-700 h-14 text-base focus:border-white/50 focus:ring-white/20"
+                                className="bg-zinc-800/50 border-zinc-700 h-14 text-base text-white placeholder:text-zinc-500 focus:border-white/50 focus:ring-white/20"
                                 required
                             />
                             <Button type="submit" className="w-full h-14 text-lg font-bold bg-white hover:bg-zinc-200 text-zinc-950 transition-colors" disabled={loading}>

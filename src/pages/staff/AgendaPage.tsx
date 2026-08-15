@@ -158,7 +158,7 @@ const AgendaPage = () => {
                                                 <div className="pt-4 mt-2 border-t border-gray-50">
                                                     <Button 
                                                         className="w-full bg-slate-900 hover:bg-slate-800 text-white font-black uppercase tracking-widest text-xs h-12 rounded-xl shadow-md"
-                                                        onClick={() => window.open('/portaria', '_blank')}
+                                                        onClick={() => window.open('https://portaria.a2tickets360.com.br', '_blank')}
                                                     >
                                                         Acessar Sistema de Portaria
                                                     </Button>
