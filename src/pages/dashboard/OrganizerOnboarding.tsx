@@ -176,6 +176,11 @@ const OrganizerOnboarding = () => {
 
                 setFormData(mappedData);
 
+                // Map settings.gallery to feedPosts
+                if (profile.settings?.gallery && Array.isArray(profile.settings.gallery)) {
+                    setFeedPosts(profile.settings.gallery.map((url: string, i: number) => ({ id: `saved-${i}`, imageUrl: url })));
+                }
+
                 // Retomar do último passo salvo
                 if (profile.last_step && profile.last_step > 0 && profile.last_step <= 5) {
                     console.log('🔄 [Onboarding] Retomando do passo:', profile.last_step);
@@ -340,6 +345,12 @@ const OrganizerOnboarding = () => {
         const executeSave = async () => {
             const finalData: any = { ...formData };
             finalData.lastStep = step || currentStep;
+            
+            // Sincronizar galeria do feed com o settings
+            finalData.settings = {
+                ...(finalData.settings || {}),
+                gallery: feedPosts.map(p => p.imageUrl)
+            };
 
             console.log(`💾 [SaveProfile] Salvando passo ${finalData.lastStep}...`);
             
@@ -431,11 +442,17 @@ const OrganizerOnboarding = () => {
         setSaving(true);
         try {
             // Include completion flags in the final data
-            const finalData = { 
+            const finalData: any = { 
                 ...formData, 
                 status: 'pending', 
                 profile_complete: true,
                 lastStep: 5 
+            };
+
+            // Sincronizar galeria do feed com o settings
+            finalData.settings = {
+                ...(finalData.settings || {}),
+                gallery: feedPosts.map(p => p.imageUrl)
             };
             
             // Atomic update via organizerService
