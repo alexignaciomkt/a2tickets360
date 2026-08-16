@@ -795,9 +795,8 @@ const OrganizerSettings = () => {
                           setIsSaving(false);
                         }
                       }} 
-                    />
-                    <Button variant="outline" size="sm" className="font-black uppercase text-[10px] tracking-widest rounded-xl">
-                      <Upload className="w-3 h-3 mr-1" /> Subir Fotos
+                    <Button variant="outline" size="sm" className="font-black uppercase text-[10px] tracking-widest rounded-xl cursor-pointer" asChild>
+                      <span><Upload className="w-3 h-3 mr-1" /> Subir Fotos</span>
                     </Button>
                   </label>
                 </div>
