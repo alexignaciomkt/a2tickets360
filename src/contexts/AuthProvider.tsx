@@ -319,8 +319,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             state: extData.state || null,
             address: extData.address || null,
             birth_date: extData.birthDate || null,
-            status: 'approved',
-            profile_complete: true
+            status: data.role === 'organizer' ? 'pending' : 'approved',
+            profile_complete: data.role !== 'organizer'
           }, { onConflict: 'user_id' });
           console.log('✅ [AuthProvider] Profile upsert realizado com sucesso.');
         } catch (e) {
