@@ -293,7 +293,7 @@ class CMSService {
                 contentType: file.type || 'image/jpeg',
                 fileSize: file.size
             });
-            const { presignedUrl, publicUrl } = presignResponse.data;
+            const { presignedUrl, publicUrl } = presignResponse;
 
             const uploadResponse = await fetch(presignedUrl, {
                 method: 'PUT',

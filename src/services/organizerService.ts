@@ -354,7 +354,7 @@ class OrganizerService {
         fileSize: file.size
       });
       
-      const { presignedUrl, publicUrl } = presignResponse.data;
+      const { presignedUrl, publicUrl } = presignResponse;
 
       // 2. Faz o upload diretamente para o MinIO usando a URL pré-assinada
       console.log(`[UPLOAD] Iniciando envio direto para o MinIO: ${publicUrl}`);
@@ -367,8 +367,12 @@ class OrganizerService {
         }
       });
 
+      console.log('[UPLOAD] PUT status:', uploadResponse.status);
+
       if (!uploadResponse.ok) {
-        throw new Error(`Upload failed with status ${uploadResponse.status}`);
+        const errorText = await uploadResponse.text();
+        console.error('[UPLOAD] PUT failed with body:', errorText);
+        throw new Error(`Upload failed with status ${uploadResponse.status}: ${errorText}`);
       }
       
       console.log(`✅ Upload concluído via MinIO Presigned URL: ${publicUrl}`);
