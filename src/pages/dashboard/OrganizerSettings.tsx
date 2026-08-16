@@ -770,8 +770,9 @@ const OrganizerSettings = () => {
                       }}
                     />
                   </div>
-                  <label className="cursor-pointer">
+                  <div>
                     <input 
+                      id="gallery-upload"
                       type="file" 
                       className="hidden" 
                       accept="image/*" 
@@ -794,11 +795,20 @@ const OrganizerSettings = () => {
                         } finally {
                           setIsSaving(false);
                         }
+                        
+                        // Reset input
+                        e.target.value = '';
                       }} 
-                    <Button variant="outline" size="sm" className="font-black uppercase text-[10px] tracking-widest rounded-xl cursor-pointer" asChild>
-                      <span><Upload className="w-3 h-3 mr-1" /> Subir Fotos</span>
+                    />
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="font-black uppercase text-[10px] tracking-widest rounded-xl cursor-pointer"
+                      onClick={() => document.getElementById('gallery-upload')?.click()}
+                    >
+                      <Upload className="w-3 h-3 mr-1" /> Subir Fotos
                     </Button>
-                  </label>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
