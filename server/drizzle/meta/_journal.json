@@ -57,6 +57,13 @@
       "when": 1786995741522,
       "tag": "0010_financial_traceability",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1786996000000,
+      "tag": "0011_financial_engine",
+      "breakpoints": true
     }
   ]
 }

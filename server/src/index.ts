@@ -631,33 +631,50 @@ app.post('/api/payments/checkout', async (c: Context) => {
         });
         if (!organizer) throw new Error('Organizador nao encontrado.');
 
-        const ticketPrice = Number(ticket.price);
-        const subtotal = ticketPrice * quantity;
+        const { calculateFinancialDistribution, deriveBillableUnits } = require('./domain/financialEngine');
 
-        // Calcular Taxas
+        let revenueType = 'TICKET';
+        if (isSportTicket) {
+            revenueType = ticket.ticketPurpose === 'REPECHAGE' ? 'REPECHAGE' : 'REGISTRATION';
+        }
+
+        const billableUnits = deriveBillableUnits(revenueType, quantity, ticket.capacityPerUnit || 1);
+
         const organizerSettings = organizer.settings as any || {};
-        const feePercentage = Number(organizerSettings.feePercentage || 10);
-        const feeFixed = Number(organizerSettings.feeFixed || 0);
-
         const eventSettings = ticket.event.settings as any;
         const eventPassFeeToBuyer = eventSettings?.pass_fee_to_buyer;
         const passFeeToBuyer = eventPassFeeToBuyer !== undefined
             ? eventPassFeeToBuyer
             : (organizerSettings.passFeeToBuyer !== false);
 
-        const feeAmount = (subtotal * (feePercentage / 100)) + feeFixed;
-        const totalValue = passFeeToBuyer ? subtotal + feeAmount : subtotal;
-        const producerNetValue = passFeeToBuyer ? subtotal : (subtotal - feeAmount);
+        const dist = calculateFinancialDistribution({
+            unitPriceCents: Math.round(Number(ticket.price) * 100),
+            quantity: quantity,
+            billableUnits: billableUnits,
+            discountAmountCents: 0,
+            promoterCommissionRate: 0,
+            passPlatformFeeToBuyer: passFeeToBuyer
+        });
+
+        const totalValue = dist.buyerTotalCents / 100;
+        const producerNetValue = dist.producerAmountCents / 100;
 
         // 1. Criar Sale ANTES de chamar o Asaas
-        let revenueType = 'TICKET';
-        if (isSportTicket) {
-            revenueType = ticket.ticketPurpose === 'REPECHAGE' ? 'REPECHAGE' : 'REGISTRATION';
-        }
-
         const saleResult = await db.insert(schema.sales).values({
             eventId: ticket.eventId,
             buyerInfo: { name: buyerName, email: buyerEmail, cpf: normalizeCpf(buyerCpf) },
+            
+            unitPrice: (Math.round(Number(ticket.price) * 100) / 100).toString(),
+            quantity: quantity,
+            billableUnits: dist.billableUnits,
+            grossAmount: (dist.grossAmountCents / 100).toString(),
+            discountAmount: (dist.discountAmountCents / 100).toString(),
+            commercialAmount: (dist.commercialAmountCents / 100).toString(),
+            platformFeeAmount: (dist.platformFeeCents / 100).toString(),
+            producerAmount: (dist.producerAmountCents / 100).toString(),
+            feePassedToBuyer: passFeeToBuyer,
+            buyerTotal: (dist.buyerTotalCents / 100).toString(),
+
             totalAmount: totalValue.toString(),
             revenueType,
             paymentStatus: 'pending',
@@ -666,15 +683,27 @@ app.post('/api/payments/checkout', async (c: Context) => {
         const saleId = saleResult[0].id;
 
         // 2. Criar purchased_ticket pendente
-        const qrCode = `TKT_${crypto.randomBytes(16).toString('hex')}`;
-        const ptResult = await db.insert(purchasedTickets).values({
-            eventId: ticket.eventId,
-            userId: buyerId || ticket.event.organizerId,
-            ticketId: ticket.id,
-            parentPurchaseId: saleId,
-            status: 'pending',
-            qrCodeData: qrCode
-        }).returning({ id: purchasedTickets.id });
+        let numberOfTicketsToCreate = 1;
+        if (revenueType === 'TICKET') {
+            numberOfTicketsToCreate = quantity * (ticket.capacityPerUnit || 1);
+        } else {
+            numberOfTicketsToCreate = 1;
+        }
+
+        const ptInserts = [];
+        for (let i = 0; i < numberOfTicketsToCreate; i++) {
+            const qrCode = `TKT_${crypto.randomBytes(16).toString('hex')}`;
+            ptInserts.push({
+                eventId: ticket.eventId,
+                userId: buyerId || ticket.event.organizerId,
+                ticketId: ticket.id,
+                parentPurchaseId: saleId,
+                status: 'pending',
+                qrCodeData: qrCode
+            });
+        }
+        
+        const ptResult = await db.insert(purchasedTickets).values(ptInserts).returning({ id: purchasedTickets.id });
         const purchasedTicketId = ptResult[0].id;
 
         // 3. Criar sport_registration pendente (se for ticket esportivo)
@@ -740,7 +769,7 @@ app.post('/api/payments/checkout', async (c: Context) => {
                 await db.delete(sportRegistrationPlayers).where(eq(sportRegistrationPlayers.registrationId, sportRegId));
                 await db.delete(sportRegistrations).where(eq(sportRegistrations.id, sportRegId));
             }
-            await db.delete(purchasedTickets).where(eq(purchasedTickets.id, purchasedTicketId));
+            await db.delete(purchasedTickets).where(eq(purchasedTickets.parentPurchaseId, saleId));
             await db.delete(schema.sales).where(eq(schema.sales.id, saleId));
 
             throw new Error(`Erro ao comunicar com provedor de pagamento (Asaas): ${asaasErr.message}`);

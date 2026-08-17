@@ -318,12 +318,44 @@ export const tickets = pgTable('tickets', {
     updatedAt: timestamp('updated_at').defaultNow(),
 });
 
+
+// Promoters Específicos por Evento
+export const eventPromoters = pgTable('event_promoters', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    eventId: uuid('event_id').references(() => events.id, { onDelete: 'cascade' }).notNull(),
+    promoterId: uuid('promoter_id').notNull(),
+    commissionRate: decimal('commission_rate', { precision: 5, scale: 2 }).notNull(),
+    discountRate: decimal('discount_rate', { precision: 5, scale: 2 }).default('0.00').notNull(),
+    referralCode: text('referral_code').unique().notNull(),
+    isActive: boolean('is_active').default(true).notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (t) => ({
+    unqEventPromoter: unique('unq_event_promoter').on(t.eventId, t.promoterId)
+}));
+
 // Vendas e TransaÃ§Ãµes
 export const sales = pgTable('sales', {
     id: uuid('id').primaryKey().defaultRandom(),
     eventId: uuid('event_id').references(() => events.id).notNull(),
     customerId: uuid('customer_id'),
     buyerInfo: jsonb('buyer_info'),
+
+    // Snapshot Financeiro Obrigatório
+    unitPrice: decimal('unit_price', { precision: 10, scale: 2 }).notNull(),
+    quantity: integer('quantity').notNull(),
+    billableUnits: integer('billable_units').notNull(),
+    grossAmount: decimal('gross_amount', { precision: 12, scale: 2 }).notNull(),
+    discountAmount: decimal('discount_amount', { precision: 12, scale: 2 }).notNull(),
+    commercialAmount: decimal('commercial_amount', { precision: 12, scale: 2 }).notNull(),
+    platformFeeAmount: decimal('platform_fee_amount', { precision: 12, scale: 2 }).notNull(),
+    producerAmount: decimal('producer_amount', { precision: 12, scale: 2 }).notNull(),
+    feePassedToBuyer: boolean('fee_passed_to_buyer').notNull(),
+    buyerTotal: decimal('buyer_total', { precision: 12, scale: 2 }).notNull(),
+    eventPromoterId: uuid('event_promoter_id').references(() => eventPromoters.id, { onDelete: 'set null' }),
+    promoterCommissionRate: decimal('promoter_commission_rate', { precision: 5, scale: 2 }),
+
+    // Campos Antigos/Compatibilidade
     totalAmount: decimal('total_amount', { precision: 10, scale: 2 }).notNull(),
     revenueType: salesRevenueTypeEnum('revenue_type').default('TICKET').notNull(),
     paymentStatus: text('payment_status', { enum: ['pending', 'paid', 'refunded', 'cancelled'] }).default('pending'),
