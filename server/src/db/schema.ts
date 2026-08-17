@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, serial, integer, boolean, decimal, jsonb, uuid, index, AnyPgColumn, unique, primaryKey } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, serial, integer, boolean, decimal, jsonb, uuid, index, AnyPgColumn, unique, primaryKey, varchar, pgEnum } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
 // Platform Masters (Contexto Global)
@@ -9,7 +9,7 @@ export const platformMasters = pgTable('platform_masters', {
     updatedAt: timestamp('updated_at').defaultNow(),
 });
 
-// Perfis de Usuários (Extensão Universal do auth.users)
+// Perfis de UsuÃ¡rios (ExtensÃ£o Universal do auth.users)
 export const profiles = pgTable('profiles', {
     id: uuid('id').primaryKey().defaultRandom(),
     userId: uuid('user_id').unique().notNull(), // FK to auth.users.id
@@ -53,11 +53,13 @@ export const organizers = pgTable('organizer_details', {
     state: text('state'),
     category: text('category'),
     settings: jsonb('settings'),
+    watermarkUrl: text('watermark_url'),
+    watermarkObjectKey: text('watermark_object_key'),
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow(),
 });
 
-// Funcionários (Employees) - Vínculo Pessoa -> Produtora
+// FuncionÃ¡rios (Employees) - VÃ­nculo Pessoa -> Produtora
 export const employees = pgTable('employees', {
     id: uuid('id').primaryKey().defaultRandom(),
     userId: uuid('user_id').notNull(), // FK to auth.users.id (ou profiles.user_id)
@@ -71,7 +73,7 @@ export const employees = pgTable('employees', {
     unqMembership: unique('unq_employee_membership').on(t.userId, t.organizerId)
 }));
 
-// Acesso Específico a Eventos (para SELECTED_EVENTS)
+// Acesso EspecÃ­fico a Eventos (para SELECTED_EVENTS)
 export const employeeEventAccess = pgTable('employee_event_access', {
     id: uuid('id').primaryKey().defaultRandom(),
     employeeId: uuid('employee_id').references(() => employees.id, { onDelete: 'cascade' }).notNull(),
@@ -85,7 +87,7 @@ export const employeeEventAccess = pgTable('employee_event_access', {
 // RBAC (ROLES & PERMISSIONS)
 // =============================================================================
 
-// Catálogo Global de Roles
+// CatÃ¡logo Global de Roles
 export const roles = pgTable('roles', {
     id: uuid('id').primaryKey().defaultRandom(),
     systemKey: text('system_key').unique().notNull(), // Ex: 'CHECKIN_OPERATOR'
@@ -95,7 +97,7 @@ export const roles = pgTable('roles', {
     createdAt: timestamp('created_at').defaultNow(),
 });
 
-// Catálogo Global de Permissões
+// CatÃ¡logo Global de PermissÃµes
 export const permissions = pgTable('permissions', {
     id: uuid('id').primaryKey().defaultRandom(),
     systemKey: text('system_key').unique().notNull(), // Ex: 'checkin.scan'
@@ -103,7 +105,7 @@ export const permissions = pgTable('permissions', {
     createdAt: timestamp('created_at').defaultNow(),
 });
 
-// Permissões Padrão das Roles
+// PermissÃµes PadrÃ£o das Roles
 export const rolePermissions = pgTable('role_permissions', {
     roleId: uuid('role_id').references(() => roles.id, { onDelete: 'cascade' }).notNull(),
     permissionId: uuid('permission_id').references(() => permissions.id, { onDelete: 'cascade' }).notNull(),
@@ -112,7 +114,7 @@ export const rolePermissions = pgTable('role_permissions', {
     pk: primaryKey({ columns: [t.roleId, t.permissionId] })
 }));
 
-// Atribuição de Roles aos Funcionários
+// AtribuiÃ§Ã£o de Roles aos FuncionÃ¡rios
 export const employeeRoles = pgTable('employee_roles', {
     id: uuid('id').primaryKey().defaultRandom(),
     employeeId: uuid('employee_id').references(() => employees.id, { onDelete: 'cascade' }).notNull(),
@@ -122,7 +124,7 @@ export const employeeRoles = pgTable('employee_roles', {
     unqEmployeeRole: unique('unq_employee_role').on(t.employeeId, t.roleId)
 }));
 
-// Exceções de Permissão por Funcionário (Overrides)
+// ExceÃ§Ãµes de PermissÃ£o por FuncionÃ¡rio (Overrides)
 export const employeePermissionOverrides = pgTable('employee_permission_overrides', {
     id: uuid('id').primaryKey().defaultRandom(),
     employeeId: uuid('employee_id').references(() => employees.id, { onDelete: 'cascade' }).notNull(),
@@ -141,7 +143,7 @@ export const employeePermissionOverrides = pgTable('employee_permission_override
 export const staffProfiles = pgTable('staff_profiles', {
     userId: uuid('user_id').primaryKey(), // Referencia auth.users(id)
     fullName: text('full_name').notNull(),
-    document: text('document'), // CPF/RG (Opcional nesta versão)
+    document: text('document'), // CPF/RG (Opcional nesta versÃ£o)
     phone: text('phone'),
     bio: text('bio'),
     avatarUrl: text('avatar_url'), // Selfie persistente do credenciamento
@@ -150,19 +152,19 @@ export const staffProfiles = pgTable('staff_profiles', {
     updatedAt: timestamp('updated_at').defaultNow(),
 });
 
-// Funções Operacionais Customizáveis
+// FunÃ§Ãµes Operacionais CustomizÃ¡veis
 export const staffFunctions = pgTable('staff_functions', {
     id: uuid('id').primaryKey().defaultRandom(),
     organizerId: uuid('organizer_id').notNull(), // Referencia auth.users(id) da realidade atual
     name: text('name').notNull(),
     description: text('description'),
-    defaultSystemRoleId: uuid('default_system_role_id').references(() => roles.id, { onDelete: 'set null' }), // Sugestão
+    defaultSystemRoleId: uuid('default_system_role_id').references(() => roles.id, { onDelete: 'set null' }), // SugestÃ£o
     isActive: boolean('is_active').default(true),
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow(),
 });
 
-// Vínculo Event Staff e Convites
+// VÃ­nculo Event Staff e Convites
 export const eventStaff = pgTable('event_staff', {
     id: uuid('id').primaryKey().defaultRandom(),
     eventId: uuid('event_id').references(() => events.id, { onDelete: 'cascade' }).notNull(),
@@ -183,7 +185,7 @@ export const eventStaff = pgTable('event_staff', {
     unqEventStaff: unique('unq_event_staff').on(t.eventId, t.userId)
 }));
 
-// Atribuição de Roles para Event Staff
+// AtribuiÃ§Ã£o de Roles para Event Staff
 export const eventStaffRoles = pgTable('event_staff_roles', {
     eventStaffId: uuid('event_staff_id').references(() => eventStaff.id, { onDelete: 'cascade' }).notNull(),
     roleId: uuid('role_id').references(() => roles.id, { onDelete: 'cascade' }).notNull(),
@@ -192,7 +194,7 @@ export const eventStaffRoles = pgTable('event_staff_roles', {
     pk: primaryKey({ columns: [t.eventStaffId, t.roleId] })
 }));
 
-// Overrides de Permissão para Event Staff
+// Overrides de PermissÃ£o para Event Staff
 export const eventStaffPermissionOverrides = pgTable('event_staff_permission_overrides', {
     id: uuid('id').primaryKey().defaultRandom(),
     eventStaffId: uuid('event_staff_id').references(() => eventStaff.id, { onDelete: 'cascade' }).notNull(),
@@ -204,10 +206,10 @@ export const eventStaffPermissionOverrides = pgTable('event_staff_permission_ove
 }));
 
 // =============================================================================
-// CREDENCIAIS, SELFIE E PRESENÇA (FASE 5)
+// CREDENCIAIS, SELFIE E PRESENÃ‡A (FASE 5)
 // =============================================================================
 
-// Credencial Temporária de Staff
+// Credencial TemporÃ¡ria de Staff
 export const staffCredentials = pgTable('staff_credentials', {
     id: uuid('id').primaryKey().defaultRandom(),
     eventStaffId: uuid('event_staff_id').references(() => eventStaff.id, { onDelete: 'cascade' }).notNull(),
@@ -230,7 +232,7 @@ export const employeeCredentials = pgTable('employee_credentials', {
     createdAt: timestamp('created_at').defaultNow(),
 });
 
-// Registro Operacional de Presença (Attendance)
+// Registro Operacional de PresenÃ§a (Attendance)
 export const staffAttendance = pgTable('staff_attendance', {
     id: uuid('id').primaryKey().defaultRandom(),
     eventStaffId: uuid('event_staff_id').references(() => eventStaff.id, { onDelete: 'cascade' }),
@@ -247,8 +249,8 @@ export const staffAttendance = pgTable('staff_attendance', {
 export const eventCategories = pgTable('event_categories', {
     id: uuid('id').primaryKey().defaultRandom(),
     name: text('name').unique().notNull(),
-    code: text('code').unique(), // Código técnico estático (ex: SPORT_TRUCO)
-    icon: text('icon'), // Nome do ícone Lucide (ex: 'Briefcase')
+    code: text('code').unique(), // CÃ³digo tÃ©cnico estÃ¡tico (ex: SPORT_TRUCO)
+    icon: text('icon'), // Nome do Ã­cone Lucide (ex: 'Briefcase')
     createdAt: timestamp('created_at').defaultNow(),
 });
 
@@ -312,7 +314,7 @@ export const tickets = pgTable('tickets', {
     updatedAt: timestamp('updated_at').defaultNow(),
 });
 
-// Vendas e Transações
+// Vendas e TransaÃ§Ãµes
 export const sales = pgTable('sales', {
     id: uuid('id').primaryKey().defaultRandom(),
     eventId: uuid('event_id').references(() => events.id).notNull(),
@@ -322,7 +324,7 @@ export const sales = pgTable('sales', {
     paymentStatus: text('payment_status', { enum: ['pending', 'paid', 'refunded', 'cancelled'] }).default('pending'),
     paymentMethod: text('payment_method'), // PIX, CREDIT_CARD, BOLETO
     asaasId: text('asaas_id'),
-    asaasPaymentId: text('asaas_payment_id'), // ID da cobrança no Asaas
+    asaasPaymentId: text('asaas_payment_id'), // ID da cobranÃ§a no Asaas
     promoterId: uuid('promoter_id'),
     promoterCommissionAmount: decimal('promoter_commission_amount', { precision: 10, scale: 2 }),
     payoutStatus: text('payout_status'),
@@ -358,16 +360,16 @@ export const ticketCheckinLogs = pgTable('ticket_checkin_logs', {
     eventId: uuid('event_id').references(() => events.id).notNull(),
     operatorId: uuid('operator_id').notNull(), // Quem operou (User ID)
     action: text('action', { enum: ['CHECK_IN', 'UNDO'] }).notNull(),
-    reason: text('reason'), // Opcional para CHECK_IN, obrigatório para UNDO
+    reason: text('reason'), // Opcional para CHECK_IN, obrigatÃ³rio para UNDO
     deviceInfo: jsonb('device_info'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
 // =============================================================================
-// ESPORTE — Inscrições Esportivas (REGISTRATION e REPECHAGE)
+// ESPORTE â€” InscriÃ§Ãµes Esportivas (REGISTRATION e REPECHAGE)
 // =============================================================================
 
-// Unidade competitiva: 1 registro = 1 dupla / 1 indivíduo / 1 time
+// Unidade competitiva: 1 registro = 1 dupla / 1 indivÃ­duo / 1 time
 export const sportRegistrations = pgTable('sport_registrations', {
     id: uuid('id').primaryKey().defaultRandom(),
     eventId: uuid('event_id').references(() => events.id).notNull(),
@@ -378,9 +380,9 @@ export const sportRegistrations = pgTable('sport_registrations', {
     registrationType: text('registration_type').notNull().default('INDIVIDUAL'), // INDIVIDUAL | DOUBLE | TEAM
     participantsPerRegistration: integer('participants_per_registration').notNull().default(1),
     ticketPurpose: text('ticket_purpose').notNull().default('REGISTRATION'), // REGISTRATION | REPECHAGE
-    // Para REPECHAGE: aponta para a inscrição original
+    // Para REPECHAGE: aponta para a inscriÃ§Ã£o original
     originalRegistrationId: uuid('original_registration_id').references((): AnyPgColumn => sportRegistrations.id),
-    // Contagem de repescagens pagas ligadas a esta inscrição (incrementado idempotentemente)
+    // Contagem de repescagens pagas ligadas a esta inscriÃ§Ã£o (incrementado idempotentemente)
     repechageCount: integer('repechage_count').notNull().default(0),
     status: text('status').notNull().default('pending'), // pending | paid | cancelled | refunded
     createdAt: timestamp('created_at').defaultNow(),
@@ -391,13 +393,13 @@ export const sportRegistrations = pgTable('sport_registrations', {
     statusIdx: index('idx_sr_status').on(t.status),
 }));
 
-// Jogadores de cada inscrição esportiva
+// Jogadores de cada inscriÃ§Ã£o esportiva
 export const sportRegistrationPlayers = pgTable('sport_registration_players', {
     id: uuid('id').primaryKey().defaultRandom(),
     registrationId: uuid('registration_id').references(() => sportRegistrations.id, { onDelete: 'cascade' }).notNull(),
     playerOrder: integer('player_order').notNull(), // 1, 2, ...
     name: text('name').notNull(),
-    cpf: text('cpf').notNull(), // somente dígitos, normalizado server-side
+    cpf: text('cpf').notNull(), // somente dÃ­gitos, normalizado server-side
     phone: text('phone'),
     createdAt: timestamp('created_at').defaultNow(),
 }, (t) => ({
@@ -420,7 +422,7 @@ export const staff = pgTable('staff', {
     lastLogin: timestamp('last_login'),
 });
 
-// Check-ins (Validação de Ingressos)
+// Check-ins (ValidaÃ§Ã£o de Ingressos)
 export const checkins = pgTable('checkins', {
     id: serial('id').primaryKey(),
     saleId: uuid('sale_id').references(() => sales.id).notNull(),
@@ -432,8 +434,8 @@ export const checkins = pgTable('checkins', {
 // Categorias Globais de Fornecedores (Colaborativas)
 export const supplierCategories = pgTable('supplier_categories', {
     id: uuid('id').primaryKey().defaultRandom(),
-    name: text('name').unique().notNull(), // Nome único (ex: 'Papel Toalha', 'Sonorização')
-    icon: text('icon'), // Nome do ícone da Lucide (opcional)
+    name: text('name').unique().notNull(), // Nome Ãºnico (ex: 'Papel Toalha', 'SonorizaÃ§Ã£o')
+    icon: text('icon'), // Nome do Ã­cone da Lucide (opcional)
     createdAt: timestamp('created_at').defaultNow(),
 });
 
@@ -441,15 +443,15 @@ export const supplierCategories = pgTable('supplier_categories', {
 export const suppliers = pgTable('suppliers', {
     id: uuid('id').primaryKey().defaultRandom(),
     organizerId: uuid('organizer_id').references(() => organizers.id).notNull(),
-    categoryId: uuid('category_id').references(() => supplierCategories.id), // Referência à categoria global
+    categoryId: uuid('category_id').references(() => supplierCategories.id), // ReferÃªncia Ã  categoria global
     name: text('name').notNull(),
     email: text('email'),
     phone: text('phone'),
-    category: text('category'), // Mantido para compatibilidade ou texto livre secundário
+    category: text('category'), // Mantido para compatibilidade ou texto livre secundÃ¡rio
     document: text('document'), // CNPJ/CPF
-    address: text('address'), // Endereço completo
-    contactName: text('contact_name'), // Nome do responsável/contato
-    contactPhone: text('contact_phone'), // Telefone do responsável
+    address: text('address'), // EndereÃ§o completo
+    contactName: text('contact_name'), // Nome do responsÃ¡vel/contato
+    contactPhone: text('contact_phone'), // Telefone do responsÃ¡vel
     status: text('status', { enum: ['active', 'inactive'] }).default('active'),
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow(),
@@ -469,7 +471,7 @@ export const supplierContracts = pgTable('supplier_contracts', {
     createdAt: timestamp('created_at').defaultNow(),
 });
 
-// Cotações (Orçamentos)
+// CotaÃ§Ãµes (OrÃ§amentos)
 export const quotes = pgTable('quotes', {
     id: uuid('id').primaryKey().defaultRandom(),
     organizerId: uuid('organizer_id').references(() => organizers.id).notNull(),
@@ -481,13 +483,13 @@ export const quotes = pgTable('quotes', {
     updatedAt: timestamp('updated_at').defaultNow(),
 });
 
-// Respostas de Cotações
+// Respostas de CotaÃ§Ãµes
 export const quoteResponses = pgTable('quote_responses', {
     id: uuid('id').primaryKey().defaultRandom(),
     quoteId: uuid('quote_id').references(() => quotes.id).notNull(),
     supplierId: uuid('supplier_id').references(() => suppliers.id).notNull(),
     value: decimal('value', { precision: 10, scale: 2 }),
-    fileUrl: text('file_url'), // PDF do orçamento
+    fileUrl: text('file_url'), // PDF do orÃ§amento
     notes: text('notes'),
     isAccepted: boolean('is_accepted').default(false),
     createdAt: timestamp('created_at').defaultNow(),
@@ -527,9 +529,9 @@ export const staffProposals = pgTable('staff_proposals', {
     respondedAt: timestamp('responded_at'),
 });
 
-// --- NOVAS TABELAS PARA FEIRAS E PATROCÍNIO ---
+// --- NOVAS TABELAS PARA FEIRAS E PATROCÃNIO ---
 
-// Tipos de Patrocínio (Por Organizador)
+// Tipos de PatrocÃ­nio (Por Organizador)
 export const sponsorTypes = pgTable('sponsor_types', {
     id: uuid('id').primaryKey().defaultRandom(),
     organizerId: uuid('organizer_id').references(() => organizers.id).notNull(),
@@ -559,7 +561,7 @@ export const sponsors = pgTable('sponsors', {
     createdAt: timestamp('created_at').defaultNow(),
 });
 
-// Parcelas de Patrocínio
+// Parcelas de PatrocÃ­nio
 export const sponsorInstallments = pgTable('sponsor_installments', {
     id: uuid('id').primaryKey().defaultRandom(),
     sponsorId: uuid('sponsor_id').references(() => sponsors.id).notNull(),
@@ -572,7 +574,7 @@ export const sponsorInstallments = pgTable('sponsor_installments', {
     createdAt: timestamp('created_at').defaultNow(),
 });
 
-// Contrapartidas de Patrocínio
+// Contrapartidas de PatrocÃ­nio
 export const sponsorDeliverables = pgTable('sponsor_deliverables', {
     id: uuid('id').primaryKey().defaultRandom(),
     sponsorId: uuid('sponsor_id').references(() => sponsors.id).notNull(),
@@ -611,7 +613,7 @@ export const stands = pgTable('stands', {
     createdAt: timestamp('created_at').defaultNow(),
 });
 
-// Visitantes (Credenciamento Público)
+// Visitantes (Credenciamento PÃºblico)
 export const visitors = pgTable('visitors', {
     id: uuid('id').primaryKey().defaultRandom(),
     eventId: uuid('event_id').references(() => events.id).notNull(),
@@ -641,7 +643,7 @@ export const exhibitorStaff = pgTable('exhibitor_staff', {
     createdAt: timestamp('created_at').defaultNow(),
 });
 
-// Logística de Expositores (Carga/Descarga)
+// LogÃ­stica de Expositores (Carga/Descarga)
 export const exhibitorLogistics = pgTable('exhibitor_logistics', {
     id: uuid('id').primaryKey().defaultRandom(),
     standId: uuid('stand_id').references(() => stands.id).notNull(),
@@ -658,7 +660,7 @@ export const exhibitorLeads = pgTable('exhibitor_leads', {
     standId: uuid('stand_id').references(() => stands.id).notNull(),
     capturedByStaffId: uuid('captured_by_staff_id').references(() => exhibitorStaff.id),
     visitorId: uuid('visitor_id').references(() => visitors.id),
-    // Dados manuais se não for via QR Code
+    // Dados manuais se nÃ£o for via QR Code
     name: text('name'),
     email: text('email'),
     phone: text('phone'),
@@ -667,10 +669,10 @@ export const exhibitorLeads = pgTable('exhibitor_leads', {
     createdAt: timestamp('created_at').defaultNow(),
 });
 
-// Logs de Chat e Interação com IA (SupportBot)
+// Logs de Chat e InteraÃ§Ã£o com IA (SupportBot)
 export const aiChatLogs = pgTable('ai_chat_logs', {
     id: uuid('id').primaryKey().defaultRandom(),
-    userId: uuid('user_id'), // Referência opcional ao usuário logado
+    userId: uuid('user_id'), // ReferÃªncia opcional ao usuÃ¡rio logado
     sessionToken: text('session_token'),
     message: text('message').notNull(),
     response: text('response'),
@@ -678,7 +680,7 @@ export const aiChatLogs = pgTable('ai_chat_logs', {
     createdAt: timestamp('created_at').defaultNow(),
 });
 
-// Fila de Sincronização Offline (Para auditoria no servidor)
+// Fila de SincronizaÃ§Ã£o Offline (Para auditoria no servidor)
 export const syncQueue = pgTable('sync_queue', {
     id: uuid('id').primaryKey().defaultRandom(),
     sourceDeviceId: text('device_id'),
@@ -689,7 +691,7 @@ export const syncQueue = pgTable('sync_queue', {
     createdAt: timestamp('created_at').defaultNow(),
 });
 
-// Páginas Legais (Privacidade, Termos, etc)
+// PÃ¡ginas Legais (Privacidade, Termos, etc)
 export const legalPages = pgTable('legal_pages', {
     id: uuid('id').primaryKey().defaultRandom(),
     slug: text('slug').unique().notNull(), // 'privacy', 'terms'
@@ -737,7 +739,7 @@ export const productVariants = pgTable('product_variants', {
     sku: text('sku'),
     name: text('name').notNull(), // Ex: 'Azul / P'
     attributes: jsonb('attributes').notNull(), // Ex: { color: 'Blue', size: 'P' }
-    price: decimal('price', { precision: 10, scale: 2 }), // Sobrescreve o preço base se preenchido
+    price: decimal('price', { precision: 10, scale: 2 }), // Sobrescreve o preÃ§o base se preenchido
     stock: integer('stock').default(0),
     isActive: boolean('is_active').default(true),
 });
@@ -746,7 +748,7 @@ export const productVariants = pgTable('product_variants', {
 export const productOrders = pgTable('product_orders', {
     id: uuid('id').primaryKey().defaultRandom(),
     organizerId: uuid('organizer_id').references(() => organizers.id).notNull(),
-    buyerId: uuid('buyer_id'), // ID do usuário se logado
+    buyerId: uuid('buyer_id'), // ID do usuÃ¡rio se logado
     buyerName: text('buyer_name').notNull(),
     buyerEmail: text('buyer_email').notNull(),
     buyerPhone: text('buyer_phone'),
@@ -762,7 +764,7 @@ export const productOrders = pgTable('product_orders', {
     updatedAt: timestamp('updated_at').defaultNow(),
 });
 
-// Posts de Redes Sociais / Portfólio do Organizador
+// Posts de Redes Sociais / PortfÃ³lio do Organizador
 export const organizerPosts = pgTable('organizer_posts', {
     id: uuid('id').primaryKey().defaultRandom(),
     organizerId: uuid('organizer_id').references(() => organizers.id).notNull(),
@@ -771,7 +773,7 @@ export const organizerPosts = pgTable('organizer_posts', {
     createdAt: timestamp('created_at').defaultNow(),
 });
 
-// --- Relações (Drizzle Relations API) ---
+// --- RelaÃ§Ãµes (Drizzle Relations API) ---
 
 export const organizersRelations = relations(organizers, ({ many }) => ({
     events: many(events),
@@ -1111,7 +1113,7 @@ export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
 }));
 
 // =============================================================================
-// ESPORTE — Relações
+// ESPORTE â€” RelaÃ§Ãµes
 // =============================================================================
 
 export const sportRegistrationsRelations = relations(sportRegistrations, ({ one, many }) => ({
@@ -1146,3 +1148,67 @@ export const sportRegistrationPlayersRelations = relations(sportRegistrationPlay
         references: [sportRegistrations.id],
     }),
 }));
+
+// =============================================================================
+// ÁLBUNS DA PRODUTORA
+// =============================================================================
+
+export const producerAlbumStatusEnum = pgEnum('producer_album_status', ['DRAFT', 'PUBLISHED', 'HIDDEN']);
+
+export const producerAlbums = pgTable('producer_albums', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizerId: uuid('organizer_id').references(() => organizers.id, { onDelete: 'cascade' }).notNull(),
+    eventId: uuid('event_id').references(() => events.id, { onDelete: 'set null' }),
+    title: varchar('title', { length: 100 }).notNull(),
+    description: varchar('description', { length: 150 }),
+    coverPhotoId: uuid('cover_photo_id').references((): AnyPgColumn => producerAlbumPhotos.id, { onDelete: 'set null' }),
+    status: producerAlbumStatusEnum('status').default('DRAFT').notNull(),
+    sortOrder: integer('sort_order').default(0).notNull(),
+    eventDate: timestamp('event_date'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+    organizerStatusSortIdx: index('idx_producer_albums_org_stat_sort').on(table.organizerId, table.status, table.sortOrder),
+    eventIdx: index('idx_producer_albums_event').on(table.eventId),
+}));
+
+export const producerAlbumPhotos = pgTable('producer_album_photos', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    albumId: uuid('album_id').references(() => producerAlbums.id, { onDelete: 'cascade' }).notNull(),
+    imageUrl: text('image_url').notNull(),
+    objectKey: text('object_key').notNull(),
+    caption: varchar('caption', { length: 150 }),
+    sortOrder: integer('sort_order').default(0).notNull(),
+    producerWatermarkUrl: text('producer_watermark_url'),
+    producerWatermarkObjectKey: text('producer_watermark_object_key'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+    albumSortIdx: index('idx_producer_photos_album_sort').on(table.albumId, table.sortOrder),
+    objectKeyUnq: unique('unq_producer_photos_object_key').on(table.objectKey),
+}));
+
+export const producerAlbumsRelations = relations(producerAlbums, ({ one, many }) => ({
+    organizer: one(organizers, {
+        fields: [producerAlbums.organizerId],
+        references: [organizers.id],
+    }),
+    event: one(events, {
+        fields: [producerAlbums.eventId],
+        references: [events.id],
+    }),
+    coverPhoto: one(producerAlbumPhotos, {
+        fields: [producerAlbums.coverPhotoId],
+        references: [producerAlbumPhotos.id],
+    }),
+    photos: many(producerAlbumPhotos),
+}));
+
+export const producerAlbumPhotosRelations = relations(producerAlbumPhotos, ({ one }) => ({
+    album: one(producerAlbums, {
+        fields: [producerAlbumPhotos.albumId],
+        references: [producerAlbums.id],
+    }),
+}));
+
+
+

@@ -338,10 +338,10 @@ class OrganizerService {
       .replace(/^-|-$/g, '');
   }
 
-  async uploadImage(file: File, userId?: string, producerName?: string, customFileName?: string, role: string = 'producer'): Promise<{ url: string }> {
+  async uploadImage(file: File, userId?: string, typeOverride?: string, customFileName?: string, role: string = 'producer'): Promise<{ url: string, objectKey?: string }> {
     try {
-      const isLogo = customFileName?.includes('logo');
-      const type = isLogo ? 'producer-logo' : 'producer-banner';
+      const isLogo = customFileName?.includes('logo') || typeOverride?.includes('logo');
+      const type = typeOverride || (isLogo ? 'producer-logo' : 'producer-banner');
       
       const { api } = await import('@/services/api');
 
@@ -354,7 +354,7 @@ class OrganizerService {
         fileSize: file.size
       });
       
-      const { presignedUrl, publicUrl } = presignResponse;
+      const { presignedUrl, publicUrl, objectKey } = presignResponse;
 
       // 2. Faz o upload diretamente para o MinIO usando a URL pré-assinada
       console.log(`[UPLOAD] Iniciando envio direto para o MinIO: ${publicUrl}`);
@@ -376,7 +376,7 @@ class OrganizerService {
       }
       
       console.log(`✅ Upload concluído via MinIO Presigned URL: ${publicUrl}`);
-      return { url: publicUrl };
+      return { url: publicUrl, objectKey };
     } catch (storageError: any) {
       console.error('❌ Falha no upload pelo MinIO:', storageError);
       throw new Error(`Não foi possível carregar a imagem. O servidor de imagens pode estar fora do ar ou o arquivo é muito grande.`);
@@ -745,6 +745,10 @@ class OrganizerService {
       'company_address': 'company_address',
       'lastStep': 'last_step',
       'settings': 'settings',
+      'watermarkUrl': 'watermark_url',
+      'watermark_url': 'watermark_url',
+      'watermarkObjectKey': 'watermark_object_key',
+      'watermark_object_key': 'watermark_object_key',
     };
 
     const profileUpdate: any = {};

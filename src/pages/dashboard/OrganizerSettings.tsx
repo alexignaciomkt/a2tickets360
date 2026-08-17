@@ -19,6 +19,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import OrganizerStoreTab from '@/components/dashboard/OrganizerStoreTab';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
+import OrganizerAlbumsTab from '@/components/dashboard/OrganizerAlbumsTab';
 
 // Social network config: icon, color, label, placeholder, field
 const SOCIAL_NETWORKS = [
@@ -87,6 +88,8 @@ const OrganizerSettings = () => {
   const [tempLogoPreview, setTempLogoPreview] = useState<string | null>(null);
   const [tempAboutFile, setTempAboutFile] = useState<File | null>(null);
   const [tempAboutPreview, setTempAboutPreview] = useState<string | null>(null);
+  const [tempWatermarkFile, setTempWatermarkFile] = useState<File | null>(null);
+  const [tempWatermarkPreview, setTempWatermarkPreview] = useState<string | null>(null);
 
   const [originalName, setOriginalName] = useState('');
   const [showSlugWarning, setShowSlugWarning] = useState(false);
@@ -136,6 +139,9 @@ const OrganizerSettings = () => {
     } else if (field === 'about_image') {
       setTempAboutFile(file);
       setTempAboutPreview(previewUrl);
+    } else if (field === 'watermark_url') {
+      setTempWatermarkFile(file);
+      setTempWatermarkPreview(previewUrl);
     }
 
     toast({
@@ -144,18 +150,23 @@ const OrganizerSettings = () => {
     });
   };
 
-  const confirmImageUpload = async (field: 'banner_url' | 'logo_url' | 'about_image') => {
+  const confirmImageUpload = async (field: 'banner_url' | 'logo_url' | 'about_image' | 'watermark_url') => {
     let file: File | null = null;
+    let typeOverride = `settings_${field}`;
     if (field === 'banner_url') file = tempBannerFile;
     if (field === 'logo_url') file = tempLogoFile;
     if (field === 'about_image') file = tempAboutFile;
+    if (field === 'watermark_url') {
+      file = tempWatermarkFile;
+      typeOverride = 'producer-watermark'; // Important for S3
+    }
 
     if (!file || !user?.id) return;
 
     setIsSaving(true);
     try {
       console.log(`[UPLOAD] Iniciando upload real do campo ${field}...`);
-      const { url } = await organizerService.uploadImage(file, user.id, `settings_${field}`);
+      const { url, objectKey } = await organizerService.uploadImage(file, user.id, typeOverride);
       
       let updatedProfile;
       if (field === 'about_image') {
@@ -165,6 +176,10 @@ const OrganizerSettings = () => {
         };
         setTempAboutFile(null);
         setTempAboutPreview(null);
+      } else if (field === 'watermark_url') {
+        updatedProfile = { ...profileData, watermark_url: url, watermark_object_key: objectKey };
+        setTempWatermarkFile(null);
+        setTempWatermarkPreview(null);
       } else {
         updatedProfile = { ...profileData, [field]: url };
         if (field === 'banner_url') {
@@ -222,6 +237,13 @@ const OrganizerSettings = () => {
         finalData.settings.about_image = url;
         setTempAboutFile(null);
         setTempAboutPreview(null);
+      }
+      if (tempWatermarkFile) {
+        const { url, objectKey } = await organizerService.uploadImage(tempWatermarkFile, user.id, `producer-watermark`);
+        finalData.watermark_url = url;
+        finalData.watermark_object_key = objectKey;
+        setTempWatermarkFile(null);
+        setTempWatermarkPreview(null);
       }
 
       // Sincronizar Slug se necessário
@@ -338,7 +360,7 @@ const OrganizerSettings = () => {
             </TabsTrigger>
             <TabsTrigger value="gallery" className="flex items-center gap-2 font-bold text-xs uppercase tracking-tight">
               <Users className="h-4 w-4" />
-              Depoimentos/Galeria
+              Álbuns
             </TabsTrigger>
           </TabsList>
 
@@ -746,104 +768,9 @@ const OrganizerSettings = () => {
               </CardContent>
             </Card>
 
-            <Card className="border-none shadow-sm">
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <div>
-                    <CardTitle className="font-black text-lg uppercase tracking-tight">Galeria de Memórias</CardTitle>
-                    <CardDescription className="font-medium text-gray-500">Suba fotos de eventos passados para exibir na sua vitrine.</CardDescription>
-                  </div>
-                  <div className="flex-1 max-w-xs ml-auto mr-4">
-                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest block mb-1">Título da Seção</label>
-                    <input
-                      type="text"
-                      className="w-full p-2 bg-gray-50 border-none rounded-lg font-bold text-xs shadow-inner"
-                      value={profileData?.settings?.titles?.gallery || 'Memórias'}
-                      onChange={(e) => {
-                        setProfileData((prev: any) => ({
-                          ...prev,
-                          settings: {
-                            ...prev.settings,
-                            titles: { ...prev.settings?.titles, gallery: e.target.value }
-                          }
-                        }));
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <input 
-                      id="gallery-upload"
-                      type="file" 
-                      className="hidden" 
-                      accept="image/*" 
-                      multiple 
-                      onChange={async (e) => {
-                        const files = Array.from(e.target.files || []);
-                        if (files.length === 0) return;
-                        setIsSaving(true);
-                        try {
-                          const uploads = await Promise.all(files.map(f => organizerService.uploadImage(f, user!.id, 'gallery')));
-                          const newUrls = uploads.map(u => u.url);
-                          const current = profileData?.settings?.gallery || [];
-                          setProfileData((prev: any) => ({
-                            ...prev,
-                            settings: { ...prev.settings, gallery: [...current, ...newUrls] }
-                          }));
-                          toast({ title: 'Fotos adicionadas!', description: `${files.length} fotos foram enviadas para sua galeria.` });
-                        } catch (err) {
-                          toast({ variant: 'destructive', title: 'Erro no upload', description: 'Falha ao enviar algumas fotos.' });
-                        } finally {
-                          setIsSaving(false);
-                        }
-                        
-                        // Reset input
-                        e.target.value = '';
-                      }} 
-                    />
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="font-black uppercase text-[10px] tracking-widest rounded-xl cursor-pointer"
-                      onClick={() => document.getElementById('gallery-upload')?.click()}
-                    >
-                      <Upload className="w-3 h-3 mr-1" /> Subir Fotos
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                  {(profileData?.settings?.gallery || []).map((url: string, idx: number) => (
-                    <div key={idx} className="aspect-square rounded-2xl overflow-hidden relative group">
-                      <img src={url} className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="text-white hover:text-red-500 hover:bg-transparent"
-                          onClick={() => {
-                            const current = [...profileData.settings.gallery];
-                            current.splice(idx, 1);
-                            setProfileData((prev: any) => ({
-                              ...prev,
-                              settings: { ...prev.settings, gallery: current }
-                            }));
-                          }}
-                        >
-                          <AlertCircle className="w-5 h-5" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                  {(profileData?.settings?.gallery?.length || 0) === 0 && (
-                    <div className="col-span-full py-10 text-center border-2 border-dashed border-gray-100 rounded-[2rem]">
-                      <ImageIcon className="w-10 h-10 text-gray-200 mx-auto mb-2" />
-                      <p className="text-gray-400 font-bold text-xs uppercase tracking-widest">Sua galeria está vazia</p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+            <div className="mt-8">
+              <OrganizerAlbumsTab profileData={profileData} />
+            </div>
           </TabsContent>
 
         {/* === ABA 4: LOJA & ECOMMERCE === */}
@@ -1192,6 +1119,120 @@ const OrganizerSettings = () => {
                               <p className="text-xs font-medium text-gray-400">{profileData?.category || 'Categoria'}</p>
                             </div>
                           </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* DIVIDER */}
+                    <div className="border-t border-gray-100" />
+
+                    {/* WATERMARK */}
+                    <div className="space-y-3">
+                      <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+                        <div>
+                          <h3 className="text-sm font-black uppercase tracking-wider text-gray-700">Logo para Marca D'Água</h3>
+                          <p className="text-xs text-gray-400 font-medium mt-0.5 max-w-md">
+                            Ajuda a identificar e proteger a origem das imagens publicadas pela sua produtora.
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input 
+                            id="watermark-upload" 
+                            type="file" 
+                            className="hidden" 
+                            accept="image/png, image/webp" 
+                            onChange={(e) => handleImageUpload(e, 'watermark_url')} 
+                            disabled={isSaving} 
+                          />
+                          {tempWatermarkFile ? (
+                            <Button 
+                              variant="default" 
+                              size="sm" 
+                              className="text-xs font-black uppercase tracking-widest rounded-xl bg-green-600 hover:bg-green-700"
+                              onClick={() => confirmImageUpload('watermark_url')}
+                              disabled={isSaving}
+                            >
+                              {isSaving ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Check className="w-3 h-3 mr-1" />}
+                              Confirmar Troca
+                            </Button>
+                          ) : (
+                            <>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="text-xs font-black uppercase tracking-widest rounded-xl"
+                                asChild
+                              >
+                                <label htmlFor="watermark-upload" className="cursor-pointer flex items-center gap-2">
+                                  <Upload className="w-3 h-3" />
+                                  Substituir
+                                </label>
+                              </Button>
+                              {(profileData?.watermark_url || profileData?.watermarkUrl) && (
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  className="text-xs font-black uppercase tracking-widest rounded-xl text-red-500 hover:bg-red-50 hover:text-red-600"
+                                  onClick={async () => {
+                                    setIsSaving(true);
+                                    try {
+                                      const updatedProfile = { ...profileData, watermark_url: null, watermark_object_key: null };
+                                      await organizerService.updateProfile(user.id, updatedProfile, user.id);
+                                      setProfileData(updatedProfile);
+                                      toast({ title: "Sucesso", description: "Marca D'água removida com sucesso." });
+                                    } catch (e) {
+                                      toast({ variant: 'destructive', title: 'Erro', description: "Não foi possível remover a marca d'água." });
+                                    } finally {
+                                      setIsSaving(false);
+                                    }
+                                  }}
+                                  disabled={isSaving}
+                                >
+                                  <Trash2 className="w-3 h-3 mr-1" /> Remover
+                                </Button>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row items-center gap-6 pt-2">
+                        {/* Preview em fundo claro */}
+                        <div className="space-y-2 text-center w-full sm:w-auto">
+                          <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Fundo Claro</p>
+                          <div className="w-32 h-32 rounded-2xl overflow-hidden border border-gray-200 bg-white shadow-sm flex items-center justify-center p-4 relative">
+                            <div className="absolute inset-0 pattern-dots pattern-gray-200 pattern-bg-white pattern-size-4 pattern-opacity-40"></div>
+                            {(tempWatermarkPreview || profileData?.watermark_url || profileData?.watermarkUrl) ? (
+                              <img src={tempWatermarkPreview || profileData.watermark_url || profileData.watermarkUrl} alt="Watermark Light" className="w-full h-full object-contain relative z-10 drop-shadow-md" />
+                            ) : (
+                              <Store className="w-8 h-8 text-gray-200 relative z-10" />
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Preview em fundo escuro */}
+                        <div className="space-y-2 text-center w-full sm:w-auto">
+                          <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Fundo Escuro</p>
+                          <div className="w-32 h-32 rounded-2xl overflow-hidden border border-gray-800 bg-gray-900 shadow-sm flex items-center justify-center p-4 relative">
+                             <div className="absolute inset-0 pattern-dots pattern-gray-700 pattern-bg-gray-900 pattern-size-4 pattern-opacity-40"></div>
+                            {(tempWatermarkPreview || profileData?.watermark_url || profileData?.watermarkUrl) ? (
+                              <img src={tempWatermarkPreview || profileData.watermark_url || profileData.watermarkUrl} alt="Watermark Dark" className="w-full h-full object-contain relative z-10 drop-shadow-md" />
+                            ) : (
+                              <Store className="w-8 h-8 text-gray-800 relative z-10" />
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="flex-1 p-4 bg-amber-50 rounded-2xl border border-amber-100">
+                           <div className="flex items-start gap-2">
+                             <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                             <div>
+                               <p className="text-[10px] font-black uppercase tracking-widest text-amber-800">Regra de Histórico</p>
+                               <p className="text-[11px] font-medium text-amber-700 mt-1 leading-relaxed">
+                                 Alterações futuras não modificam fotos já publicadas. Envie sua logo com <b>fundo transparente (PNG ou WEBP até 5MB)</b>.
+                               </p>
+                             </div>
+                           </div>
                         </div>
                       </div>
                     </div>

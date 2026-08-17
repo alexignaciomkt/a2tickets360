@@ -14,6 +14,7 @@ import {
   ArrowRight,
   Clock,
   LayoutGrid,
+  Image as ImageIcon,
   ExternalLink,
   Quote,
   Star,
@@ -26,6 +27,8 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import { organizerService } from '@/services/organizerService';
 import { Skeleton } from '@/components/ui/skeleton';
+import { api } from '@/services/api';
+import { PublicAlbumViewer } from '@/components/public/PublicAlbumViewer';
 
 const ProducerFanPage = () => {
   const { slug } = useParams();
@@ -34,6 +37,8 @@ const ProducerFanPage = () => {
   const [producerData, setProducerData] = useState<any>(null);
   const [producerEvents, setProducerEvents] = useState<any[]>([]);
   const [producerProducts, setProducerProducts] = useState<any[]>([]);
+  const [publicAlbums, setPublicAlbums] = useState<any[]>([]);
+  const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showWorkModal, setShowWorkModal] = useState(false);
 
@@ -60,12 +65,14 @@ const ProducerFanPage = () => {
       setProducerData(data);
 
       if (data?.user_id) {
-        const [eventsData, productsData] = await Promise.all([
+        const [eventsData, productsData, albumsData] = await Promise.all([
           organizerService.getEvents(data.user_id),
-          organizerService.getProducts(data.user_id)
+          organizerService.getProducts(data.user_id),
+          api.get(`/api/public/producers/${slug}/albums`).catch(() => [])
         ]);
         setProducerEvents(eventsData);
         setProducerProducts(productsData.filter((p: any) => p.status === 'active'));
+        setPublicAlbums(albumsData as any[]);
       }
     } catch (err) {
       console.error('Erro ao carregar produtor:', err);
@@ -448,7 +455,39 @@ const ProducerFanPage = () => {
               <h3 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-white">{producerData.settings?.titles?.gallery || 'Momentos Inesquecíveis'}</h3>
             </div>
 
-            {galleryImages.length > 0 ? (
+            {publicAlbums.length > 0 ? (
+               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
+                  {publicAlbums.map((album: any) => (
+                    <div 
+                      key={album.id} 
+                      className="group cursor-pointer"
+                      onClick={() => setSelectedAlbumId(album.id)}
+                    >
+                      <div className="space-y-4">
+                        <div className={`aspect-[4/3] ${buttonStyle} overflow-hidden shadow-lg border-4 border-white/5 relative bg-zinc-900`}>
+                           {album.coverPhoto ? (
+                             <img src={album.coverPhoto.imageUrl} className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-700" alt={album.title} />
+                           ) : (
+                             <div className="w-full h-full flex items-center justify-center bg-zinc-900">
+                                <LayoutGrid className="w-12 h-12 text-zinc-800" />
+                             </div>
+                           )}
+                           <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 flex items-center gap-2">
+                             <ImageIcon className="w-4 h-4 text-white" />
+                             <span className="text-white font-black text-xs">{album.photoCount}</span>
+                           </div>
+                        </div>
+                        <div>
+                          <h4 className="text-lg font-black text-white group-hover:text-primary transition-colors line-clamp-1">{album.title}</h4>
+                          {album.description && (
+                            <p className="text-zinc-500 text-sm font-medium line-clamp-2 mt-1">{album.description}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+               </div>
+            ) : galleryImages.length > 0 ? (
                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                   {galleryImages.map((img: string, idx: number) => (
                     <div key={idx} className={`aspect-square ${buttonStyle} overflow-hidden shadow-lg border-4 border-white transition-transform hover:scale-105 duration-500`}>
@@ -655,7 +694,20 @@ const ProducerFanPage = () => {
           </div>
         </div>
       )}
+
+        <div className="text-center mt-12 text-zinc-500 font-bold uppercase tracking-widest text-[10px]">
+          Plataforma Segura A2 Tickets
+        </div>
       </div>
+
+      {selectedAlbumId && (
+        <PublicAlbumViewer
+          albumId={selectedAlbumId}
+          slug={slug!}
+          onClose={() => setSelectedAlbumId(null)}
+          primaryColor={primaryColor}
+        />
+      )}
     </div>
   );
 };

@@ -35,6 +35,8 @@ import credentialsRoutes from './routes/credentials';
 import ticketCheckinRoutes from './routes/ticketCheckin';
 import portariaRoutes from './routes/portaria';
 import uploadsRoutes from './routes/uploads';
+import albumsRoutes from './routes/albums';
+import publicAlbumsRoutes from './routes/publicAlbums';
 
 import { logger } from 'hono/logger';
 
@@ -94,6 +96,8 @@ app.route('/api/credentials', credentialsRoutes);
 app.route('/api/checkin/tickets', ticketCheckinRoutes);
 app.route('/api/portaria', portariaRoutes);
 app.route('/api/uploads', uploadsRoutes);
+app.route('/api/organizer/albums', albumsRoutes);
+app.route('/api/public/producers', publicAlbumsRoutes);
 
 app.get('/', (c: Context) => c.text('A2 Tickets 360º API - High Performance Ready'));
 
