@@ -650,10 +650,16 @@ app.post('/api/payments/checkout', async (c: Context) => {
         const producerNetValue = passFeeToBuyer ? subtotal : (subtotal - feeAmount);
 
         // 1. Criar Sale ANTES de chamar o Asaas
+        let revenueType = 'TICKET';
+        if (isSportTicket) {
+            revenueType = ticket.ticketPurpose === 'REPECHAGE' ? 'REPECHAGE' : 'REGISTRATION';
+        }
+
         const saleResult = await db.insert(schema.sales).values({
             eventId: ticket.eventId,
             buyerInfo: { name: buyerName, email: buyerEmail, cpf: normalizeCpf(buyerCpf) },
             totalAmount: totalValue.toString(),
+            revenueType,
             paymentStatus: 'pending',
             paymentMethod: paymentMethod
         }).returning({ id: schema.sales.id });
@@ -713,15 +719,19 @@ app.post('/api/payments/checkout', async (c: Context) => {
                 cpfCnpj: normalizeCpf(buyerCpf)
             });
             
+            let humanDescription = `Ingresso ${ticket.name} | ${ticket.event.title}`;
+            if (revenueType === 'REGISTRATION') humanDescription = `Inscrição | ${ticket.event.title}`;
+            else if (revenueType === 'REPECHAGE') humanDescription = `Repescagem | ${ticket.event.title}`;
+
             payment = await asaas.createPayment({
                 customer: asaasCustomer.id,
                 billingType: paymentMethod,
                 value: totalValue,
                 dueDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
-                description: `[A2 Tickets] ${ticket.ticketPurpose === 'REPECHAGE' ? 'Repescagem' : 'Inscricao'}: ${ticket.name}`,
+                description: humanDescription,
                 externalReference: `sale_${saleId}`,
                 splitValue: producerNetValue,
-                splitWalletId: organizerSettings.walletId
+                splitWalletId: organizer.walletId
             });
         } catch (asaasErr: any) {
             console.error('[CHECKOUT] Asaas API error:', asaasErr.message);
@@ -809,90 +819,158 @@ app.post('/api/webhooks/asaas', async (c: Context) => {
     }
 
     const data = await c.req.json();
-    const { event, payment } = data;
+    const { event, payment, id: webhookEventId } = data;
 
-    if (event === 'PAYMENT_CONFIRMED' || event === 'PAYMENT_RECEIVED') {
-        const asaasId = payment.id;
+    if (!webhookEventId) return c.json({ received: true });
 
-        // Tentar atualizar sale (Ingressos)
-        const saleRecord = await db.query.sales.findFirst({
-            where: eq(schema.sales.asaasPaymentId, asaasId)
-        });
+    // SELECT fora da transação para otimização inicial e short-circuit
+    const existingLog = await db.query.webhookLogs.findFirst({
+        where: eq(schema.webhookLogs.eventKey, webhookEventId)
+    });
 
-        if (saleRecord) {
-            // Idempotencia: so processa se ainda estiver pending
-            if (saleRecord.paymentStatus === 'pending') {
-                await db.update(schema.sales)
-                    .set({ paymentStatus: 'paid' })
-                    .where(
-                        and(
-                            eq(schema.sales.asaasPaymentId, asaasId),
-                            eq(schema.sales.paymentStatus, 'pending')
-                        )
-                    );
-
-                // Ativar purchased_tickets ligados a esta sale
-                await db.update(purchasedTickets)
-                    .set({ status: 'active' })
-                    .where(eq(purchasedTickets.parentPurchaseId, saleRecord.id));
-
-                // Atualizar sport_registration se houver
-                const sportReg = await db.query.sportRegistrations.findFirst({
-                    where: and(
-                        eq(sportRegistrations.saleId, saleRecord.id),
-                        eq(sportRegistrations.status, 'pending')
-                    )
-                });
-
-                if (sportReg) {
-                    await db.update(sportRegistrations)
-                        .set({ status: 'paid', updatedAt: new Date() })
-                        .where(
-                            and(
-                                eq(sportRegistrations.id, sportReg.id),
-                                eq(sportRegistrations.status, 'pending') // condicao de guarda
-                            )
-                        );
-
-                    // Se for REPECHAGE: incrementar contador na inscricao original
-                    // So incrementa se a transicao pending->paid ocorreu (garante idempotencia)
-                    if (sportReg.ticketPurpose === 'REPECHAGE' && sportReg.originalRegistrationId) {
-                        await db.update(sportRegistrations)
-                            .set({ repechageCount: sql`${sportRegistrations.repechageCount} + 1` })
-                            .where(eq(sportRegistrations.id, sportReg.originalRegistrationId));
-                    }
-                }
-
-                if (redis) {
-                    await redis.set(`sale:${saleRecord.id}`, 'PAID');
-                }
-                console.log(`[WEBHOOK] Sale ${saleRecord.id} confirmada. Sport reg atualizada.`);
-            } else {
-                console.log(`[WEBHOOK] Sale ${saleRecord.id} ja estava ${saleRecord.paymentStatus}. Ignorando (idempotente).`);
-            }
-            return c.json({ received: true, type: 'ticket' });
-        }
-
-        // Se nao for ingresso, verificar se e Promocao de Evento
-        const eventRecord = await db.query.events.findFirst({
-            where: eq(schema.events.featuredAsaasPaymentId, asaasId)
-        });
-
-        if (eventRecord) {
-            const thirtyDaysFromNow = new Date();
-            thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
-            await db.update(schema.events)
-                .set({
-                    isFeatured: true,
-                    featuredPaymentStatus: 'paid',
-                    featuredUntil: thirtyDaysFromNow
-                })
-                .where(eq(schema.events.id, eventRecord.id));
-            return c.json({ received: true, type: 'event_promotion' });
+    if (existingLog) {
+        if (existingLog.status === 'done') {
+            return c.json({ received: true, message: 'Already processed' });
         }
     }
 
-    return c.json({ received: true });
+    try {
+        await db.transaction(async (tx) => {
+            // LOCK E BARREIRA IDEMPOTENTE
+            if (existingLog && existingLog.status === 'failed') {
+                await tx.delete(schema.webhookLogs)
+                    .where(and(
+                        eq(schema.webhookLogs.eventKey, webhookEventId),
+                        eq(schema.webhookLogs.status, 'failed')
+                    ));
+            }
+            
+            // Simulação de erro intermediário (Apenas para Teste)
+            if (data.simulateError) {
+                throw new Error('SIMULATED_TRANSACTION_ERROR');
+            }
+
+            // INSERT atua como lock físico na linha (event_key UNIQUE).
+            // Se outra transação em andamento estiver inserindo o mesmo, block/23505.
+            await tx.insert(schema.webhookLogs).values({
+                eventKey: webhookEventId,
+                payload: data,
+                status: 'processing'
+            });
+
+            if (event === 'PAYMENT_CONFIRMED' || event === 'PAYMENT_RECEIVED') {
+                const asaasId = payment.id;
+                const externalReference = payment.externalReference;
+                
+                let saleRecord: any = null;
+
+                if (externalReference && externalReference.startsWith('sale_')) {
+                    const saleId = externalReference.replace('sale_', '');
+                    saleRecord = await tx.query.sales.findFirst({
+                        where: eq(schema.sales.id, saleId)
+                    });
+                }
+
+                if (!saleRecord) {
+                    saleRecord = await tx.query.sales.findFirst({
+                        where: eq(schema.sales.asaasPaymentId, asaasId)
+                    });
+                }
+
+                if (saleRecord) {
+                    if (!saleRecord.asaasPaymentId || saleRecord.asaasPaymentId !== asaasId) {
+                        await tx.update(schema.sales)
+                            .set({ asaasPaymentId: asaasId })
+                            .where(eq(schema.sales.id, saleRecord.id));
+                    }
+                    
+                    if (saleRecord.paymentStatus === 'pending') {
+                        await tx.update(schema.sales)
+                            .set({ paymentStatus: 'paid' })
+                            .where(eq(schema.sales.id, saleRecord.id));
+
+                        await tx.update(purchasedTickets)
+                            .set({ status: 'active' })
+                            .where(eq(purchasedTickets.parentPurchaseId, saleRecord.id));
+
+                        const sportReg = await tx.query.sportRegistrations.findFirst({
+                            where: and(
+                                eq(sportRegistrations.saleId, saleRecord.id),
+                                eq(sportRegistrations.status, 'pending')
+                            )
+                        });
+
+                        if (sportReg) {
+                            await tx.update(sportRegistrations)
+                                .set({ status: 'paid', updatedAt: new Date() })
+                                .where(eq(sportRegistrations.id, sportReg.id));
+
+                            if (sportReg.ticketPurpose === 'REPECHAGE' && sportReg.originalRegistrationId) {
+                                await tx.update(sportRegistrations)
+                                    .set({ repechageCount: sql`${sportRegistrations.repechageCount} + 1` })
+                                    .where(eq(sportRegistrations.id, sportReg.originalRegistrationId));
+                            }
+                        }
+
+                        if (redis) {
+                            await redis.set(`sale:${saleRecord.id}`, 'PAID');
+                        }
+                    }
+                } else {
+                    const eventRecord = await tx.query.events.findFirst({
+                        where: eq(schema.events.featuredAsaasPaymentId, asaasId)
+                    });
+
+                    if (eventRecord) {
+                        const thirtyDaysFromNow = new Date();
+                        thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+                        await tx.update(schema.events)
+                            .set({
+                                isFeatured: true,
+                                featuredPaymentStatus: 'paid',
+                                featuredUntil: thirtyDaysFromNow
+                            })
+                            .where(eq(schema.events.id, eventRecord.id));
+                    }
+                }
+            }
+
+            // Finaliza atômicamente
+            await tx.update(schema.webhookLogs)
+                .set({ status: 'done', response: 'Success' })
+                .where(eq(schema.webhookLogs.eventKey, webhookEventId));
+        });
+
+        return c.json({ received: true });
+    } catch (err: any) {
+        if (err.code === '23505') {
+            const checkLog = await db.query.webhookLogs.findFirst({ where: eq(schema.webhookLogs.eventKey, webhookEventId) });
+            if (checkLog && checkLog.status === 'done') {
+                return c.json({ received: true, message: 'Already processed concurrently' });
+            }
+            return c.json({ error: 'Concurrent processing or anomalous state' }, 500);
+        }
+
+        console.error('[WEBHOOK] Real processing error:', err.message);
+        
+        // Logar a falha em nova transação/operação separada, pois a anterior sofreu ROLLBACK
+        if (webhookEventId) {
+            try {
+                await db.transaction(async (txErr) => {
+                    await txErr.delete(schema.webhookLogs).where(eq(schema.webhookLogs.eventKey, webhookEventId));
+                    await txErr.insert(schema.webhookLogs).values({
+                        eventKey: webhookEventId,
+                        payload: data,
+                        status: 'failed',
+                        response: err.message
+                    });
+                });
+            } catch (logErr) {
+                console.error('[WEBHOOK] Failed to write error log:', logErr);
+            }
+        } // <-- Added missing brace here
+        return c.json({ error: 'Processing failed', details: err.message }, 500);
+    }
 });
 
 // --- Rota de Login (Staff e Organizador) ---

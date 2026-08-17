@@ -1,6 +1,9 @@
 import { pgTable, text, timestamp, serial, integer, boolean, decimal, jsonb, uuid, index, AnyPgColumn, unique, primaryKey, varchar, pgEnum } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
+// Enums
+export const salesRevenueTypeEnum = pgEnum('sales_revenue_type', ['TICKET', 'REGISTRATION', 'REPECHAGE']);
+
 // Platform Masters (Contexto Global)
 export const platformMasters = pgTable('platform_masters', {
     userId: uuid('user_id').primaryKey(), // FK to auth.users.id
@@ -322,6 +325,7 @@ export const sales = pgTable('sales', {
     customerId: uuid('customer_id'),
     buyerInfo: jsonb('buyer_info'),
     totalAmount: decimal('total_amount', { precision: 10, scale: 2 }).notNull(),
+    revenueType: salesRevenueTypeEnum('revenue_type').default('TICKET').notNull(),
     paymentStatus: text('payment_status', { enum: ['pending', 'paid', 'refunded', 'cancelled'] }).default('pending'),
     paymentMethod: text('payment_method'), // PIX, CREDIT_CARD, BOLETO
     asaasId: text('asaas_id'),
@@ -430,6 +434,17 @@ export const checkins = pgTable('checkins', {
     staffId: uuid('staff_id').references(() => staff.id).notNull(),
     eventId: uuid('event_id').references(() => events.id).notNull(),
     checkInTime: timestamp('check_in_time').defaultNow(),
+});
+
+// Logs do Webhook Asaas (Para IdempotÃªncia)
+export const webhookLogs = pgTable('webhook_logs', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    eventKey: text('event_key').unique().notNull(), // Asaas event ID (ex: evt_xxx)
+    url: text('url'),
+    status: text('status'),
+    payload: jsonb('payload'),
+    response: text('response'),
+    createdAt: timestamp('created_at').defaultNow(),
 });
 
 // Categorias Globais de Fornecedores (Colaborativas)
