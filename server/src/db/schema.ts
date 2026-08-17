@@ -33,6 +33,7 @@ export const organizers = pgTable('organizer_details', {
     phone: text('phone'),
     bio: text('bio'),
     asaasKey: text('asaas_key'),
+    walletId: text('wallet_id'),
     logoUrl: text('logo_url'),
     bannerUrl: text('banner_url'),
     socialLinks: jsonb('social_links'),

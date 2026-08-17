@@ -51,9 +51,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 }
 
                 const { data: orgData } = await supabase
-                  .from('organizers')
+                  .from('organizer_details')
                   .select('wallet_id')
-                  .eq('id', userId)
+                  .eq('user_id', userId)
                   .single();
                   
                 if (orgData) {

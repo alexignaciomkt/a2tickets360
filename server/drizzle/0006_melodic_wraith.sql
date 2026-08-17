@@ -1,0 +1,1 @@
+ALTER TABLE "organizer_details" ADD COLUMN "wallet_id" text;

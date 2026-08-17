@@ -155,7 +155,7 @@ export interface Organizer {
 
   asaasId?: string;
   asaasApiKey?: string;
-  walletId?: string;
+  walletId?: string | null;
   lastStep?: number;
   verificationToken?: string;
   createdAt: string;

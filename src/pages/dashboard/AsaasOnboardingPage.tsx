@@ -35,9 +35,9 @@ const AsaasOnboardingPage = () => {
     try {
       setIsLinking(true);
       const { error } = await supabase
-        .from('organizers')
+        .from('organizer_details')
         .update({ wallet_id: walletId })
-        .eq('id', user?.id);
+        .eq('user_id', user?.id);
 
       if (error) throw error;
 
