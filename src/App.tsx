@@ -24,6 +24,7 @@ import OrganizerAttendees from '@/pages/dashboard/OrganizerAttendees';
 import OrganizerFinancial from '@/pages/dashboard/OrganizerFinancial';
 import OrganizerReports from '@/pages/dashboard/OrganizerReports';
 import OrganizerSettings from '@/pages/dashboard/OrganizerSettings';
+import SecuritySettings from '@/pages/dashboard/SecuritySettings';
 import OrganizerOnboarding from '@/pages/dashboard/OrganizerOnboarding';
 import OrganizerPostManager from '@/pages/dashboard/OrganizerPostManager';
 import OrganizerStaff from '@/pages/dashboard/OrganizerStaff';
@@ -179,6 +180,11 @@ function AppRoutes() {
         <Route path="/dashboard/settings" element={
           <ProtectedRoute allowedRoles={['customer', 'organizer', 'master', 'admin', 'promoter']}>
             <Settings />
+          </ProtectedRoute>
+        } />
+        <Route path="/dashboard/security" element={
+          <ProtectedRoute allowedRoles={['customer', 'organizer', 'master', 'admin', 'promoter', 'staff']}>
+            <SecuritySettings />
           </ProtectedRoute>
         } />
         <Route path="/checkout/:eventId/:ticketId" element={<CheckoutPage />} />

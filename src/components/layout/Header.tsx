@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Ticket, Search, User, Zap, LogOut, Settings, LayoutDashboard, Menu } from 'lucide-react';
+import { Ticket, Search, User, Shield, Zap, LogOut, Settings, LayoutDashboard, Menu } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   DropdownMenu,
@@ -14,7 +14,7 @@ import {
 import Logo from '@/components/ui/logo';
 
 const Header = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, personalModules } = useAuth();
   const location = useLocation();
   const isHome = location.pathname === '/';
 
@@ -89,48 +89,52 @@ const Header = () => {
                   )}
 
                   {user.role === 'organizer' && (
-                    <DropdownMenuItem className="p-3 rounded-2xl cursor-pointer hover:bg-white/5 group" asChild>
-                      <Link to="/organizer/dashboard" className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-indigo-600/20 text-indigo-400 rounded-xl flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition">
-                          <LayoutDashboard className="w-5 h-5" />
-                        </div>
-                        <span className="font-black text-[10px] uppercase tracking-widest">Painel Produtor</span>
-                      </Link>
-                    </DropdownMenuItem>
-                  )}
-
-                  {user.role !== 'staff' && (
                     <>
                       <DropdownMenuItem className="p-3 rounded-2xl cursor-pointer hover:bg-white/5 group" asChild>
-                        <Link to="/dashboard/tickets" className="flex items-center gap-4">
-                          <div className="w-10 h-10 bg-white/5 text-gray-400 rounded-xl flex items-center justify-center group-hover:bg-white group-hover:text-black transition">
-                            <Ticket className="w-5 h-5" />
-                          </div>
-                          <span className="font-black text-[10px] uppercase tracking-widest">Meus Ingressos</span>
-                        </Link>
-                      </DropdownMenuItem>
-
-                      <DropdownMenuItem className="p-3 rounded-2xl cursor-pointer hover:bg-white/5 group" asChild>
-                        <Link to="/promoter/events" className="flex items-center gap-4">
-                          <div className="w-10 h-10 bg-emerald-500/10 text-emerald-400 rounded-xl flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-white transition">
+                        <Link to="/organizer/dashboard" className="flex items-center gap-4">
+                          <div className="w-10 h-10 bg-indigo-600/20 text-indigo-400 rounded-xl flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition">
                             <LayoutDashboard className="w-5 h-5" />
                           </div>
-                          <span className="font-black text-[10px] uppercase tracking-widest">Painel Promoter</span>
+                          <span className="font-black text-[10px] uppercase tracking-widest">Painel Produtor</span>
                         </Link>
                       </DropdownMenuItem>
-
                       <DropdownMenuItem className="p-3 rounded-2xl cursor-pointer hover:bg-white/5 group" asChild>
-                        <Link to="/dashboard/settings" className="flex items-center gap-4">
+                        <Link to="/organizer/settings" className="flex items-center gap-4">
                           <div className="w-10 h-10 bg-white/5 text-gray-400 rounded-xl flex items-center justify-center group-hover:bg-white group-hover:text-black transition">
                             <Settings className="w-5 h-5" />
                           </div>
-                          <span className="font-black text-[10px] uppercase tracking-widest">Perfil & Segurança</span>
+                          <span className="font-black text-[10px] uppercase tracking-widest">Config. Produtora</span>
                         </Link>
                       </DropdownMenuItem>
                     </>
                   )}
 
-                  {user.role === 'staff' && (
+                  {/* Meus Ingressos: Somente se módulo tickets ativo */}
+                  {personalModules?.tickets === true && (
+                    <DropdownMenuItem className="p-3 rounded-2xl cursor-pointer hover:bg-white/5 group" asChild>
+                      <Link to="/dashboard/tickets" className="flex items-center gap-4">
+                        <div className="w-10 h-10 bg-white/5 text-gray-400 rounded-xl flex items-center justify-center group-hover:bg-white group-hover:text-black transition">
+                          <Ticket className="w-5 h-5" />
+                        </div>
+                        <span className="font-black text-[10px] uppercase tracking-widest">Meus Ingressos</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+
+                  {/* Painel Promoter: Somente se módulo promoter ativo */}
+                  {personalModules?.promoter === true && (
+                    <DropdownMenuItem className="p-3 rounded-2xl cursor-pointer hover:bg-white/5 group" asChild>
+                      <Link to="/promoter/events" className="flex items-center gap-4">
+                        <div className="w-10 h-10 bg-emerald-500/10 text-emerald-400 rounded-xl flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-white transition">
+                          <LayoutDashboard className="w-5 h-5" />
+                        </div>
+                        <span className="font-black text-[10px] uppercase tracking-widest">Painel Promoter</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+
+                  {/* Meu Painel Staff: Somente se módulo staff ativo */}
+                  {personalModules?.staff === true && (
                     <DropdownMenuItem className="p-3 rounded-2xl cursor-pointer hover:bg-white/5 group" asChild>
                       <Link to="/dashboard/staff/invites" className="flex items-center gap-4">
                         <div className="w-10 h-10 bg-indigo-600/20 text-indigo-400 rounded-xl flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition">
@@ -140,6 +144,28 @@ const Header = () => {
                       </Link>
                     </DropdownMenuItem>
                   )}
+                  
+                  {/* Itens padrão para todos os usuários autenticados */}
+                  <DropdownMenuSeparator className="bg-white/5 mx-2 my-2" />
+                  
+                  <DropdownMenuItem className="p-3 rounded-2xl cursor-pointer hover:bg-white/5 group" asChild>
+                    <Link to="/dashboard/settings" className="flex items-center gap-4">
+                      <div className="w-10 h-10 bg-white/5 text-gray-400 rounded-xl flex items-center justify-center group-hover:bg-white group-hover:text-black transition">
+                        <User className="w-5 h-5" />
+                      </div>
+                      <span className="font-black text-[10px] uppercase tracking-widest">Dados Pessoais</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  
+                  <DropdownMenuItem className="p-3 rounded-2xl cursor-pointer hover:bg-white/5 group" asChild>
+                    <Link to="/dashboard/security" className="flex items-center gap-4">
+                      <div className="w-10 h-10 bg-white/5 text-gray-400 rounded-xl flex items-center justify-center group-hover:bg-white group-hover:text-black transition">
+                        <Shield className="w-5 h-5" />
+                      </div>
+                      <span className="font-black text-[10px] uppercase tracking-widest">Segurança da Conta</span>
+                    </Link>
+                  </DropdownMenuItem>
+
                 </div>
 
                 <DropdownMenuSeparator className="bg-white/5 mx-2" />
