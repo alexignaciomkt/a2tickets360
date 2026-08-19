@@ -28,6 +28,7 @@ import OrganizerCouponsTab from './OrganizerCouponsTab';
 import OrganizerRulesTab from './OrganizerRulesTab';
 import OrganizerTicketDesignerTab from './OrganizerTicketDesignerTab';
 import OrganizerEventInfoTab from './OrganizerEventInfoTab';
+import { OrganizerEventHighlightBox } from '@/components/dashboard/OrganizerEventHighlightBox';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { api } from '@/services/api';
@@ -358,6 +359,10 @@ const OrganizerEventHub = () => {
                    </div>
                  </div>
                )}
+
+               <div className="mb-6">
+                 <OrganizerEventHighlightBox eventId={eventId} />
+               </div>
 
                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">

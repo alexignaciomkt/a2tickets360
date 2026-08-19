@@ -33,12 +33,50 @@ import permissionsRoutes from './routes/permissions';
 import staffRoutes from './routes/staff';
 import credentialsRoutes from './routes/credentials';
 import ticketCheckinRoutes from './routes/ticketCheckin';
+import dotenv from 'dotenv';
+dotenv.config();
+
+import { Hono, Context } from 'hono';
+import { cors } from 'hono/cors';
+import { db } from './db';
+import * as schema from './db/schema';
+
+const {
+    admins, organizers: organizersTable, eventCategories, events, tickets, sales, staff,
+    checkins, supplierCategories, suppliers, supplierContracts, quotes, quoteResponses,
+    candidates, staffProposals, sponsorTypes, sponsors, sponsorInstallments, sponsorDeliverables,
+    standCategories, stands, visitors, exhibitorStaff, exhibitorLogistics, exhibitorLeads,
+    aiChatLogs, syncQueue, legalPages, productCategories, products, productVariants, productOrders,
+    organizerPosts, sportRegistrations, sportRegistrationPlayers, purchasedTickets
+} = schema;
+import { eq, or, and, isNull, sql, inArray, lte, gte, gt } from 'drizzle-orm';
+import Redis from 'ioredis';
+import { serveStatic } from '@hono/node-server/serve-static';
+import { join } from 'node:path';
+import { existsSync } from 'node:fs';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { v4 as uuidv4 } from 'uuid';
+import nodemailer from 'nodemailer';
+import crypto from 'node:crypto';
+
+// Router Imports
+import exhibitorRoutes from './routes/exhibitor';
+import aiRoutes from './routes/ai';
+import integrationRoutes from './routes/integrations';
+import contextsRoutes from './routes/contexts';
+import permissionsRoutes from './routes/permissions';
+import staffRoutes from './routes/staff';
+import credentialsRoutes from './routes/credentials';
+import ticketCheckinRoutes from './routes/ticketCheckin';
 import portariaRoutes from './routes/portaria';
 import uploadsRoutes from './routes/uploads';
 import albumsRoutes from './routes/albums';
 import publicAlbumsRoutes from './routes/publicAlbums';
 
 import { logger } from 'hono/logger';
+import { authMiddleware, clerkAuthMiddleware } from './middleware/auth';
+import { calculateFinancialDistribution } from './domain/financialEngine';
+import { reserveFeaturedCredit, releaseFeaturedCredit } from './services/credits';
 
 const app = new Hono();
 app.use('*', logger());
@@ -48,6 +86,7 @@ export const asaas = new AsaasService();
 
 // Valor centralizado do destaque de evento na Home
 const FEATURED_EVENT_PRICE = 49.90;
+const FEATURED_CREDIT_UNIT_PRICE_CENTS = 4990;
 
 // Redis opcional para desenvolvimento (não trava se falhar)
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
@@ -470,6 +509,49 @@ app.post('/api/sports/check-eligibility', async (c: Context) => {
 // Para ticket_purpose REGISTRATION ou REPECHAGE, quantity forcada = 1.
 // Fluxo: validar -> sale -> sport_registration (pending) -> Asaas
 // =============================================================================
+// --- Status do Crédito de Destaque por Evento ---
+app.get('/api/events/:id/featured-credit-status', authMiddleware, async (c: Context) => {
+    try {
+        const payload = c.get('jwtPayload');
+        if (!payload || !payload.id) return c.json({ error: 'Unauthorized' }, 401);
+
+        const eventId = c.req.param('id');
+        if (!eventId) return c.json({ error: 'ID do evento é obrigatório.' }, 400);
+
+        const organizer = await db.query.organizers.findFirst({
+            where: eq(schema.organizers.userId, payload.id)
+        });
+
+        if (!organizer) return c.json({ error: 'Produtora não encontrada.' }, 403);
+
+        const credits = await db.query.organizerServiceCredits.findMany({
+            where: eq(schema.organizerServiceCredits.organizerId, organizer.id)
+        });
+
+        const availableCount = credits.filter(c => c.status === 'AVAILABLE').length;
+        const reservedCredit = credits.find(c => c.status === 'RESERVED' && c.reservedEventId === eventId) || null;
+        
+        const activeCycles = await db.query.eventFeaturedCycles.findMany({
+            where: and(
+                eq(schema.eventFeaturedCycles.eventId, eventId),
+                gt(schema.eventFeaturedCycles.featuredUntil, new Date().toISOString())
+            ),
+            limit: 1
+        });
+        const activeHighlight = activeCycles.length > 0 ? activeCycles[0] : null;
+
+        return c.json({
+            hasAvailableCredits: availableCount > 0,
+            availableCount,
+            reservedCredit,
+            activeHighlight
+        });
+    } catch (error: any) {
+        console.error('[FEATURED CREDIT STATUS]', error);
+        return c.json({ error: 'Erro ao buscar status do destaque.' }, 500);
+    }
+});
+
 app.post('/api/payments/checkout', async (c: Context) => {
     const body = await c.req.json();
     const { ticketId, buyerId, buyerName, buyerEmail, buyerCpf, paymentMethod, sportData } = body;
@@ -631,14 +713,12 @@ app.post('/api/payments/checkout', async (c: Context) => {
         });
         if (!organizer) throw new Error('Organizador nao encontrado.');
 
-        const { calculateFinancialDistribution, deriveBillableUnits } = require('./domain/financialEngine');
-
         let revenueType = 'TICKET';
         if (isSportTicket) {
             revenueType = ticket.ticketPurpose === 'REPECHAGE' ? 'REPECHAGE' : 'REGISTRATION';
         }
 
-        const billableUnits = deriveBillableUnits(revenueType, quantity, ticket.capacityPerUnit || 1);
+        const billableUnits = calculateFinancialDistribution(revenueType, quantity, ticket.capacityPerUnit || 1);
 
         const organizerSettings = organizer.settings as any || {};
         const eventSettings = ticket.event.settings as any;
@@ -805,6 +885,230 @@ app.post('/api/payments/checkout', async (c: Context) => {
 });
 
 // --- Promover Evento (Destaque na Home) — R$ 49,90 via PIX (Asaas Real) ---
+
+// --- Compra de Créditos de Serviço (Destaque) ---
+app.get('/api/service-credits', authMiddleware, async (c: Context) => {
+    try {
+        const payload = c.get('jwtPayload');
+        if (!payload || !payload.id) return c.json({ error: 'Unauthorized' }, 401);
+
+        const organizer = await db.query.organizers.findFirst({
+            where: eq(schema.organizers.userId, payload.id)
+        });
+
+        if (!organizer) {
+            return c.json({ error: 'Produtora não encontrada para o usuário autenticado.' }, 403);
+        }
+
+        const credits = await db.query.organizerServiceCredits.findMany({
+            where: eq(schema.organizerServiceCredits.organizerId, organizer.id),
+            orderBy: (credits, { desc }) => [desc(credits.createdAt)]
+        });
+
+        let available = 0;
+        let reserved = 0;
+        let consumed = 0;
+        let cancelled = 0;
+
+        credits.forEach(credit => {
+            if (credit.status === 'AVAILABLE') available++;
+            else if (credit.status === 'RESERVED') reserved++;
+            else if (credit.status === 'CONSUMED') consumed++;
+            else if (credit.status === 'CANCELLED') cancelled++;
+        });
+
+        return c.json({
+            summary: {
+                available,
+                reserved,
+                consumed,
+                cancelled,
+                total: credits.length
+            },
+            credits: credits.map(c => ({
+                id: c.id,
+                creditNumber: c.creditNumber,
+                status: c.status,
+                orderId: c.orderId,
+                createdAt: c.createdAt,
+                updatedAt: c.updatedAt,
+                reservedEventId: c.reservedEventId
+            }))
+        });
+
+    } catch (error: any) {
+        console.error('[GET /api/service-credits]', error);
+        return c.json({ error: 'Erro ao buscar créditos de serviço.' }, 500);
+    }
+});
+
+// --- Reservar Crédito ---
+app.post('/api/service-credits/reserve', authMiddleware, async (c: Context) => {
+    try {
+        const payload = c.get('jwtPayload');
+        if (!payload || !payload.id) return c.json({ error: 'Unauthorized' }, 401);
+
+        const { eventId } = await c.req.json();
+        if (!eventId) return c.json({ error: 'O ID do evento é obrigatório.' }, 400);
+
+        const organizer = await db.query.organizers.findFirst({
+            where: eq(schema.organizers.userId, payload.id)
+        });
+
+        if (!organizer) {
+            return c.json({ error: 'Produtora não encontrada.' }, 403);
+        }
+
+        const result = await reserveFeaturedCredit(eventId, organizer.id, payload.id, payload.id);
+        return c.json(result);
+    } catch (error: any) {
+        console.error('[RESERVE CREDIT]', error);
+        return c.json({ error: error.message }, 400); // Bad Request (or conflict)
+    }
+});
+
+// --- Liberar Crédito Reservado ---
+app.post('/api/service-credits/release', authMiddleware, async (c: Context) => {
+    try {
+        const payload = c.get('jwtPayload');
+        if (!payload || !payload.id) return c.json({ error: 'Unauthorized' }, 401);
+
+        const { eventId } = await c.req.json();
+        if (!eventId) return c.json({ error: 'O ID do evento é obrigatório.' }, 400);
+
+        const organizer = await db.query.organizers.findFirst({
+            where: eq(schema.organizers.userId, payload.id)
+        });
+
+        if (!organizer) {
+            return c.json({ error: 'Produtora não encontrada.' }, 403);
+        }
+
+        const result = await releaseFeaturedCredit(eventId, organizer.id, payload.id, payload.id);
+        return c.json(result);
+    } catch (error: any) {
+        console.error('[RELEASE CREDIT]', error);
+        return c.json({ error: error.message }, 400);
+    }
+});
+
+app.post('/api/service-credits/buy', authMiddleware, async (c: Context) => {
+    try {
+        const payload = c.get('jwtPayload');
+        if (!payload || !payload.id) return c.json({ error: 'Unauthorized' }, 401);
+
+        const body = await c.req.json();
+        const quantity = Number(body.quantity);
+        const originEventId = body.originEventId || null;
+
+        if (!Number.isInteger(quantity) || quantity < 1 || quantity > 100) {
+            return c.json({ error: 'A quantidade deve ser um número inteiro entre 1 e 100.' }, 400);
+        }
+
+        const organizer = await db.query.organizers.findFirst({
+            where: eq(schema.organizers.userId, payload.id)
+        });
+
+        if (!organizer) {
+            return c.json({ error: 'Produtora não encontrada para o usuário autenticado.' }, 403);
+        }
+
+        // Validação Fiscal Obrigatoria
+        const producerEmail = payload.email; // Sempre existe via JWT Auth (Supabase)
+        const producerDocument = organizer.cnpj || organizer.cpf;
+        const producerName = organizer.companyName;
+
+        if (!producerDocument) {
+            return c.json({ error: 'Cadastro fiscal incompleto. É necessário informar um CPF ou CNPJ no painel da Produtora para realizar compras.' }, 400);
+        }
+        if (!producerName) {
+            return c.json({ error: 'Cadastro incompleto. É necessário informar a Razão Social/Nome da Produtora.' }, 400);
+        }
+
+        if (originEventId) {
+            const event = await db.query.events.findFirst({
+                where: eq(schema.events.id, originEventId)
+            });
+            if (!event || event.organizerId !== organizer.id) {
+                return c.json({ error: 'Evento de origem inválido ou pertencente a outra produtora.' }, 403);
+            }
+        }
+
+        const totalAmountCents = quantity * FEATURED_CREDIT_UNIT_PRICE_CENTS;
+        const totalAmount = (totalAmountCents / 100).toFixed(2);
+        const unitPrice = "49.90";
+
+        const orderId = uuidv4();
+        const externalReference = `service_credit_order_${orderId}`;
+
+        await db.insert(schema.serviceCreditOrders).values({
+            id: orderId,
+            organizerId: organizer.id,
+            creditType: 'EVENT_FEATURED',
+            quantity: quantity,
+            unitPrice: unitPrice,
+            totalAmount: totalAmount,
+            paymentStatus: 'PENDING',
+            originEventId: originEventId,
+            externalReference: externalReference
+        });
+
+        let asaasPaymentId: string | null = null;
+        let invoiceUrl: string | null = null;
+        let customerId = organizer.asaasKey;
+
+        try {
+            if (!customerId) {
+                const customer = await asaas.createCustomer({ 
+                    name: producerName, 
+                    email: producerEmail, 
+                    cpfCnpj: producerDocument 
+                });
+                customerId = customer.id;
+                
+                // Salvar o customerId gerado no organizer_details.asaas_key
+                await db.update(schema.organizers)
+                    .set({ asaasKey: customerId })
+                    .where(eq(schema.organizers.id, organizer.id));
+            }
+
+            const description = originEventId && body.eventTitle 
+                ? `[A2 Tickets] ${quantity} Crédito(s) de Destaque — ${body.eventTitle}`
+                : `[A2 Tickets] ${quantity} Crédito(s) de Destaque de Evento`;
+
+            const payment = await asaas.createPromotionPayment({
+                customer: customerId,
+                value: totalAmountCents / 100,
+                description: description.substring(0, 255),
+                externalReference: externalReference
+            });
+
+            asaasPaymentId = payment.id;
+            invoiceUrl = payment.invoiceUrl;
+
+            await db.update(schema.serviceCreditOrders)
+                .set({ asaasPaymentId: asaasPaymentId })
+                .where(eq(schema.serviceCreditOrders.id, orderId));
+
+        } catch (asaasErr: any) {
+            console.error('[SERVICE-CREDITS] Asaas Error:', asaasErr);
+            // Retorna erro, Order fica PENDING e sem asaasPaymentId. Isso permite reconciliação futura ou alerta.
+            return c.json({ error: 'Falha ao processar pagamento com Asaas. O pedido foi registrado mas a cobrança falhou.' }, 500);
+        }
+
+        return c.json({ 
+            status: 'success', 
+            orderId, 
+            invoiceUrl, 
+            asaasPaymentId,
+            externalReference
+        });
+    } catch (error: any) {
+        console.error('[SERVICE-CREDITS-BUY]', error);
+        return c.json({ error: error.message }, 500);
+    }
+});
+
 app.post('/api/payments/promote-event', async (c: Context) => {
     const { eventId, organizerId, organizerName, organizerEmail, organizerCpfCnpj } = await c.req.json();
 
@@ -891,7 +1195,80 @@ app.post('/api/webhooks/asaas', async (c: Context) => {
                 const asaasId = payment.id;
                 const externalReference = payment.externalReference;
                 
+                
+                // --- SERVICE CREDIT ORDER BRANCH ---
+                let isServiceCredit = false;
+                let creditOrder: any = null;
+
+                if (externalReference && externalReference.startsWith('service_credit_order_')) {
+                    isServiceCredit = true;
+                    const orderId = externalReference.replace('service_credit_order_', '');
+                    const orders = await tx.execute(sql`SELECT * FROM service_credit_orders WHERE id = ${orderId} FOR UPDATE`);
+                    if (orders.rows.length > 0) creditOrder = orders.rows[0];
+                }
+
+                if (!creditOrder && asaasId) { // Fallback
+                    const fallbackOrders = await tx.execute(sql`SELECT * FROM service_credit_orders WHERE asaas_payment_id = ${asaasId} FOR UPDATE`);
+                    if (fallbackOrders.rows.length > 0) {
+                        isServiceCredit = true;
+                        creditOrder = fallbackOrders.rows[0];
+                    }
+                }
+
+                if (isServiceCredit) {
+                    if (!creditOrder) {
+                        throw new Error('Service Credit Order not found but externalReference matched');
+                    }
+
+                    if (creditOrder.asaas_payment_id && creditOrder.asaas_payment_id !== asaasId) {
+                        throw new Error('CONSISTENCY_ERROR: asaasPaymentId mismatch. Order tem outro pagamento atrelado.');
+                    }
+
+                    if (!creditOrder.asaas_payment_id) {
+                        await tx.update(schema.serviceCreditOrders)
+                            .set({ asaasPaymentId: asaasId, updatedAt: sql`NOW()` })
+                            .where(eq(schema.serviceCreditOrders.id, creditOrder.id));
+                    }
+
+                    if (creditOrder.payment_status === 'PAID') {
+                        const credits = await tx.execute(sql`SELECT COUNT(*) as count FROM organizer_service_credits WHERE order_id = ${creditOrder.id}`);
+                        if (Number(credits.rows[0].count) !== creditOrder.quantity) {
+                            throw new Error(`CONSISTENCY_ERROR: Order PAID mas número de créditos (${credits.rows[0].count}) difere da quantity (${creditOrder.quantity}).`);
+                        }
+                    } else if (creditOrder.payment_status === 'PENDING') {
+                        for (let i = 1; i <= creditOrder.quantity; i++) {
+                            const creditRes = await tx.insert(schema.organizerServiceCredits).values({
+                                organizerId: creditOrder.organizer_id,
+                                creditType: creditOrder.credit_type,
+                                status: 'AVAILABLE',
+                                creditNumber: i,
+                                orderId: creditOrder.id,
+                                originEventId: creditOrder.origin_event_id || null
+                            }).returning({ id: schema.organizerServiceCredits.id });
+
+                            await tx.insert(schema.serviceCreditLedger).values({
+                                creditId: creditRes[0].id,
+                                eventId: creditOrder.origin_event_id || null,
+                                action: 'CREATED',
+                                metadata: { source: 'ASAAS_PAYMENT', orderId: creditOrder.id, actor_type: 'SYSTEM' }
+                            });
+                        }
+
+                        await tx.update(schema.serviceCreditOrders)
+                            .set({ paymentStatus: 'PAID', paidAt: sql`NOW()`, updatedAt: sql`NOW()` })
+                            .where(eq(schema.serviceCreditOrders.id, creditOrder.id));
+                    }
+
+                    await tx.update(schema.webhookLogs)
+                        .set({ status: 'done', processedAt: new Date() })
+                        .where(eq(schema.webhookLogs.eventKey, webhookEventId));
+
+                    return; // Finaliza processamento deste evento, abortando fallback pra sales
+                }
+                // --- FIM SERVICE CREDIT ORDER BRANCH ---
+
                 let saleRecord: any = null;
+
 
                 if (externalReference && externalReference.startsWith('sale_')) {
                     const saleId = externalReference.replace('sale_', '');
@@ -1362,21 +1739,6 @@ app.post('/api/events', async (c: Context) => {
     }
 });
 
-app.get('/api/public/featured-events', async (c: Context) => {
-    try {
-        const featured = await db.query.events.findMany({
-            where: and(
-                eq(events.isFeatured, true),
-                eq(events.status, 'published')
-            ),
-            orderBy: (events, { desc }) => [desc(events.createdAt)]
-        });
-        return c.json(featured);
-    } catch (error: any) {
-        return c.json({ error: error.message }, 400);
-    }
-});
-
 // --- Páginas Legais ---
 
 app.get('/api/legal/:slug', async (c) => {
@@ -1523,7 +1885,9 @@ app.get('/api/public/featured-events', async (c: Context) => {
         const results = await db.query.events.findMany({
             where: and(
                 or(eq(events.status, 'published'), eq(events.status, 'active')),
-                eq(events.isFeatured, true)
+                eq(events.isFeatured, true),
+                lte(events.featuredAt, new Date().toISOString()),
+                gt(events.featuredUntil, new Date().toISOString())
             ),
             with: {
                 tickets: true,

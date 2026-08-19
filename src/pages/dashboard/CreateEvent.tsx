@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Tag, FileText, MapPin, Ticket, CheckCircle2,
@@ -16,6 +16,7 @@ import EventWizardStepper from '@/components/events/EventWizardStepper';
 import CategoryCombobox from '@/components/events/CategoryCombobox';
 import TicketBuilder, { TicketTier } from '@/components/events/TicketBuilder';
 import EventPreviewCard from '@/components/events/EventPreviewCard';
+import { FeaturedCreditsPurchaseModal } from '@/components/modals/FeaturedCreditsPurchaseModal';
 
 const STEPS = [
   { number: 1, title: 'Tipo & Categoria', icon: <Tag className="h-4 w-4" /> },
@@ -31,7 +32,7 @@ const CreateEvent = () => {
   const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [wantsHighlight, setWantsHighlight] = useState(false);
+  const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
   const [acceptsPromoters, setAcceptsPromoters] = useState(false);
   const [promoterCommissionRate, setPromoterCommissionRate] = useState(10);
   const [promoterDiscountRate, setPromoterDiscountRate] = useState(0);
@@ -73,6 +74,17 @@ const CreateEvent = () => {
   const [description, setDescription] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  
+  const [isBannerUploading, setIsBannerUploading] = useState(false);
+  const [bannerUploadError, setBannerUploadError] = useState<string | null>(null);
+  const uploadTokenRef = useRef(0);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -91,21 +103,36 @@ const CreateEvent = () => {
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Limpa URL anterior para evitar memory leak
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+
+      const token = Date.now();
+      uploadTokenRef.current = token;
+
       // 1. Mostrar preview local imediato
       const url = URL.createObjectURL(file);
       setPreviewUrl(url);
+      setBannerUploadError(null);
+      setIsBannerUploading(true);
 
       // 2. Upload para o servidor
       try {
         const { url: remoteUrl } = await organizerService.uploadImage(file, user?.id, user?.name);
-        setImageUrl(remoteUrl);
+        if (uploadTokenRef.current === token) {
+          setImageUrl(remoteUrl);
+          setIsBannerUploading(false);
+        }
       } catch (err) {
         console.error('Erro no upload da imagem:', err);
-        toast({
-          variant: 'destructive',
-          title: 'Erro no Upload',
-          description: 'Não foi possível salvar a imagem no servidor. Tente novamente.'
-        });
+        if (uploadTokenRef.current === token) {
+          setIsBannerUploading(false);
+          setBannerUploadError('Não foi possível enviar o banner. Tente novamente.');
+          toast({
+            variant: 'destructive',
+            title: 'Erro no Upload',
+            description: 'Não foi possível salvar a imagem no servidor. Tente novamente.'
+          });
+        }
       }
     }
   };
@@ -143,6 +170,10 @@ const CreateEvent = () => {
   };
 
   const nextStep = () => {
+    if (isBannerUploading) {
+      toast({ variant: 'destructive', title: 'Aguarde', description: 'O envio do banner ainda está em andamento.' });
+      return;
+    }
     if (currentStep < 5 && canAdvance()) setCurrentStep(prev => prev + 1);
   };
 
@@ -151,6 +182,15 @@ const CreateEvent = () => {
   };
 
   const handleSubmit = async (status: 'draft' | 'published') => {
+    if (isBannerUploading) {
+      toast({ variant: 'destructive', title: 'Aguarde', description: 'O envio do banner ainda está em andamento.' });
+      return;
+    }
+    if (previewUrl && !imageUrl) {
+      toast({ variant: 'destructive', title: 'Erro na imagem', description: 'A imagem ainda não foi enviada ou o upload falhou. Tente novamente.' });
+      return;
+    }
+
     if (!user?.id) {
       toast({ variant: 'destructive', title: 'Erro', description: 'Você precisa estar logado.' });
       return;
@@ -166,6 +206,9 @@ const CreateEvent = () => {
         .replace(/\s+/g, '-')
         .replace(/--+/g, '-')
         .trim();
+
+      // Fallback behavior only if NO image was selected at all
+      const finalImageUrl = previewUrl ? imageUrl : 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800';
 
       const eventData = {
         organizerId: user.id,
@@ -190,9 +233,9 @@ const CreateEvent = () => {
         acceptsPromoters,
         promoterCommissionRate,
         promoterDiscountRate,
-        imageUrl: imageUrl || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800',
+        imageUrl: finalImageUrl,
         isFeatured: false, // Always false — activated only via Asaas webhook or Master toggle
-        featuredPaymentStatus: wantsHighlight ? 'pending' : 'none',
+        featuredPaymentStatus: 'none',
         tickets: tickets.map(t => ({
           name: t.name,
           price: t.price,
@@ -223,33 +266,6 @@ const CreateEvent = () => {
         toast({ title: 'Sucesso!', description: 'Evento criado.' });
       }
       
-      // Se o usuário quer destacar o evento, criar o pagamento real no Asaas
-      if (wantsHighlight && eventId) {
-        try {
-          const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/payments/promote-event`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              eventId,
-              organizerId: user.id,
-              organizerName: user.name,
-              organizerEmail: user.email,
-              organizerCpfCnpj: user.cpf || '00000000000'
-            })
-          });
-          const data = await res.json();
-          if (data.status === 'success' && data.invoiceUrl) {
-             // Redireciona direto para o link de pagamento do Asaas (PIX real)
-             window.location.href = data.invoiceUrl;
-             return;
-          } else {
-            console.error('Erro ao gerar pagamento Asaas:', data.error);
-            toast({ variant: 'destructive', title: 'Erro no Pagamento', description: 'O evento foi criado, mas houve erro ao gerar a cobrança do destaque. Você pode tentar novamente depois.' });
-          }
-        } catch (paymentErr) {
-          console.error('Erro na requisição Asaas:', paymentErr);
-          toast({ variant: 'destructive', title: 'Erro de Conexão', description: 'O evento foi criado, mas não foi possível conectar ao gateway de pagamento.' });
-        }
       }
 
       // Redireciona para a página de sucesso para eventos publicados ou em análise
@@ -364,10 +380,23 @@ const CreateEvent = () => {
             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
           {previewUrl ? (
             <div className="relative h-56 w-full rounded-lg overflow-hidden">
-              <img src={previewUrl} alt="Preview" className="h-full w-full object-cover" />
-              <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
-                <p className="text-white font-medium">Clique para alterar</p>
-              </div>
+              <img src={previewUrl} alt="Preview" className={`h-full w-full object-cover transition-all ${isBannerUploading ? 'opacity-50 grayscale' : ''}`} />
+              
+              {isBannerUploading ? (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 rounded-lg">
+                  <div className="h-8 w-8 rounded-full border-4 border-white border-t-transparent animate-spin mb-2"></div>
+                  <p className="text-white font-medium">Enviando imagem...</p>
+                </div>
+              ) : bannerUploadError ? (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-rose-900/80 rounded-lg">
+                  <p className="text-white font-medium text-center px-4">{bannerUploadError}</p>
+                  <p className="text-white/80 text-sm mt-2">Clique para tentar novamente</p>
+                </div>
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
+                  <p className="text-white font-medium">Clique para alterar</p>
+                </div>
+              )}
             </div>
           ) : (
             <div className="flex flex-col items-center py-4">
@@ -563,29 +592,23 @@ const CreateEvent = () => {
         date, time, duration, locationName, locationAddress, locationCity, locationState, capacity, tickets,
       }} />
 
-      {/* Seção de Promoção / Monetização */}
-      <div className={`mt-8 p-6 rounded-[2.5rem] border-2 transition-all duration-500 overflow-hidden relative group
-        ${wantsHighlight
-          ? 'border-indigo-500 bg-indigo-50/50 shadow-2xl shadow-indigo-100'
-          : 'border-gray-100 bg-white hover:border-gray-200'}`}>
+      {/* Seção de Promoção / Monetização - Nova UI de Créditos */}
+      <div className={`mt-8 p-6 rounded-[2.5rem] border-2 transition-all duration-500 overflow-hidden relative group border-indigo-500 bg-indigo-50/50 shadow-2xl shadow-indigo-100`}>
 
-        {wantsHighlight && (
-          <div className="absolute top-0 right-0 p-4 bg-indigo-500 text-white rounded-bl-3xl animate-in zoom-in duration-300">
-            <Star className="w-6 h-6 fill-current" />
-          </div>
-        )}
+        <div className="absolute top-0 right-0 p-4 bg-indigo-500 text-white rounded-bl-3xl animate-in zoom-in duration-300">
+          <Star className="w-6 h-6 fill-current" />
+        </div>
 
         <div className="flex flex-col md:flex-row items-center gap-8 relative z-10">
-          <div className={`w-20 h-20 rounded-[1.5rem] flex items-center justify-center shrink-0 transition-transform duration-500 group-hover:scale-110
-            ${wantsHighlight ? 'bg-indigo-600 text-white drop-shadow-xl' : 'bg-gray-100 text-gray-400'}`}>
-            <Star className={`w-10 h-10 ${wantsHighlight ? 'fill-current' : ''}`} />
+          <div className={`w-20 h-20 rounded-[1.5rem] flex items-center justify-center shrink-0 transition-transform duration-500 group-hover:scale-110 bg-indigo-600 text-white drop-shadow-xl`}>
+            <Star className={`w-10 h-10 fill-current`} />
           </div>
 
           <div className="flex-1 text-center md:text-left">
-            <h4 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-2">Destaque seu Evento na Home</h4>
+            <h4 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-2">Créditos de Destaque</h4>
             <p className="text-sm text-gray-500 font-medium">
-              Sua arte aparecerá no carrossel principal da plataforma por 30 dias.
-              Ideal para aumentar a visibilidade e as vendas.
+              Adquira créditos para exibir seus eventos no carrossel principal da plataforma. 
+              Os créditos adquiridos ficarão disponíveis para utilização na sua carteira.
             </p>
           </div>
 
@@ -593,28 +616,33 @@ const CreateEvent = () => {
             <div className="text-2xl font-black text-indigo-600 tracking-tight">R$ 49,90</div>
             <Button
               type="button"
-              onClick={() => setWantsHighlight(!wantsHighlight)}
-              variant={wantsHighlight ? "default" : "outline"}
-              className={`rounded-full h-12 px-8 font-black uppercase text-xs tracking-widest transition-all
-                ${wantsHighlight ? 'bg-indigo-600 hover:bg-indigo-700' : 'border-gray-200 hover:border-indigo-300 hover:text-indigo-600'}`}
+              onClick={() => setIsPurchaseModalOpen(true)}
+              className={`rounded-full h-12 px-8 font-black uppercase text-xs tracking-widest transition-all bg-indigo-600 hover:bg-indigo-700 text-white`}
             >
-              {wantsHighlight ? 'Destaque Selecionado ✓' : 'Selecionar Destaque'}
+              Comprar Créditos
             </Button>
           </div>
         </div>
       </div>
+      <FeaturedCreditsPurchaseModal 
+        isOpen={isPurchaseModalOpen}
+        onClose={() => setIsPurchaseModalOpen(false)}
+        onSuccess={() => {}}
+      />
       <div className="flex flex-col sm:flex-row gap-3 pt-4">
-        <Button type="button" onClick={() => handleSubmit('draft')} disabled={isSubmitting}
+        <Button type="button" onClick={() => handleSubmit('draft')} disabled={isSubmitting || isBannerUploading}
           variant="outline" className="flex-1 border-gray-300 text-gray-600 hover:bg-gray-50 gap-2 h-12">
           <Save className="h-4 w-4" />
-          {isSubmitting ? 'Salvando...' : 'Salvar como Rascunho'}
+          {isBannerUploading ? 'Enviando banner...' : isSubmitting ? 'Salvando...' : 'Salvar como Rascunho'}
         </Button>
-        <Button type="button" onClick={() => handleSubmit('published')} disabled={isSubmitting}
+        <Button type="button" onClick={() => handleSubmit('published')} disabled={isSubmitting || isBannerUploading}
           className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white gap-2 h-12 shadow-lg shadow-indigo-200">
           <Send className="h-4 w-4" />
-          {isSubmitting
-            ? (user?.profileComplete ? 'Publicando...' : 'Enviando...')
-            : (user?.profileComplete ? 'Publicar Evento' : 'Solicitar Publicação')}
+          {isBannerUploading 
+            ? 'Enviando banner...' 
+            : isSubmitting
+              ? (user?.profileComplete ? 'Publicando...' : 'Enviando...')
+              : (user?.profileComplete ? 'Publicar Evento' : 'Solicitar Publicação')}
         </Button>
       </div>
     </div>
@@ -650,16 +678,16 @@ const CreateEvent = () => {
 
         {currentStep < 5 && (
           <div className="flex justify-between items-center">
-            <Button type="button" variant="ghost" onClick={prevStep} disabled={currentStep === 1 || isSubmitting}
+            <Button type="button" variant="ghost" onClick={prevStep} disabled={currentStep === 1 || isSubmitting || isBannerUploading}
               className="text-gray-500 hover:text-gray-900 gap-2">
               <ArrowLeft className="h-4 w-4" /> Anterior
             </Button>
             <div className="flex items-center gap-2 text-sm text-gray-400">
               Etapa {currentStep} de 5
             </div>
-            <Button type="button" onClick={nextStep} disabled={!canAdvance() || isSubmitting}
+            <Button type="button" onClick={nextStep} disabled={!canAdvance() || isSubmitting || isBannerUploading}
               className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2 shadow-lg shadow-indigo-200 disabled:opacity-50">
-              Próximo <ArrowRight className="h-4 w-4" />
+              {isBannerUploading ? 'Enviando banner...' : 'Próximo'} <ArrowRight className="h-4 w-4" />
             </Button>
           </div>
         )}

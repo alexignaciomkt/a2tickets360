@@ -63,6 +63,12 @@
       "version": "5",
       "when": 1786996000000,
       "tag": "0011_financial_engine",
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1786997000000,
+      "tag": "0012_service_featured_credits",
       "breakpoints": true
     }
   ]

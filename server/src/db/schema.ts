@@ -1,5 +1,5 @@
-import { pgTable, text, timestamp, serial, integer, boolean, decimal, jsonb, uuid, index, AnyPgColumn, unique, primaryKey, varchar, pgEnum } from 'drizzle-orm/pg-core';
-import { relations } from 'drizzle-orm';
+import { pgTable, text, timestamp, serial, integer, boolean, decimal, jsonb, uuid, index, AnyPgColumn, unique, primaryKey, varchar, pgEnum, numeric, check } from 'drizzle-orm/pg-core';
+import { relations, sql } from 'drizzle-orm';
 
 // Enums
 export const salesRevenueTypeEnum = pgEnum('sales_revenue_type', ['TICKET', 'REGISTRATION', 'REPECHAGE']);
@@ -285,7 +285,9 @@ export const events = pgTable('events', {
     capacity: integer('capacity'),
     bannerUrl: text('banner_url'),
     isFeatured: boolean('is_featured').default(false),
+    featuredAt: timestamp('featured_at'),
     featuredUntil: timestamp('featured_until'),
+    timezone: text('timezone').notNull().default('America/Sao_Paulo'),
     featuredPaymentStatus: text('featured_payment_status').default('none'),
     featuredAsaasPaymentId: text('featured_asaas_payment_id'),
     ticketDesign: jsonb('ticket_design'),
@@ -1257,6 +1259,88 @@ export const producerAlbumPhotosRelations = relations(producerAlbumPhotos, ({ on
         references: [producerAlbums.id],
     }),
 }));
+
+export const serviceCreditTypeEnum = pgEnum('service_credit_type', ['EVENT_FEATURED']);
+export const serviceCreditOrderStatusEnum = pgEnum('service_credit_order_status', ['PENDING', 'PAID', 'CANCELLED', 'REFUNDED']);
+export const serviceCreditStatusEnum = pgEnum('service_credit_status', ['AVAILABLE', 'RESERVED', 'CONSUMED', 'CANCELLED']);
+export const serviceCreditLedgerActionEnum = pgEnum('service_credit_ledger_action', ['CREATED', 'RESERVED', 'RELEASED', 'CONSUMED', 'CANCELLED']);
+export const featuredCyclePlannedEndReasonEnum = pgEnum('featured_cycle_planned_end_reason', ['CYCLE_EXPIRED', 'EVENT_ENDED']);
+export const featuredCycleActualEndReasonEnum = pgEnum('featured_cycle_actual_end_reason', ['ADMIN_STOPPED']);
+
+export const serviceCreditOrders = pgTable('service_credit_orders', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizerId: uuid('organizer_id').notNull().references(() => organizers.id),
+    creditType: serviceCreditTypeEnum('credit_type').notNull(),
+    quantity: integer('quantity').notNull(),
+    unitPrice: numeric('unit_price', { precision: 10, scale: 2 }).notNull(),
+    totalAmount: numeric('total_amount', { precision: 12, scale: 2 }).notNull(),
+    asaasPaymentId: text('asaas_payment_id').unique(),
+    externalReference: text('external_reference').notNull().unique(),
+    paymentStatus: serviceCreditOrderStatusEnum('payment_status').notNull().default('PENDING'),
+    originEventId: uuid('origin_event_id').references(() => events.id),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    paidAt: timestamp('paid_at'),
+    updatedAt: timestamp('updated_at').notNull().defaultNow()
+}, (table) => {
+    return {
+        chkQuantity: check('chk_quantity_positive', sql`quantity > 0`),
+        chkUnitPrice: check('chk_unit_price_positive', sql`unit_price >= 0`),
+        chkTotalAmount: check('chk_total_amount_non_negative', sql`total_amount >= 0`)
+    };
+});
+
+export const organizerServiceCredits = pgTable('organizer_service_credits', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizerId: uuid('organizer_id').notNull().references(() => organizers.id),
+    orderId: uuid('order_id').notNull().references(() => serviceCreditOrders.id),
+    creditNumber: integer('credit_number').notNull(),
+    creditType: serviceCreditTypeEnum('credit_type').notNull(),
+    status: serviceCreditStatusEnum('status').notNull().default('AVAILABLE'),
+    originEventId: uuid('origin_event_id').references(() => events.id),
+    reservedEventId: uuid('reserved_event_id').references(() => events.id),
+    consumedEventId: uuid('consumed_event_id').references(() => events.id),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    reservedAt: timestamp('reserved_at'),
+    consumedAt: timestamp('consumed_at'),
+    cancelledAt: timestamp('cancelled_at'),
+    updatedAt: timestamp('updated_at').notNull().defaultNow()
+}, (table) => {
+    return {
+        unqOrderCreditNum: unique('unqOrderCreditNum').on(table.orderId, table.creditNumber),
+        chkCreditNum: check('chk_credit_number', sql`credit_number > 0`),
+        idxStatus: index('idx_service_credits_org_status').on(table.organizerId, table.status),
+        idxOrder: index('idx_service_credits_order').on(table.orderId),
+        idxResEvent: index('idx_service_credits_res_event').on(table.reservedEventId),
+        idxConsEvent: index('idx_service_credits_cons_event').on(table.consumedEventId)
+    };
+});
+
+export const serviceCreditLedger = pgTable('service_credit_ledger', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    creditId: uuid('credit_id').notNull().references(() => organizerServiceCredits.id),
+    action: serviceCreditLedgerActionEnum('action').notNull(),
+    eventId: uuid('event_id').references(() => events.id),
+    actorUserId: uuid('actor_user_id'),
+    metadata: jsonb('metadata'),
+    createdAt: timestamp('created_at').notNull().defaultNow()
+});
+
+export const eventFeaturedCycles = pgTable('event_featured_cycles', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    eventId: uuid('event_id').notNull().references(() => events.id),
+    creditId: uuid('credit_id').notNull().unique().references(() => organizerServiceCredits.id),
+    featuredAt: timestamp('featured_at').notNull(),
+    featuredUntil: timestamp('featured_until').notNull(),
+    plannedEndReason: featuredCyclePlannedEndReasonEnum('planned_end_reason').notNull(),
+    actualEndReason: featuredCycleActualEndReasonEnum('actual_end_reason'),
+    createdAt: timestamp('created_at').notNull().defaultNow()
+}, (table) => {
+    return {
+        idxEvent: index('idx_feat_cycles_event').on(table.eventId),
+        idxUntil: index('idx_feat_cycles_until').on(table.featuredUntil)
+    };
+});
+
 
 
 

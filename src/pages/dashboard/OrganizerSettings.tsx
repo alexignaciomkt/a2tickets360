@@ -13,6 +13,8 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
+import OrganizerSettingsGalleryTab from '@/components/dashboard/OrganizerSettingsGalleryTab';
+import { OrganizerCreditsAndServices } from '@/components/dashboard/OrganizerCreditsAndServices';
 import { useAuth } from '@/contexts/AuthContext';
 import { organizerService } from '@/services/organizerService';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -306,8 +308,8 @@ const OrganizerSettings = () => {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-black uppercase tracking-widest text-gray-900">Configurações do Perfil</h1>
-            <p className="text-gray-600 font-medium">Gerencie como sua marca aparece para seus clientes</p>
+            <h1 className="text-2xl font-black uppercase tracking-widest text-gray-900">Configurações da Produtora</h1>
+            <p className="text-gray-600 font-medium">Gerencie sua empresa, identidade, vitrine, recebimentos e preferências.</p>
           </div>
           <Button
             onClick={handleSaveSettings}
@@ -361,6 +363,14 @@ const OrganizerSettings = () => {
             <TabsTrigger value="gallery" className="flex items-center gap-2 font-bold text-xs uppercase tracking-tight">
               <Users className="h-4 w-4" />
               Álbuns
+            </TabsTrigger>
+            <TabsTrigger value="finance" className="flex items-center gap-2 font-bold text-xs uppercase tracking-tight">
+              <Building2 className="h-4 w-4" />
+              Financeiro & Recebimentos
+            </TabsTrigger>
+            <TabsTrigger value="credits" className="flex items-center gap-2 font-bold text-xs uppercase tracking-tight">
+              <Star className="h-4 w-4" />
+              Créditos e Serviços
             </TabsTrigger>
           </TabsList>
 
@@ -1281,6 +1291,74 @@ const OrganizerSettings = () => {
                 </Card>
               </div>
             </div>
+          </TabsContent>
+
+          {/* === ABA 7: FINANCEIRO & RECEBIMENTOS === */}
+          <TabsContent value="finance" className="space-y-4">
+            <Card className="border-none shadow-sm overflow-hidden rounded-[2rem]">
+              <CardHeader>
+                <CardTitle className="font-black text-lg uppercase tracking-tight">Financeiro & Recebimentos</CardTitle>
+                <CardDescription className="font-medium text-gray-500">
+                  Configure como sua produtora receberá os valores das vendas realizadas pela plataforma.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-6">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 mb-4">Status dos Recebimentos</h3>
+                  
+                  {(!user?.asaasId && !user?.walletId) ? (
+                    <div className="space-y-4">
+                      <div className="inline-flex items-center gap-2 bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest">
+                        <AlertCircle className="w-4 h-4" /> Configuração Necessária
+                      </div>
+                      <p className="text-sm font-medium text-slate-600">
+                        Você ainda não habilitou uma conta de recebimento.
+                      </p>
+                      <Button 
+                        onClick={() => window.location.href = '/organizer/finance/onboarding'}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-xs h-10 px-6 rounded-xl shadow-sm"
+                      >
+                        Ativar Recebimentos
+                      </Button>
+                    </div>
+                  ) : (user?.asaasId && user?.walletId) ? (
+                    <div className="space-y-4">
+                      <div className="inline-flex items-center gap-2 bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest">
+                        <Check className="w-4 h-4" /> Recebimentos Ativos
+                      </div>
+                      <p className="text-sm font-medium text-slate-600">
+                        Sua conta de recebimentos está configurada e ativa.
+                      </p>
+                      <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col gap-1 max-w-sm">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Wallet ID</span>
+                        <span className="font-mono text-sm font-semibold text-slate-700">
+                          ••••{user.walletId.slice(-4)}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="inline-flex items-center gap-2 bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest">
+                        <AlertCircle className="w-4 h-4" /> Configuração Pendente
+                      </div>
+                      <p className="text-sm font-medium text-slate-600">
+                        Sua configuração de recebimentos ainda precisa ser concluída.
+                      </p>
+                      <Button 
+                        onClick={() => window.location.href = '/organizer/finance/onboarding'}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-xs h-10 px-6 rounded-xl shadow-sm"
+                      >
+                        Continuar Configuração
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          {/* === ABA 6: CRÉDITOS E SERVIÇOS === */}
+          <TabsContent value="credits">
+            <OrganizerCreditsAndServices />
           </TabsContent>
         </Tabs>
       </div>
