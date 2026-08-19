@@ -1203,16 +1203,18 @@ app.post('/api/webhooks/asaas', async (c: Context) => {
                 if (externalReference && externalReference.startsWith('service_credit_order_')) {
                     isServiceCredit = true;
                     const orderId = externalReference.replace('service_credit_order_', '');
-                    const orders = await tx.execute(sql`SELECT * FROM service_credit_orders WHERE id = ${orderId} FOR UPDATE`);
-                    if (orders.rows.length > 0) creditOrder = orders.rows[0];
+                    await tx.execute(sql`SELECT id FROM service_credit_orders WHERE id = ${orderId} FOR UPDATE`);
+                    creditOrder = await tx.query.serviceCreditOrders.findFirst({
+                        where: eq(schema.serviceCreditOrders.id, orderId)
+                    });
                 }
 
                 if (!creditOrder && asaasId) { // Fallback
-                    const fallbackOrders = await tx.execute(sql`SELECT * FROM service_credit_orders WHERE asaas_payment_id = ${asaasId} FOR UPDATE`);
-                    if (fallbackOrders.rows.length > 0) {
-                        isServiceCredit = true;
-                        creditOrder = fallbackOrders.rows[0];
-                    }
+                    await tx.execute(sql`SELECT id FROM service_credit_orders WHERE asaas_payment_id = ${asaasId} FOR UPDATE`);
+                    creditOrder = await tx.query.serviceCreditOrders.findFirst({
+                        where: eq(schema.serviceCreditOrders.asaasPaymentId, asaasId)
+                    });
+                    if (creditOrder) isServiceCredit = true;
                 }
 
                 if (isServiceCredit) {
@@ -1220,35 +1222,39 @@ app.post('/api/webhooks/asaas', async (c: Context) => {
                         throw new Error('Service Credit Order not found but externalReference matched');
                     }
 
-                    if (creditOrder.asaas_payment_id && creditOrder.asaas_payment_id !== asaasId) {
+                    if (creditOrder.asaasPaymentId && creditOrder.asaasPaymentId !== asaasId) {
                         throw new Error('CONSISTENCY_ERROR: asaasPaymentId mismatch. Order tem outro pagamento atrelado.');
                     }
 
-                    if (!creditOrder.asaas_payment_id) {
+                    if (!creditOrder.asaasPaymentId) {
                         await tx.update(schema.serviceCreditOrders)
                             .set({ asaasPaymentId: asaasId, updatedAt: sql`NOW()` })
                             .where(eq(schema.serviceCreditOrders.id, creditOrder.id));
                     }
 
-                    if (creditOrder.payment_status === 'PAID') {
-                        const credits = await tx.execute(sql`SELECT COUNT(*) as count FROM organizer_service_credits WHERE order_id = ${creditOrder.id}`);
-                        if (Number(credits.rows[0].count) !== creditOrder.quantity) {
-                            throw new Error(`CONSISTENCY_ERROR: Order PAID mas número de créditos (${credits.rows[0].count}) difere da quantity (${creditOrder.quantity}).`);
+                    if (creditOrder.paymentStatus === 'PAID') {
+                        const credits = await tx.query.organizerServiceCredits.findMany({
+                            where: eq(schema.organizerServiceCredits.orderId, creditOrder.id)
+                        });
+                        if (credits.length !== creditOrder.quantity) {
+                            throw new Error(`CONSISTENCY_ERROR: Order PAID mas número de créditos (${credits.length}) difere da quantity (${creditOrder.quantity}).`);
                         }
-                    } else if (creditOrder.payment_status === 'PENDING') {
+                    } else if (creditOrder.paymentStatus === 'PENDING') {
+                        console.log(`[SERVICE CREDIT WEBHOOK] Processing order ${creditOrder.id}, quantity ${creditOrder.quantity}`);
+                        
                         for (let i = 1; i <= creditOrder.quantity; i++) {
                             const creditRes = await tx.insert(schema.organizerServiceCredits).values({
-                                organizerId: creditOrder.organizer_id,
-                                creditType: creditOrder.credit_type,
+                                organizerId: creditOrder.organizerId,
+                                creditType: creditOrder.creditType,
                                 status: 'AVAILABLE',
                                 creditNumber: i,
                                 orderId: creditOrder.id,
-                                originEventId: creditOrder.origin_event_id || null
+                                originEventId: creditOrder.originEventId || null
                             }).returning({ id: schema.organizerServiceCredits.id });
 
                             await tx.insert(schema.serviceCreditLedger).values({
                                 creditId: creditRes[0].id,
-                                eventId: creditOrder.origin_event_id || null,
+                                eventId: creditOrder.originEventId || null,
                                 action: 'CREATED',
                                 metadata: { source: 'ASAAS_PAYMENT', orderId: creditOrder.id, actor_type: 'SYSTEM' }
                             });
@@ -1257,7 +1263,30 @@ app.post('/api/webhooks/asaas', async (c: Context) => {
                         await tx.update(schema.serviceCreditOrders)
                             .set({ paymentStatus: 'PAID', paidAt: sql`NOW()`, updatedAt: sql`NOW()` })
                             .where(eq(schema.serviceCreditOrders.id, creditOrder.id));
+                    } else {
+                        throw new Error(`SERVICE_CREDIT_ORDER_UNEXPECTED_STATUS:${creditOrder.paymentStatus}`);
                     }
+
+                    // FINAL check before marking done
+                    const finalOrder = await tx.query.serviceCreditOrders.findFirst({
+                        where: eq(schema.serviceCreditOrders.id, creditOrder.id)
+                    });
+                    const finalCredits = await tx.query.organizerServiceCredits.findMany({
+                        where: eq(schema.organizerServiceCredits.orderId, creditOrder.id)
+                    });
+                    
+                    const creditIdsArray = finalCredits.map(c => c.id);
+                    let finalLedgerCount = 0;
+                    if (creditIdsArray.length > 0) {
+                        const l = await tx.execute(sql`SELECT COUNT(*) as count FROM service_credit_ledger WHERE credit_id IN ${sql`(${sql.join(creditIdsArray.map(id => sql`${id}`), sql`, `)})`}`);
+                        finalLedgerCount = Number((Array.isArray(l) ? l[0] : (l as any).rows[0]).count);
+                    }
+
+                    if (finalOrder?.paymentStatus !== 'PAID' || finalCredits.length !== finalOrder.quantity || finalLedgerCount !== finalOrder.quantity) {
+                        throw new Error(`CONSISTENCY_ERROR: Failed to successfully create and lock credits. Status: ${finalOrder?.paymentStatus}, Credits: ${finalCredits.length}, Ledger: ${finalLedgerCount}`);
+                    }
+
+                    console.log(`[SERVICE CREDIT WEBHOOK] Success: order ${finalOrder.id} status ${finalOrder.paymentStatus}, ${finalCredits.length} credits created, ${finalLedgerCount} ledger created.`);
 
                     await tx.update(schema.webhookLogs)
                         .set({ status: 'done', processedAt: new Date() })
