@@ -14,41 +14,6 @@ const {
     aiChatLogs, syncQueue, legalPages, productCategories, products, productVariants, productOrders,
     organizerPosts, sportRegistrations, sportRegistrationPlayers, purchasedTickets
 } = schema;
-import { eq, or, and, isNull, sql, inArray, lte, gte } from 'drizzle-orm';
-import Redis from 'ioredis';
-import { serveStatic } from '@hono/node-server/serve-static';
-import { join } from 'node:path';
-import { existsSync } from 'node:fs';
-import { mkdir, writeFile } from 'node:fs/promises';
-import { v4 as uuidv4 } from 'uuid';
-import nodemailer from 'nodemailer';
-import crypto from 'node:crypto';
-
-// Router Imports
-import exhibitorRoutes from './routes/exhibitor';
-import aiRoutes from './routes/ai';
-import integrationRoutes from './routes/integrations';
-import contextsRoutes from './routes/contexts';
-import permissionsRoutes from './routes/permissions';
-import staffRoutes from './routes/staff';
-import credentialsRoutes from './routes/credentials';
-import ticketCheckinRoutes from './routes/ticketCheckin';
-import dotenv from 'dotenv';
-dotenv.config();
-
-import { Hono, Context } from 'hono';
-import { cors } from 'hono/cors';
-import { db } from './db';
-import * as schema from './db/schema';
-
-const {
-    admins, organizers: organizersTable, eventCategories, events, tickets, sales, staff,
-    checkins, supplierCategories, suppliers, supplierContracts, quotes, quoteResponses,
-    candidates, staffProposals, sponsorTypes, sponsors, sponsorInstallments, sponsorDeliverables,
-    standCategories, stands, visitors, exhibitorStaff, exhibitorLogistics, exhibitorLeads,
-    aiChatLogs, syncQueue, legalPages, productCategories, products, productVariants, productOrders,
-    organizerPosts, sportRegistrations, sportRegistrationPlayers, purchasedTickets
-} = schema;
 import { eq, or, and, isNull, sql, inArray, lte, gte, gt } from 'drizzle-orm';
 import Redis from 'ioredis';
 import { serveStatic } from '@hono/node-server/serve-static';
