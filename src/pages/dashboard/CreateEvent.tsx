@@ -265,8 +265,6 @@ const CreateEvent = () => {
       } else {
         toast({ title: 'Sucesso!', description: 'Evento criado.' });
       }
-      
-      }
 
       // Redireciona para a página de sucesso para eventos publicados ou em análise
       navigate(`/organizer/events/success/${eventId}`);
