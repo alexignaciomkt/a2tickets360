@@ -39,7 +39,7 @@ import albumsRoutes from './routes/albums';
 import publicAlbumsRoutes from './routes/publicAlbums';
 
 import { logger } from 'hono/logger';
-import { authMiddleware, clerkAuthMiddleware } from './middleware/auth';
+import { authMiddleware, clerkAuthMiddleware } from './middlewares/auth';
 import { calculateFinancialDistribution } from './domain/financialEngine';
 import { reserveFeaturedCredit, releaseFeaturedCredit } from './services/credits';
 
