@@ -33,10 +33,10 @@ router.get('/current-operation', async (c: Context) => {
             const all = await db.select({ id: events.id }).from(events).where(ne(events.status, 'cancelled'));
             all.forEach(e => candidateEventIds.add(e.id));
         } else {
-            // Owner
-            const ownerOrgs = await db.select({ id: organizers.id }).from(organizers).where(eq(organizers.userId, userId));
+            // Owner: events.organizerId stores auth.uid(), so match directly
+            const ownerOrgs = await db.select({ userId: organizers.userId }).from(organizers).where(eq(organizers.userId, userId));
             for (const org of ownerOrgs) {
-                const orgEvents = await db.select({ id: events.id }).from(events).where(and(eq(events.organizerId, org.id), ne(events.status, 'cancelled')));
+                const orgEvents = await db.select({ id: events.id }).from(events).where(and(eq(events.organizerId, org.userId), ne(events.status, 'cancelled')));
                 orgEvents.forEach(e => candidateEventIds.add(e.id));
             }
 
