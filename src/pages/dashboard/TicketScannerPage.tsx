@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Html5Qrcode } from 'html5-qrcode';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,11 +7,13 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { ticketCheckinService, CheckinValidationResponse } from '@/services/ticketCheckinService';
 import { portariaService } from '@/services/portariaService';
-import { Camera, CheckCircle, AlertTriangle, XCircle, RotateCcw, Keyboard, Users } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { Camera, CheckCircle, AlertTriangle, XCircle, RotateCcw, Keyboard, Users, LogOut } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function TicketScannerPage() {
     const { slug } = useParams<{ slug: string }>();
+    const navigate = useNavigate();
     const { toast } = useToast();
     const [eventId, setEventId] = useState<string | null>(null);
     const [eventName, setEventName] = useState<string>('');
@@ -195,15 +197,40 @@ export default function TicketScannerPage() {
         }
     };
 
+    const handleLogout = async () => {
+        // 1. Para o scanner/câmera de forma segura antes de qualquer coisa
+        await stopScanner();
+        setScanning(false);
+        // 2. Encerra sessão Supabase
+        await supabase.auth.signOut();
+        // 3. Limpa estados locais
+        setResult(null);
+        setEventId(null);
+        setEventName('');
+        // 4. Redireciona para login da portaria
+        navigate('/login', { replace: true });
+    };
+
     if (!eventId) {
         return <div className="p-8 text-center">Carregando evento...</div>;
     }
 
     return (
         <div className="container mx-auto p-4 max-w-2xl">
-            <div className="mb-6">
-                <h1 className="text-3xl font-bold tracking-tight">Controle de Acesso</h1>
-                <p className="text-muted-foreground">{eventName}</p>
+            <div className="mb-6 flex items-center justify-between">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight">Controle de Acesso</h1>
+                    <p className="text-muted-foreground">{eventName}</p>
+                </div>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleLogout}
+                    className="text-muted-foreground hover:text-destructive shrink-0"
+                >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    SAIR
+                </Button>
             </div>
 
             <Card className="mb-6">

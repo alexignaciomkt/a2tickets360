@@ -1,7 +1,7 @@
 import { Hono, Context } from 'hono';
 import { db } from '../db';
 import * as schema from '../db/schema';
-import { purchasedTickets, events, sales, ticketCheckinLogs } from '../db/schema';
+import { purchasedTickets, events, sales, ticketCheckinLogs, eventParticipants } from '../db/schema';
 import { eq, and, isNull } from 'drizzle-orm';
 import { AuthorizationEngine } from '../services/authorizationEngine';
 
@@ -47,10 +47,12 @@ router.post('/validate', async (c: Context) => {
         const ptRows = await db
             .select({
                 ticket: purchasedTickets,
-                sale: sales
+                sale: sales,
+                participant: eventParticipants
             })
             .from(purchasedTickets)
             .leftJoin(sales, eq(purchasedTickets.parentPurchaseId, sales.id))
+            .leftJoin(eventParticipants, eq(purchasedTickets.participantId, eventParticipants.id))
             .where(eq(purchasedTickets.qrCodeData, qrCode));
 
         if (ptRows.length === 0) {
@@ -119,12 +121,18 @@ router.post('/validate', async (c: Context) => {
         });
 
         // 8. Sucesso
+        const participantData = ptRows[0].participant;
         return c.json({
             code: 'VALID',
             message: 'Acesso Liberado',
             ticket: {
                 id: ticket.id,
                 buyerName: sale?.buyerInfo ? (sale.buyerInfo as any).name : null,
+                participantName: participantData ? participantData.fullName : null,
+                participantDocument: participantData ? participantData.cpf : null,
+                participantPhone: participantData ? participantData.phone : null,
+                participantPhoto: participantData ? participantData.photoUrl : null,
+                ticketName: participantData ? participantData.fullName : (sale?.buyerInfo ? (sale.buyerInfo as any).name : null),
                 ticketId: ticket.ticketId,
                 isCourtesy: ticket.isCourtesy
             }
@@ -170,7 +178,7 @@ router.post('/undo', async (c: Context) => {
         
         // Fetch organizer details to match userId
         const { organizers } = schema;
-        const orgs = await db.select().from(organizers).where(eq(organizers.id, event.organizerId));
+        const orgs = await db.select().from(organizers).where(eq(organizers.userId, event.organizerId));
         const isOwner = orgs.length > 0 && orgs[0].userId === adminId;
 
         if (!isOwner) {
