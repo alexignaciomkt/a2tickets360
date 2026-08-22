@@ -23,6 +23,7 @@ export default function TicketScannerPage() {
     
     const qrCodeRegionId = "html5qr-code-full-region";
     const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
+    const stopInProgressRef = useRef(false);
 
     // Load Event ID from slug
     useEffect(() => {
@@ -46,43 +47,67 @@ export default function TicketScannerPage() {
     }, [slug]);
 
     useEffect(() => {
-        if (!scanning) {
-            stopScanner();
-        } else {
-            startScanner();
-        }
+        let mounted = true;
+
+        const handleScanner = async () => {
+            if (scanning) {
+                await startScanner(mounted);
+            } else {
+                await stopScanner();
+            }
+        };
+
+        handleScanner();
+
         return () => {
+            mounted = false;
             stopScanner();
         };
     }, [scanning]);
 
-    const startScanner = async () => {
+    const startScanner = async (mounted: boolean) => {
+        if (stopInProgressRef.current) {
+            // Se está parando, aguarde a parada completa antes de iniciar
+            setTimeout(() => startScanner(mounted), 100);
+            return;
+        }
+
         try {
             if (!html5QrCodeRef.current) {
                 html5QrCodeRef.current = new Html5Qrcode(qrCodeRegionId);
             }
-            await html5QrCodeRef.current.start(
-                { facingMode: "environment" },
-                { fps: 10, qrbox: { width: 250, height: 250 } },
-                onScanSuccess,
-                () => {} // ignore scan failures (they happen constantly until a code is found)
-            );
+            if (!html5QrCodeRef.current.isScanning) {
+                await html5QrCodeRef.current.start(
+                    { facingMode: "environment" },
+                    { fps: 10, qrbox: { width: 250, height: 250 } },
+                    onScanSuccess,
+                    () => {} // ignore scan failures
+                );
+            }
         } catch (err) {
+            if (!mounted) return;
             console.error("Camera error", err);
             toast({ title: "Erro ao acessar câmera", variant: "destructive" });
             setScanning(false);
         }
     };
 
-    const stopScanner = () => {
-        if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
-            html5QrCodeRef.current.stop().catch(console.error);
+    const stopScanner = async () => {
+        if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning && !stopInProgressRef.current) {
+            stopInProgressRef.current = true;
+            try {
+                await html5QrCodeRef.current.stop();
+                html5QrCodeRef.current.clear();
+            } catch (error) {
+                console.error("Erro ao parar o scanner:", error);
+            } finally {
+                stopInProgressRef.current = false;
+            }
         }
     };
 
     const onScanSuccess = (decodedText: string) => {
         // Pausar scanner durante processamento
-        stopScanner();
         setScanning(false);
         handleValidate(decodedText);
     };
@@ -102,7 +127,6 @@ export default function TicketScannerPage() {
         try {
             const res = await ticketCheckinService.validateTicket(qrData, eventId);
             setResult(res);
-            // Optionally auto-resume scanner after a few seconds if valid
             if (res.code === 'VALID') {
                 toast({ title: "Acesso Liberado!" });
             }
@@ -168,11 +192,12 @@ export default function TicketScannerPage() {
                 <CardContent>
                     {!result && (
                         <div className="flex flex-col items-center justify-center space-y-4">
-                            {scanning ? (
-                                <div className="w-full max-w-sm rounded-lg overflow-hidden border bg-black">
-                                    <div id={qrCodeRegionId} className="w-full" />
-                                </div>
-                            ) : (
+                            {/* ESTÁVEL: Mantemos a div renderizada, apenas escondemos/mostramos com CSS */}
+                            <div className={`w-full max-w-sm rounded-lg overflow-hidden border bg-black ${scanning ? 'block' : 'hidden'}`}>
+                                <div id={qrCodeRegionId} className="w-full min-h-[250px]" />
+                            </div>
+
+                            {!scanning && (
                                 <div className="w-full max-w-sm p-8 border-2 border-dashed rounded-lg text-center bg-muted/20">
                                     <Camera className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
                                     <p className="text-muted-foreground">Câmera pausada</p>
@@ -222,7 +247,7 @@ export default function TicketScannerPage() {
                                 
                                 {result.code === 'VALID' && result.ticket && (
                                     <div className="space-y-1 text-muted-foreground">
-                                        <p className="text-lg text-foreground font-semibold">{result.ticket.buyerName}</p>
+                                        <p className="text-lg text-foreground font-semibold">{result.ticket.ticketName || result.ticket.buyerName}</p>
                                         <p className="font-mono text-sm">Ticket ID: {result.ticket.ticketId}</p>
                                         {result.ticket.isCourtesy && (
                                             <span className="inline-block px-2 py-1 bg-primary/10 text-primary text-xs rounded-full mt-2 font-bold uppercase">Cortesia</span>
@@ -244,7 +269,6 @@ export default function TicketScannerPage() {
                                 )}
                             </div>
 
-                            {/* UNDO Section (Idealmente checar role do user antes de exibir) */}
                             {(result.code === 'ALREADY_USED' || result.code === 'VALID') && result.ticket && (
                                 <div className="w-full max-w-sm mt-8 border-t pt-6">
                                     <p className="text-xs text-muted-foreground mb-2 text-left">Ação Administrativa (Owner)</p>
