@@ -47,6 +47,7 @@ export default function TicketScannerPage() {
     }, [slug]);
 
     useEffect(() => {
+        console.log("[LIFECYCLE] MOUNT / EFFECT RUN (scanning:", scanning, ")");
         let mounted = true;
 
         const handleScanner = async () => {
@@ -60,6 +61,7 @@ export default function TicketScannerPage() {
         handleScanner();
 
         return () => {
+            console.log("[LIFECYCLE] UNMOUNT / EFFECT CLEANUP (scanning:", scanning, ")");
             mounted = false;
             stopScanner();
         };
@@ -67,6 +69,7 @@ export default function TicketScannerPage() {
 
     const startScanner = async (mounted: boolean) => {
         if (stopInProgressRef.current) {
+            console.log("[LIFECYCLE] startScanner WAIT (stop in progress)");
             // Se está parando, aguarde a parada completa antes de iniciar
             setTimeout(() => startScanner(mounted), 100);
             return;
@@ -74,19 +77,22 @@ export default function TicketScannerPage() {
 
         try {
             if (!html5QrCodeRef.current) {
+                console.log("[LIFECYCLE] INSTANCE CREATED");
                 html5QrCodeRef.current = new Html5Qrcode(qrCodeRegionId);
             }
             if (!html5QrCodeRef.current.isScanning) {
+                console.log("[LIFECYCLE] START BEGIN");
                 await html5QrCodeRef.current.start(
                     { facingMode: "environment" },
                     { fps: 10, qrbox: { width: 250, height: 250 } },
                     onScanSuccess,
                     () => {} // ignore scan failures
                 );
+                console.log("[LIFECYCLE] START SUCCESS");
             }
         } catch (err) {
             if (!mounted) return;
-            console.error("Camera error", err);
+            console.error("[LIFECYCLE] START ERROR", err);
             toast({ title: "Erro ao acessar câmera", variant: "destructive" });
             setScanning(false);
         }
@@ -95,19 +101,27 @@ export default function TicketScannerPage() {
     const stopScanner = async () => {
         if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning && !stopInProgressRef.current) {
             stopInProgressRef.current = true;
+            console.log("[LIFECYCLE] STOP BEGIN");
             try {
                 await html5QrCodeRef.current.stop();
-                html5QrCodeRef.current.clear();
+                console.log("[LIFECYCLE] STOP SUCCESS");
+                // html5QrCodeRef.current.clear(); // REMOVIDO PARA TESTE 1
             } catch (error) {
-                console.error("Erro ao parar o scanner:", error);
+                console.error("[LIFECYCLE] STOP ERROR", error);
             } finally {
                 stopInProgressRef.current = false;
             }
         }
     };
 
-    const onScanSuccess = (decodedText: string) => {
-        // Pausar scanner durante processamento
+    const onScanSuccess = async (decodedText: string) => {
+        console.log("[LIFECYCLE] SCAN SUCCESS", decodedText);
+        
+        // 1. Bloquear (através de algum estado temporário, mas `processing` já faz isso no handleValidate)
+        // 2. Parar o scanner explicitamente ANTES de trocar a UI
+        await stopScanner();
+
+        // 3. Só então mudamos o estado do React
         setScanning(false);
         handleValidate(decodedText);
     };
@@ -171,6 +185,16 @@ export default function TicketScannerPage() {
         }
     };
 
+    const handleToggleScanning = async () => {
+        if (scanning) {
+            // Para a câmera ANTES de alterar o estado e causar renderização do React
+            await stopScanner();
+            setScanning(false);
+        } else {
+            setScanning(true);
+        }
+    };
+
     if (!eventId) {
         return <div className="p-8 text-center">Carregando evento...</div>;
     }
@@ -192,8 +216,8 @@ export default function TicketScannerPage() {
                 <CardContent>
                     {!result && (
                         <div className="flex flex-col items-center justify-center space-y-4">
-                            {/* ESTÁVEL: Mantemos a div renderizada, apenas escondemos/mostramos com CSS */}
-                            <div className={`w-full max-w-sm rounded-lg overflow-hidden border bg-black ${scanning ? 'block' : 'hidden'}`}>
+                            {/* ESTÁVEL: Mantemos a div renderizada, apenas escondemos/mostramos com CSS (opacity) */}
+                            <div className={`w-full max-w-sm rounded-lg overflow-hidden border bg-black transition-opacity ${scanning ? 'opacity-100' : 'opacity-0 absolute -z-10 pointer-events-none'}`}>
                                 <div id={qrCodeRegionId} className="w-full min-h-[250px]" />
                             </div>
 
@@ -205,7 +229,7 @@ export default function TicketScannerPage() {
                             )}
 
                             <Button 
-                                onClick={() => setScanning(!scanning)} 
+                                onClick={handleToggleScanning} 
                                 variant={scanning ? "destructive" : "default"}
                                 className="w-full max-w-sm"
                             >
