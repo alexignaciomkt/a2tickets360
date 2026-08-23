@@ -375,22 +375,25 @@ class OrganizerService {
           },
           signal: controller.signal
         });
+
+        console.log(`[UPLOAD 5] PUT finalizado status=${uploadResponse.status}`);
+
+        if (!uploadResponse.ok) {
+          const errorText = await uploadResponse.text();
+          console.error('[UPLOAD] PUT failed with body:', errorText);
+          throw new Error(`Upload failed with status ${uploadResponse.status}: ${errorText}`);
+        }
       } finally {
         clearTimeout(timeoutId);
-      }
-
-      console.log(`[UPLOAD 5] PUT finalizado status=${uploadResponse.status}`);
-
-      if (!uploadResponse.ok) {
-        const errorText = await uploadResponse.text();
-        console.error('[UPLOAD] PUT failed with body:', errorText);
-        throw new Error(`Upload failed with status ${uploadResponse.status}: ${errorText}`);
       }
       
       console.log(`[UPLOAD 6] publicUrl recebida: ${publicUrl}`);
       return { url: publicUrl, objectKey };
     } catch (storageError: any) {
       console.error('❌ Falha no upload pelo MinIO:', storageError);
+      if (storageError.name === 'AbortError') {
+        throw new Error('O envio da imagem demorou mais do que o esperado. Tente novamente com uma imagem menor ou verifique sua conexão.');
+      }
       throw new Error(`Não foi possível carregar a imagem. O servidor de imagens pode estar fora do ar ou o arquivo é muito grande.`);
     }
   }

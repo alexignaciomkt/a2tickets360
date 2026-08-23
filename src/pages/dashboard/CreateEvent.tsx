@@ -12,6 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { organizerService } from '@/services/organizerService';
+import { serviceCreditsService } from '@/services/serviceCreditsService';
 import { supabase } from '@/lib/supabase';
 import { getEventTemporalStatus } from '@/utils/eventDateTime';
 import EventWizardStepper from '@/components/events/EventWizardStepper';
@@ -59,6 +60,23 @@ const CreateEvent = () => {
   const [acceptsPromoters, setAcceptsPromoters] = useState(false);
   const [promoterCommissionRate, setPromoterCommissionRate] = useState(10);
   const [promoterDiscountRate, setPromoterDiscountRate] = useState(0);
+
+  // Featured Credits State
+  const [availableCredits, setAvailableCredits] = useState<number | null>(null);
+  const [useFeaturedCredit, setUseFeaturedCredit] = useState(false);
+
+  useEffect(() => {
+    const fetchCredits = async () => {
+      if (user?.role !== 'organizer' && user?.role !== 'admin') return;
+      try {
+        const response = await serviceCreditsService.getServiceCredits();
+        setAvailableCredits(response?.summary?.available || 0);
+      } catch (error) {
+        console.error('Failed to fetch service credits', error);
+      }
+    };
+    fetchCredits();
+  }, [user]);
 
   // Renderização do Aviso de Perfil Incompleto (Não bloqueante)
   const renderProfileWarning = () => {
@@ -207,21 +225,22 @@ const CreateEvent = () => {
         if (uploadTokenRef.current === token) {
           console.log(`[UPLOAD 7] imageUrl setado: ${remoteUrl}`);
           setImageUrl(remoteUrl);
-          setIsBannerUploading(false);
         }
       } catch (err) {
         console.error('Erro no upload da imagem:', err);
         if (uploadTokenRef.current === token) {
-          setIsBannerUploading(false);
           setBannerUploadError('Não foi possível enviar o banner. Tente novamente.');
           toast({
             variant: 'destructive',
             title: 'Erro no Upload',
-            description: 'Não foi possível salvar a imagem no servidor. Tente novamente.'
+            description: err instanceof Error ? err.message : 'Não foi possível salvar a imagem no servidor. Tente novamente.'
           });
         }
       } finally {
         console.log(`[UPLOAD 8] finally executado. Token local: ${token}, Token atual: ${uploadTokenRef.current}`);
+        if (uploadTokenRef.current === token) {
+          setIsBannerUploading(false);
+        }
       }
     }
   };
@@ -356,9 +375,38 @@ const CreateEvent = () => {
             navigate('/organizer/events');
             return;
           }
+
+          if (useFeaturedCredit) {
+            try {
+              await serviceCreditsService.activateFeaturedCredit(newEvent.id);
+            } catch (err) {
+              console.error('Erro ao ativar destaque:', err);
+              // Avançado: reconsultar estado
+              try {
+                const status = await serviceCreditsService.getFeaturedCreditStatus(newEvent.id);
+                if (status.activeHighlight) {
+                   // Tratado como sucesso
+                } else {
+                   toast({
+                     variant: 'destructive',
+                     title: 'Aviso',
+                     description: 'Seu evento foi publicado, mas não foi possível ativar o destaque. Nenhum crédito foi utilizado.'
+                   });
+                }
+              } catch (recheckErr) {
+                toast({
+                  variant: 'destructive',
+                  title: 'Aviso',
+                  description: 'Seu evento foi publicado, mas não foi possível confirmar a ativação do destaque. Consulte o evento antes de tentar novamente.'
+                });
+              }
+            }
+          }
+
           toast({ title: 'Sucesso!', description: 'Evento criado.' });
           navigate('/organizer/events');
-          
+          return;
+        } else {
           // Edit Mode
           await organizerService.updateEvent(eventId!, eventData);
           toast({ title: 'Sucesso!', description: 'Evento atualizado.' });
@@ -743,22 +791,54 @@ const CreateEvent = () => {
           </div>
 
           <div className="flex-1 text-center md:text-left">
-            <h4 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-2">Créditos de Destaque</h4>
+            <h4 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-2">
+              {useFeaturedCredit ? '⭐ Destaque Selecionado' : 'Créditos de Destaque'}
+            </h4>
             <p className="text-sm text-gray-500 font-medium">
-              Adquira créditos para exibir seus eventos no carrossel principal da plataforma. 
-              Os créditos adquiridos ficarão disponíveis para utilização na sua carteira.
+              {useFeaturedCredit 
+                ? `Este evento será destacado após a publicação. 1 crédito será utilizado. Após a publicação você ficará com ${(availableCredits || 0) - 1} crédito(s) disponível(is).`
+                : availableCredits && availableCredits > 0
+                  ? `Você possui ${availableCredits} crédito(s) disponível(is). Deseja usar 1 crédito para destacar este evento no carrossel principal da plataforma?`
+                  : 'Destaque seu evento no carrossel principal da plataforma.'
+              }
             </p>
           </div>
 
           <div className="shrink-0 flex flex-col items-center gap-2">
-            <div className="text-2xl font-black text-indigo-600 tracking-tight">R$ 49,90</div>
-            <Button
-              type="button"
-              onClick={() => setIsPurchaseModalOpen(true)}
-              className={`rounded-full h-12 px-8 font-black uppercase text-xs tracking-widest transition-all bg-indigo-600 hover:bg-indigo-700 text-white`}
-            >
-              Comprar Créditos
-            </Button>
+            {useFeaturedCredit ? (
+              <Button
+                type="button"
+                onClick={() => setUseFeaturedCredit(false)}
+                className={`rounded-full h-12 px-8 font-black uppercase text-xs tracking-widest transition-all bg-gray-200 hover:bg-gray-300 text-gray-800`}
+              >
+                Cancelar Destaque
+              </Button>
+            ) : availableCredits && availableCredits > 0 ? (
+              <div className="flex flex-col gap-2 w-full md:w-auto items-center">
+                <Button
+                  type="button"
+                  onClick={() => setUseFeaturedCredit(true)}
+                  className={`rounded-full h-12 px-8 font-black uppercase text-xs tracking-widest transition-all bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-200`}
+                >
+                  <Star className="w-4 h-4 mr-2 fill-current" />
+                  Usar 1 Crédito
+                </Button>
+                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                  Não, obrigado
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="text-2xl font-black text-indigo-600 tracking-tight">R$ 49,90</div>
+                <Button
+                  type="button"
+                  onClick={() => setIsPurchaseModalOpen(true)}
+                  className={`rounded-full h-12 px-8 font-black uppercase text-xs tracking-widest transition-all bg-indigo-600 hover:bg-indigo-700 text-white`}
+                >
+                  Comprar Créditos
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </div>
