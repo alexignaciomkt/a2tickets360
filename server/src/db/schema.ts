@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, serial, integer, boolean, decimal, jsonb, uuid, index, AnyPgColumn, unique, primaryKey, varchar, pgEnum, numeric, check } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, serial, integer, boolean, decimal, jsonb, uuid, index, uniqueIndex, AnyPgColumn, unique, primaryKey, varchar, pgEnum, numeric, check, foreignKey } from 'drizzle-orm/pg-core';
 import { relations, sql } from 'drizzle-orm';
 
 // Enums
@@ -300,6 +300,25 @@ export const events = pgTable('events', {
     updatedAt: timestamp('updated_at').defaultNow(),
 });
 
+// Participantes (Físicos) por Evento
+export const eventParticipants = pgTable('event_participants', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    eventId: uuid('event_id').references(() => events.id, { onDelete: 'restrict' }).notNull(),
+    profileId: uuid('profile_id').references(() => profiles.id, { onDelete: 'set null' }),
+    fullName: text('full_name').notNull(),
+    cpf: text('cpf'),
+    email: text('email'),
+    phone: text('phone'),
+    photoUrl: text('photo_url'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (t) => ({
+    unqEventParticipantsIdEvent: unique('unq_event_participants_id_event').on(t.id, t.eventId),
+    eventIdIdx: index('idx_event_participants_event_id').on(t.eventId),
+    profileIdIdx: index('idx_event_participants_profile_id').on(t.profileId),
+    unqEventParticipantCpf: uniqueIndex('unq_event_participant_cpf').on(t.eventId, t.cpf).where(sql`"cpf" IS NOT NULL AND "cpf" != ''`),
+}));
+
 // Ingressos
 export const tickets = pgTable('tickets', {
     id: uuid('id').primaryKey().defaultRandom(),
@@ -376,6 +395,7 @@ export const purchasedTickets = pgTable('purchased_tickets', {
     id: uuid('id').primaryKey().defaultRandom(),
     userId: uuid('user_id'),
     eventId: uuid('event_id').references(() => events.id).notNull(),
+    participantId: uuid('participant_id'),
     ticketId: uuid('ticket_id').references(() => tickets.id).notNull(),
     parentPurchaseId: uuid('parent_purchase_id').references(() => sales.id),
     status: text('status').default('pending'),
@@ -390,7 +410,14 @@ export const purchasedTickets = pgTable('purchased_tickets', {
     validatedAt: timestamp('validated_at'),
     validatedBy: uuid('validated_by'),
     createdAt: timestamp('created_at').defaultNow(),
-});
+}, (t) => ({
+    fkPurchasedTicketsParticipantCross: foreignKey({
+        columns: [t.participantId, t.eventId],
+        foreignColumns: [eventParticipants.id, eventParticipants.eventId],
+        name: 'fk_purchased_tickets_participant_cross'
+    }).onDelete('restrict'),
+    participantIdx: index('idx_purchased_tickets_participant_id').on(t.participantId),
+}));
 
 // Logs de Check-in (Auditoria Fase 6)
 export const ticketCheckinLogs = pgTable('ticket_checkin_logs', {
@@ -427,6 +454,7 @@ export const sportRegistrations = pgTable('sport_registrations', {
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow(),
 }, (t) => ({
+    unqSportRegistrationsIdEvent: unique('unq_sport_registrations_id_event').on(t.id, t.eventId),
     eventIdx: index('idx_sr_event_id').on(t.eventId),
     originalIdx: index('idx_sr_original').on(t.originalRegistrationId),
     statusIdx: index('idx_sr_status').on(t.status),
@@ -435,14 +463,27 @@ export const sportRegistrations = pgTable('sport_registrations', {
 // Jogadores de cada inscriÃ§Ã£o esportiva
 export const sportRegistrationPlayers = pgTable('sport_registration_players', {
     id: uuid('id').primaryKey().defaultRandom(),
-    registrationId: uuid('registration_id').references(() => sportRegistrations.id, { onDelete: 'cascade' }).notNull(),
+    registrationId: uuid('registration_id').notNull(),
+    eventId: uuid('event_id').notNull(),
+    eventParticipantId: uuid('event_participant_id'),
     playerOrder: integer('player_order').notNull(), // 1, 2, ...
     name: text('name').notNull(),
     cpf: text('cpf').notNull(), // somente dÃ­gitos, normalizado server-side
     phone: text('phone'),
     createdAt: timestamp('created_at').defaultNow(),
 }, (t) => ({
+    fkSportPlayersRegistrationCross: foreignKey({
+        columns: [t.registrationId, t.eventId],
+        foreignColumns: [sportRegistrations.id, sportRegistrations.eventId],
+        name: 'fk_sport_players_registration_cross'
+    }).onDelete('cascade'),
+    fkSportPlayersParticipantCross: foreignKey({
+        columns: [t.eventParticipantId, t.eventId],
+        foreignColumns: [eventParticipants.id, eventParticipants.eventId],
+        name: 'fk_sport_players_participant_cross'
+    }).onDelete('restrict'),
     cpfIdx: index('idx_srp_cpf').on(t.cpf),
+    eventParticipantIdx: index('idx_srp_event_participant_id').on(t.eventParticipantId),
 }));
 
 // Staff / Membros da Equipe (Vinculados a Organizadores ou Eventos)
