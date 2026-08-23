@@ -17,8 +17,10 @@ import { Event } from '@/interfaces/organizer';
 import { supabase } from '@/lib/supabase';
 import { format, subDays, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useAuth } from '@/contexts/AuthContext';
 
 const OrganizerReports = () => {
+  const { user } = useAuth();
   const [events, setEvents] = useState<Event[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<string>('all');
   const [selectedPeriod, setSelectedPeriod] = useState<string>('30');
@@ -29,11 +31,12 @@ const OrganizerReports = () => {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [user?.id]);
 
   const loadData = async () => {
+    if (!user?.id) return;
     try {
-      const organizerId = '1';
+      const organizerId = user.id;
       const eventsData = await organizerService.getEvents(organizerId);
       setEvents(eventsData);
       
@@ -119,11 +122,10 @@ const OrganizerReports = () => {
     filteredTickets.forEach(pt => {
       const name = pt.tickets?.name || 'Geral';
       if (!map.has(name)) {
-        map.set(name, { name, value: 0, revenue: 0 });
+        map.set(name, { name, value: 0 });
       }
       const data = map.get(name);
       data.value += 1;
-      data.revenue += Number(pt.tickets?.price || 0);
     });
     
     const colors = ['#8884d8', '#82ca9d', '#ffc658', '#ff7c7c', '#3b82f6'];
@@ -332,9 +334,6 @@ const OrganizerReports = () => {
                         </div>
                         <div className="text-right">
                           <div className="font-bold">{item.value} emitidos</div>
-                          <div className="text-sm text-gray-500">
-                            Estimativa: {formatCurrency(item.revenue)}
-                          </div>
                         </div>
                       </div>
                     ))}

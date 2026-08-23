@@ -210,9 +210,25 @@ export const activateFeaturedCredit = async (eventId: string, organizerRecordId:
         
         const event = events[0] as any;
 
-        // 2. ADICIONAR VALIDAÇÃO DE EVENTO PUBLICADO
+        // 2. ADICIONAR VALIDAÇÃO DE EVENTO PUBLICADO E TEMPORAL
         if (event.status !== 'published' && event.status !== 'active') {
             throw new Error('O evento precisa estar publicado para ativar o destaque.');
+        }
+
+        // Validação Temporal
+        const nowTemporal = new Date();
+        const startTemporal = event.start_date ? new Date(event.start_date) : null;
+        let endTemporal = event.end_date ? new Date(event.end_date) : null;
+        
+        if (startTemporal) {
+            if (!endTemporal) {
+                endTemporal = new Date(startTemporal.getTime() + 6 * 60 * 60 * 1000); // +6 horas
+            }
+            if (nowTemporal > endTemporal) {
+                const err = new Error('Eventos encerrados não podem ser destacados.');
+                (err as any).status = 400;
+                throw err;
+            }
         }
 
         // 3. Verificar se já existe ciclo ativo

@@ -33,6 +33,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { api } from '@/services/api';
 import { useToast } from '@/components/ui/use-toast';
+import { getEventTemporalStatus } from '@/utils/eventDateTime';
 
 type TabType = 'overview' | 'visitors' | 'promoters' | 'coupons' | 'settings' | 'design' | 'info';
 
@@ -49,6 +50,8 @@ const OrganizerEventHub = () => {
     checkins: 0
   });
 
+  const [eventTemporalStatus, setEventTemporalStatus] = useState<'FUTURO' | 'EM ANDAMENTO' | 'ENCERRADO'>('FUTURO');
+
   // State isActivatingSports is defined closer to its handler
   const { toast } = useToast();
 
@@ -63,18 +66,27 @@ const OrganizerEventHub = () => {
     
     if (eventData) {
       setEvent(eventData);
+      setEventTemporalStatus(getEventTemporalStatus(eventData.startDate || eventData.start_date, eventData.endDate || eventData.end_date));
       const capacity = eventData.tickets?.reduce((acc: number, t: any) => acc + t.quantity, 0) || 0;
       
-      // 2. Real-time stats from purchased_tickets
-      const { data: sales } = await supabase
+      // 2. Real-time stats from purchased_tickets (Credentials/Participants)
+      const { data: credentials } = await supabase
         .from('purchased_tickets')
-        .select('id, status, validated_at, tickets(price)')
+        .select('id, status, validated_at')
         .eq('event_id', eventId)
         .in('status', ['active', 'used', 'confirmed']);
 
-      const sold = sales?.length || 0;
-      const revenue = sales?.reduce((acc: number, s: any) => acc + (s.tickets?.price || 0), 0) || 0;
-      const checkins = sales?.filter((s: any) => s.validated_at).length || 0;
+      const sold = credentials?.length || 0;
+      const checkins = credentials?.filter((s: any) => s.validated_at).length || 0;
+
+      // 3. Receita Real from sales paid
+      const { data: salesData } = await supabase
+        .from('sales')
+        .select('gross_amount, payment_status')
+        .eq('event_id', eventId)
+        .eq('payment_status', 'paid');
+        
+      const revenue = salesData?.reduce((acc: number, s: any) => acc + Number(s.gross_amount || 0), 0) || 0;
 
       setStats({ sold, capacity, revenue, checkins });
     }
@@ -213,9 +225,21 @@ const OrganizerEventHub = () => {
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 relative z-10">
             <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <span className="bg-green-50 text-green-600 text-[10px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-full border border-green-100">
-                  Evento Ativo
-                </span>
+                {eventTemporalStatus === 'FUTURO' && (
+                  <span className="bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-full border border-blue-100">
+                    Evento Futuro
+                  </span>
+                )}
+                {eventTemporalStatus === 'EM ANDAMENTO' && (
+                  <span className="bg-green-50 text-green-600 text-[10px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-full border border-green-100">
+                    Em Andamento
+                  </span>
+                )}
+                {eventTemporalStatus === 'ENCERRADO' && (
+                  <span className="bg-gray-100 text-gray-500 text-[10px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-full border border-gray-200">
+                    Evento Encerrado
+                  </span>
+                )}
                 <span className="bg-gray-50 text-gray-400 text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full border border-gray-100">
                   ID: {eventId?.slice(0, 8)}
                 </span>
@@ -360,13 +384,13 @@ const OrganizerEventHub = () => {
                  </div>
                )}
 
-               <div className="mb-6">
-                 <OrganizerEventHighlightBox eventId={eventId} />
-               </div>
+                {eventTemporalStatus !== 'ENCERRADO' && (
+                  <OrganizerEventHighlightBox eventId={eventId} />
+                )}
 
                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-                   <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Ingressos Vendidos</p>
+                   <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Credenciais Emitidas</p>
                    <h3 className="text-3xl font-black text-gray-900 tracking-tight">{stats.sold} / {stats.capacity}</h3>
                    <div className="w-full bg-gray-100 rounded-full h-2 mt-4 overflow-hidden">
                       <div className="bg-primary h-2 rounded-full transition-all duration-1000" style={{ width: `${(stats.sold / (stats.capacity || 1)) * 100}%` }}></div>
@@ -377,7 +401,6 @@ const OrganizerEventHub = () => {
                    <h3 className="text-3xl font-black text-gray-900 tracking-tight">
                       R$ {stats.revenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                    </h3>
-                   <p className="text-[10px] text-green-600 font-bold mt-2 uppercase">Líquido (90%): R$ {(stats.revenue * 0.9).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                 </div>
                 <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Check-ins Realizados</p>

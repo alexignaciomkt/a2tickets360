@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   Tag, FileText, MapPin, Ticket, CheckCircle2,
   ArrowLeft, ArrowRight, Camera, Calendar, Clock,
@@ -12,13 +12,25 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { organizerService } from '@/services/organizerService';
+import { supabase } from '@/lib/supabase';
+import { getEventTemporalStatus } from '@/utils/eventDateTime';
 import EventWizardStepper from '@/components/events/EventWizardStepper';
 import CategoryCombobox from '@/components/events/CategoryCombobox';
 import TicketBuilder, { TicketTier } from '@/components/events/TicketBuilder';
 import EventPreviewCard from '@/components/events/EventPreviewCard';
 import { FeaturedCreditsPurchaseModal } from '@/components/modals/FeaturedCreditsPurchaseModal';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
-const STEPS = [
+const FULL_STEPS = [
   { number: 1, title: 'Tipo & Categoria', icon: <Tag className="h-4 w-4" /> },
   { number: 2, title: 'Informações', icon: <FileText className="h-4 w-4" /> },
   { number: 3, title: 'Data & Local', icon: <MapPin className="h-4 w-4" /> },
@@ -26,7 +38,18 @@ const STEPS = [
   { number: 5, title: 'Revisão', icon: <CheckCircle2 className="h-4 w-4" /> },
 ];
 
+const EDIT_STEPS = [
+  { number: 1, title: 'Tipo & Categoria', icon: <Tag className="h-4 w-4" /> },
+  { number: 2, title: 'Informações', icon: <FileText className="h-4 w-4" /> },
+  { number: 3, title: 'Data & Local', icon: <MapPin className="h-4 w-4" /> },
+  { number: 4, title: 'Revisão', icon: <CheckCircle2 className="h-4 w-4" /> },
+];
+
 const CreateEvent = () => {
+  const { eventId } = useParams<{ eventId: string }>();
+  const isEditMode = !!eventId;
+  const STEPS = isEditMode ? EDIT_STEPS : FULL_STEPS;
+  
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
@@ -84,6 +107,71 @@ const CreateEvent = () => {
       if (previewUrl) URL.revokeObjectURL(previewUrl);
     };
   }, [previewUrl]);
+
+  // Edit Mode Initial State Storage
+  const [initialEventData, setInitialEventData] = useState<any>(null);
+  const [initialHasSales, setInitialHasSales] = useState(false);
+  const [isAlertOpen, setIsAlertOpen] = useState(false);
+  const [alertReason, setAlertReason] = useState<'SALES' | 'RESURRECTION' | null>(null);
+
+  useEffect(() => {
+    const loadEventForEdit = async () => {
+      if (!isEditMode || !eventId) return;
+      try {
+        const eventData = await organizerService.getEventById(eventId);
+        if (eventData) {
+          setInitialEventData(eventData);
+          setEventType(eventData.eventType || 'paid');
+          setCategory(eventData.category || '');
+          setCategoryCode(eventData.categoryCode || '');
+          setTitle(eventData.title || '');
+          setDescription(eventData.description || '');
+          setImageUrl(eventData.bannerUrl || '');
+          setPreviewUrl(eventData.bannerUrl || '');
+          
+          if (eventData.startDate || eventData.start_date) {
+            const startD = new Date(eventData.startDate || eventData.start_date);
+            setDate(startD.toISOString().split('T')[0]);
+            setTime(startD.toTimeString().slice(0,5));
+          }
+          if (eventData.endDate || eventData.end_date) {
+            const endD = new Date(eventData.endDate || eventData.end_date);
+            setEndDate(endD.toISOString().split('T')[0]);
+            setEndTime(endD.toTimeString().slice(0,5));
+          }
+          
+          setLocationName(eventData.locationName || '');
+          setLocationAddress(eventData.address || '');
+          setLocationCity(eventData.city || '');
+          setLocationState(eventData.state || '');
+          setLocationPostalCode(eventData.postalCode || '');
+          setCapacity(eventData.capacity || 100);
+          
+          // Verificar Vendas
+          const { data: salesData } = await supabase
+            .from('sales')
+            .select('id')
+            .eq('event_id', eventId)
+            .eq('payment_status', 'paid')
+            .limit(1);
+            
+          const { data: ptData } = await supabase
+            .from('purchased_tickets')
+            .select('id')
+            .eq('event_id', eventId)
+            .in('status', ['active', 'used', 'confirmed'])
+            .limit(1);
+            
+          if ((salesData && salesData.length > 0) || (ptData && ptData.length > 0)) {
+            setInitialHasSales(true);
+          }
+        }
+      } catch (err) {
+        toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível carregar os dados do evento.' });
+      }
+    };
+    loadEventForEdit();
+  }, [isEditMode, eventId]);
 
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
@@ -208,91 +296,129 @@ const CreateEvent = () => {
       return;
     }
 
-    setIsSubmitting(true);
-    try {
-      // Gerar slug amigável a partir do título
-      const slug = title
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^\w\s-]/g, '')
-        .replace(/\s+/g, '-')
-        .replace(/--+/g, '-')
-        .trim();
+    const executeSave = async (forceStatus: 'draft' | 'published') => {
+      setIsSubmitting(true);
+      try {
+        const slug = title
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^\w\s-]/g, '')
+          .replace(/\s+/g, '-')
+          .replace(/--+/g, '-')
+          .trim();
 
-      // Fallback behavior only if NO image was selected at all
-      const finalImageUrl = previewUrl ? imageUrl : 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800';
+        const finalImageUrl = previewUrl ? imageUrl : 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800';
 
-      const eventData = {
-        organizerId: user.id,
-        title, 
-        slug,
-        description, 
-        category,
-        categoryCode,
-        eventType, 
-        date, 
-        time, 
-        timezone: userTimeZone,
-        endDate, 
-        endTime, 
-        duration,
-        locationName, 
-        locationAddress, 
-        locationCity, 
-        locationState, 
-        locationPostalCode,
-        capacity, 
-        status,
-        acceptsPromoters,
-        promoterCommissionRate,
-        promoterDiscountRate,
-        imageUrl: finalImageUrl,
-        isFeatured: false, // Always false — activated only via Asaas webhook or Master toggle
-        featuredPaymentStatus: 'none',
-        tickets: tickets.map(t => ({
-          name: t.name,
-          price: t.price,
-          quantity: t.quantity,
-          category: t.category,
-          registrationType: t.registrationType,
-          participantsPerRegistration: t.participantsPerRegistration,
-          ticketPurpose: t.ticketPurpose
-        }))
-      };
+        const eventData: any = {
+          organizerId: user.id,
+          title, 
+          slug,
+          description, 
+          category,
+          categoryCode,
+          eventType, 
+          date, 
+          time, 
+          timezone: userTimeZone,
+          endDate, 
+          endTime, 
+          duration,
+          locationName, 
+          locationAddress, 
+          locationCity, 
+          locationState, 
+          locationPostalCode,
+          capacity, 
+          status: forceStatus,
+          acceptsPromoters,
+          promoterCommissionRate,
+          promoterDiscountRate,
+          imageUrl: finalImageUrl,
+          isFeatured: false, 
+          featuredPaymentStatus: 'none',
+        };
+
+        if (!isEditMode) {
+          eventData.tickets = tickets.map(t => ({
+            name: t.name,
+            price: t.price,
+            quantity: t.quantity,
+            category: t.category,
+            registrationType: t.registrationType,
+            participantsPerRegistration: t.participantsPerRegistration,
+            ticketPurpose: t.ticketPurpose
+          }));
+          
+          const newEvent = await organizerService.createEvent(eventData);
+          if (forceStatus === 'draft') {
+            toast({ title: '💾 Rascunho salvo!', description: 'Você pode continuar editando.' });
+            navigate('/organizer/events');
+            return;
+          }
+          toast({ title: 'Sucesso!', description: 'Evento criado.' });
+          navigate('/organizer/events');
+          
+          // Edit Mode
+          await organizerService.updateEvent(eventId!, eventData);
+          toast({ title: 'Sucesso!', description: 'Evento atualizado.' });
+          navigate(`/organizer/event/${eventId}/manage`);
+        }
+      } catch (error: any) {
+        console.error('Erro detalhado ao salvar evento:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+        toast({ variant: 'destructive', title: 'Erro ao salvar', description: error.message || 'Tente novamente.' });
+      } finally {
+        setIsSubmitting(false);
+      }
+    };
+
+    // Verificações antes de salvar
+    if (isEditMode && initialEventData) {
+      let isCriticalChange = false;
       
-      const newEvent = await organizerService.createEvent(eventData);
-      const eventId = (newEvent as any).id;
+      let oldDate = '';
+      let oldTime = '';
+      if (initialEventData.startDate || initialEventData.start_date) {
+        const startD = new Date(initialEventData.startDate || initialEventData.start_date);
+        oldDate = startD.toISOString().split('T')[0];
+        oldTime = startD.toTimeString().slice(0,5);
+      }
       
-      if (status === 'draft') {
-        toast({ title: '💾 Rascunho salvo!', description: 'Você pode continuar editando.' });
-        navigate('/organizer/events');
+      if (date !== oldDate || time !== oldTime || locationName !== initialEventData.locationName) {
+        isCriticalChange = true;
+      }
+      
+      const oldTemporalStatus = getEventTemporalStatus(initialEventData.startDate || initialEventData.start_date, initialEventData.endDate || initialEventData.end_date);
+      const newStartISO = `${date}T${time}:00`;
+      const newEndISO = endDate ? `${endDate}T${endTime || '00:00'}:00` : null;
+      const newTemporalStatus = getEventTemporalStatus(newStartISO, newEndISO);
+      
+      if (oldTemporalStatus === 'ENCERRADO' && newTemporalStatus === 'FUTURO') {
+        setAlertReason('RESURRECTION');
+        setIsAlertOpen(true);
         return;
       }
-
-      if (categoryCode === 'SPORT_TRUCO') {
-        if ((newEvent as any).sportsIntegrationSuccess) {
-          toast({ title: 'Sucesso!', description: 'Evento criado e A2Sports360 ativada.' });
-        } else {
-          toast({ variant: 'destructive', title: 'Atenção!', description: 'Evento criado. A ativação esportiva está pendente e poderá ser tentada novamente.' });
-        }
-      } else {
-        toast({ title: 'Sucesso!', description: 'Evento criado.' });
+      
+      if (initialHasSales && isCriticalChange) {
+        setAlertReason('SALES');
+        setIsAlertOpen(true);
+        return;
       }
-
-      // Redireciona para a página de sucesso para eventos publicados ou em análise
-      navigate(`/organizer/events/success/${eventId}`);
-    } catch (error: any) {
-      console.error('Erro detalhado ao criar evento:', {
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        code: error.code
-      });
-      toast({ variant: 'destructive', title: 'Erro ao criar evento', description: error.message || 'Tente novamente.' });
-    } finally {
-      setIsSubmitting(false);
     }
+
+    executeSave(status);
+  };
+
+  const confirmAlertAndSave = () => {
+    setIsAlertOpen(false);
+    const originalStatus = initialEventData?.status === 'active' || initialEventData?.status === 'published' ? 'published' : (initialEventData?.status || 'draft');
+    // @ts-ignore
+    executeSave(originalStatus);
   };
 
   // ===== RENDER STEPS =====
@@ -664,15 +790,15 @@ const CreateEvent = () => {
     <DashboardLayout userType="organizer">
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="flex items-center space-x-4">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/organizer/events')}
+          <Button variant="ghost" size="sm" onClick={() => navigate(isEditMode ? `/organizer/event/${eventId}/manage` : '/organizer/events')}
             className="text-gray-500 hover:text-gray-900">
             <ArrowLeft className="h-4 w-4 mr-2" /> Voltar
           </Button>
           <div>
             <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <Sparkles className="h-6 w-6 text-indigo-500" /> Criar Novo Evento
+              <Sparkles className="h-6 w-6 text-indigo-500" /> {isEditMode ? `Editar Evento` : `Criar Novo Evento`}
             </h1>
-            <p className="text-sm text-gray-500 mt-1">Siga as etapas para configurar seu evento completo</p>
+            <p className="text-sm text-gray-500 mt-1">{isEditMode ? `Atualize as informações do seu evento.` : `Siga as etapas para configurar seu evento completo`}</p>
           </div>
         </div>
 
@@ -684,18 +810,18 @@ const CreateEvent = () => {
           {currentStep === 1 && renderStep1()}
           {currentStep === 2 && renderStep2()}
           {currentStep === 3 && renderStep3()}
-          {currentStep === 4 && renderStep4()}
-          {currentStep === 5 && renderStep5()}
+          {currentStep === 4 && (!isEditMode ? renderStep4() : renderStep5())}
+          {currentStep === 5 && !isEditMode && renderStep5()}
         </div>
 
-        {currentStep < 5 && (
+        {currentStep < STEPS.length && (
           <div className="flex justify-between items-center">
             <Button type="button" variant="ghost" onClick={prevStep} disabled={currentStep === 1 || isSubmitting || isBannerUploading}
               className="text-gray-500 hover:text-gray-900 gap-2">
               <ArrowLeft className="h-4 w-4" /> Anterior
             </Button>
             <div className="flex items-center gap-2 text-sm text-gray-400">
-              Etapa {currentStep} de 5
+              Etapa {currentStep} de {STEPS.length}
             </div>
             <Button type="button" onClick={nextStep} disabled={!canAdvance() || isSubmitting || isBannerUploading}
               className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2 shadow-lg shadow-indigo-200 disabled:opacity-50">
@@ -704,6 +830,28 @@ const CreateEvent = () => {
           </div>
         )}
       </div>
+
+      <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-red-600 flex items-center gap-2">
+              Atenção: Alteração Crítica!
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {alertReason === 'SALES' && (
+                <>Este evento <b>já possui participantes ou credenciais emitidas</b>. A alteração de Data, Horário ou Local afetará as informações apresentadas aos participantes. Tem certeza de que deseja continuar?</>
+              )}
+              {alertReason === 'RESURRECTION' && (
+                <>Você está transformando um <b>evento encerrado</b> em um evento futuro. Tem certeza de que deseja continuar?</>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmAlertAndSave} className="bg-red-600 hover:bg-red-700">Confirmar Alteração</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 };

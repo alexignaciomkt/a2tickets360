@@ -50,3 +50,26 @@ export const formatEventDateTime = (dateString: string | null | undefined): stri
     if (!d) return dateString || '—';
     return `${d.toLocaleDateString('pt-BR')} · ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
 };
+
+export const getEventTemporalStatus = (startDateStr: string | null | undefined, endDateStr: string | null | undefined): 'FUTURO' | 'EM ANDAMENTO' | 'ENCERRADO' => {
+    const now = new Date();
+    
+    // Se não tiver start date válido, assumimos futuro por padrão para não quebrar UI 
+    const start = parseWallClock(startDateStr);
+    if (!start) return 'FUTURO';
+    
+    // Se tiver endDate, usamos ele para saber se acabou.
+    // Se não, assumimos que o evento acaba 6 horas após o início.
+    let end = parseWallClock(endDateStr);
+    if (!end) {
+        end = new Date(start.getTime() + 6 * 60 * 60 * 1000); // +6 horas
+    }
+    
+    if (now < start) {
+        return 'FUTURO';
+    } else if (now > end) {
+        return 'ENCERRADO';
+    } else {
+        return 'EM ANDAMENTO';
+    }
+};

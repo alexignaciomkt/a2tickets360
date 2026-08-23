@@ -8,8 +8,10 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import { staffService } from '@/services/staffService';
 import { organizerService } from '@/services/organizerService';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 const StaffFinancialPage = () => {
+    const { user } = useAuth();
     const { toast } = useToast();
     const [loading, setLoading] = useState(true);
     const [events, setEvents] = useState<any[]>([]);
@@ -24,15 +26,16 @@ const StaffFinancialPage = () => {
 
     useEffect(() => {
         loadEvents();
-    }, []);
+    }, [user?.id]);
 
     useEffect(() => {
         loadFinancials();
     }, [selectedEvent]);
 
     const loadEvents = async () => {
+        if (!user?.id) return;
         try {
-            const organizerId = '1'; // Mock
+            const organizerId = user.id;
             const eventsData = await organizerService.getEvents(organizerId);
             setEvents(eventsData);
         } catch (error) {

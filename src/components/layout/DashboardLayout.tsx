@@ -36,6 +36,7 @@ import Logo from '@/components/ui/logo';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 import SupportBot from './SupportBot';
 import ContextSelector from './ContextSelector';
 
@@ -52,9 +53,23 @@ const DashboardLayout = ({ children, userType }: DashboardLayoutProps) => {
   });
   const location = useLocation();
 
+  const [eventsCount, setEventsCount] = useState<number>(0);
+
   useEffect(() => {
     localStorage.setItem('A2_Tickets_sidebar_collapsed', desktopSidebarCollapsed.toString());
   }, [desktopSidebarCollapsed]);
+
+  useEffect(() => {
+    if (userType === 'organizer' && user?.id) {
+      supabase
+        .from('events')
+        .select('id', { count: 'exact', head: true })
+        .eq('organizer_id', user.id)
+        .then(({ count }) => {
+          setEventsCount(count || 0);
+        });
+    }
+  }, [userType, user?.id]);
 
   // Define navigation items based on user type or capabilities
   const getNavItems = () => {
@@ -431,14 +446,14 @@ const DashboardLayout = ({ children, userType }: DashboardLayoutProps) => {
             <div className="flex items-center gap-3">
                {userType !== 'admin' && (
                  <div className="hidden lg:flex items-center gap-6 px-6 border-r border-slate-200">
-                    <div className="text-right">
-                       <p className="text-xs font-semibold text-slate-500 mb-0.5">Saldo Disponível</p>
-                       <p className="text-sm font-bold text-slate-800">R$ 0,00</p>
-                    </div>
-                    <div className="text-right">
-                       <p className="text-xs font-semibold text-slate-500 mb-0.5">Eventos</p>
-                       <p className="text-sm font-bold text-slate-800">0</p>
-                    </div>
+                     <div className="text-right">
+                        <p className="text-xs font-semibold text-slate-500 mb-0.5" title="Aguardando integração de liquidação">Saldo Disponível</p>
+                        <p className="text-sm font-bold text-slate-800" title="Aguardando integração de liquidação">R$ 0,00</p>
+                     </div>
+                     <div className="text-right">
+                        <p className="text-xs font-semibold text-slate-500 mb-0.5">Eventos</p>
+                        <p className="text-sm font-bold text-slate-800">{eventsCount}</p>
+                     </div>
                  </div>
                )}
                

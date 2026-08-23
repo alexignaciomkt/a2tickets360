@@ -60,8 +60,10 @@ import { staffService } from '@/services/staffService';
 import { Candidate } from '@/interfaces/candidate';
 import { StaffRole } from '@/interfaces/staff';
 import { StaffModal } from '@/components/modals/StaffModal';
+import { useAuth } from '@/contexts/AuthContext';
 
 const TalentPoolPage = () => {
+    const { user } = useAuth();
     const { toast } = useToast();
     const [candidates, setCandidates] = useState<Candidate[]>([]);
     const [roles, setRoles] = useState<StaffRole[]>([]);
@@ -81,12 +83,13 @@ const TalentPoolPage = () => {
 
     useEffect(() => {
         loadData();
-    }, []);
+    }, [user?.id]);
 
     const loadData = async () => {
+        if (!user?.id) return;
         try {
             setLoading(true);
-            const organizerId = '1';
+            const organizerId = user.id;
             const [candidatesData, rolesData] = await Promise.all([
                 candidateService.getCandidates(organizerId),
                 staffService.getRoles()

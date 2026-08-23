@@ -33,11 +33,12 @@ const OrganizerFinancial = () => {
 
   useEffect(() => {
     loadFinancialData();
-  }, []);
+  }, [user?.id]);
 
   const loadFinancialData = async () => {
+    if (!user?.id) return;
     try {
-      const organizerId = user?.id || '1';
+      const organizerId = user.id;
       
       const profileData = await organizerService.getProfile(organizerId);
       setProfile(profileData);
