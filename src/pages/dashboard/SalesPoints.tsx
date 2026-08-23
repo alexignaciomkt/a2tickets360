@@ -26,63 +26,7 @@ import { SalesPoint } from '@/interfaces/staff';
 
 const SalesPoints = () => {
   const { toast } = useToast();
-  const [salesPoints, setSalesPoints] = useState<SalesPoint[]>([
-    {
-      id: '1',
-      name: 'Loja Central',
-      address: 'Rua Principal, 123 - Centro',
-      manager: 'João Silva',
-      phone: '(11) 99999-9999',
-      email: 'joao@lojacentral.com',
-      commission: 10,
-      compensationType: 'percentage',
-      compensationValue: 8,
-      status: 'active',
-      totalSales: 25000,
-      ticketsSold: 150,
-      cardMachines: [
-        {
-          id: '1',
-          serialNumber: 'MC123456',
-          model: 'Moderninha Pro',
-          responsiblePerson: 'João Silva',
-          responsiblePhone: '(11) 99999-9999'
-        }
-      ],
-      createdAt: '2024-01-15'
-    },
-    {
-      id: '2',
-      name: 'Shopping Norte',
-      address: 'Av. Norte, 456 - Shopping Norte',
-      manager: 'Maria Santos',
-      phone: '(11) 88888-8888',
-      email: 'maria@shoppingnorte.com',
-      commission: 8,
-      compensationType: 'fixed',
-      compensationValue: 500,
-      status: 'active',
-      totalSales: 18500,
-      ticketsSold: 95,
-      cardMachines: [
-        {
-          id: '2',
-          serialNumber: 'MC789012',
-          model: 'Point Pro',
-          responsiblePerson: 'Maria Santos',
-          responsiblePhone: '(11) 88888-8888'
-        },
-        {
-          id: '3',
-          serialNumber: 'MC345678',
-          model: 'Moderninha Smart',
-          responsiblePerson: 'Carlos Oliveira',
-          responsiblePhone: '(11) 77777-7777'
-        }
-      ],
-      createdAt: '2024-01-20'
-    }
-  ]);
+  const [salesPoints, setSalesPoints] = useState<SalesPoint[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
   const [pdvModalOpen, setPdvModalOpen] = useState(false);

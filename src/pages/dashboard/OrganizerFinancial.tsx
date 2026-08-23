@@ -18,21 +18,18 @@ import { Badge } from '@/components/ui/badge';
 import { organizerService } from '@/services/organizerService';
 import { Event, FinancialSummary } from '@/interfaces/organizer';
 import { useAuth } from '@/contexts/AuthContext';
-import { AsaasOnboardingModal } from '@/components/modals/AsaasOnboardingModal';
+
 
 const OrganizerFinancial = () => {
   const { user } = useAuth();
   const [profile, setProfile] = useState<any>(null);
-  const [asaasModalOpen, setAsaasModalOpen] = useState(false);
+
   const [events, setEvents] = useState<Event[]>([]);
   const [financialSummary, setFinancialSummary] = useState<FinancialSummary | null>(null);
   const [expenseModalOpen, setExpenseModalOpen] = useState(false);
   const [payoutModalOpen, setPayoutModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [expenses, setExpenses] = useState([
-    { id: '1', date: '2025-01-10', description: 'Aluguel de Som', amount: 5000, supplier: 'Mega Som & Luz', status: 'paid' },
-    { id: '2', date: '2025-01-12', description: 'Cenografia Palco Principal', amount: 12000, supplier: 'CenoArt Montagens', status: 'pending' },
-  ]);
+  const [expenses, setExpenses] = useState<any[]>([]);
 
   useEffect(() => {
     loadFinancialData();
@@ -70,43 +67,6 @@ const OrganizerFinancial = () => {
     return new Date(dateString).toLocaleDateString('pt-BR');
   };
 
-  // Mock data para transações e repasses
-  const transactions = [
-    {
-      id: '1',
-      date: '2025-01-15',
-      description: 'Venda de ingressos - Festival de Música',
-      amount: 2500,
-      status: 'completed',
-      type: 'credit'
-    },
-    {
-      id: '2',
-      date: '2025-01-14',
-      description: 'Taxa da plataforma',
-      amount: -125,
-      status: 'completed',
-      type: 'debit'
-    },
-  ];
-
-  const payouts = [
-    {
-      id: '1',
-      date: '2025-01-10',
-      amount: 8500,
-      status: 'completed',
-      events: ['Festival de Música', 'Show Acústico']
-    },
-    {
-      id: '2',
-      date: '2025-01-01',
-      amount: 5200,
-      status: 'pending',
-      events: ['Festa de Ano Novo']
-    },
-  ];
-
   if (loading) {
     return (
       <DashboardLayout userType="organizer">
@@ -140,9 +100,9 @@ const OrganizerFinancial = () => {
           <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 flex items-center gap-4">
             <div className="bg-emerald-50 p-3 rounded-xl"><DollarSign className="w-6 h-6 text-emerald-600" /></div>
             <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-500">Receita Total</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-500">Receita Bruta</p>
               <h3 className="text-xl font-black text-gray-900">
-                {financialSummary ? formatCurrency(financialSummary.totalRevenue) : 'R$ 0'}
+                {financialSummary ? formatCurrency(financialSummary.grossRevenue) : 'R$ 0,00'}
               </h3>
             </div>
           </div>
@@ -150,9 +110,9 @@ const OrganizerFinancial = () => {
           <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 flex items-center gap-4">
             <div className="bg-green-50 p-3 rounded-xl"><CreditCard className="w-6 h-6 text-green-600" /></div>
             <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-green-500">Valor Líquido</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-green-500">Valor do Produtor</p>
               <h3 className="text-xl font-black text-gray-900">
-                {financialSummary ? formatCurrency(financialSummary.netRevenue) : 'R$ 0'}
+                {financialSummary ? formatCurrency(financialSummary.producerAmount) : 'R$ 0,00'}
               </h3>
             </div>
           </div>
@@ -160,9 +120,9 @@ const OrganizerFinancial = () => {
           <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 flex items-center gap-4">
             <div className="bg-orange-50 p-3 rounded-xl"><Landmark className="w-6 h-6 text-orange-600" /></div>
             <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-orange-500">Taxas Pagas</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-red-500">Taxas A2</p>
               <h3 className="text-xl font-black text-gray-900">
-                {financialSummary ? formatCurrency(financialSummary.totalFees) : 'R$ 0'}
+                {financialSummary ? formatCurrency(financialSummary.platformFeeAmount) : 'R$ 0,00'}
               </h3>
             </div>
           </div>
@@ -170,8 +130,8 @@ const OrganizerFinancial = () => {
           <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 flex items-center gap-4">
             <div className="bg-blue-50 p-3 rounded-xl"><DollarSign className="w-6 h-6 text-blue-600" /></div>
             <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-blue-500">Pendente Repasse</p>
-              <h3 className="text-xl font-black text-gray-900">R$ 5.200</h3>
+              <p className="text-[10px] font-black uppercase tracking-widest text-blue-500">Total Pago (GMV)</p>
+              <h3 className="text-xl font-black text-gray-900">{financialSummary ? formatCurrency(financialSummary.gmv) : 'R$ 0,00'}</h3>
             </div>
           </div>
         </div>
@@ -203,8 +163,15 @@ const OrganizerFinancial = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {transactions.map((transaction) => (
-                      <TableRow key={transaction.id}>
+                    {(financialSummary?.transactions || []).length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+                          Nenhuma transação encontrada.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      (financialSummary?.transactions || []).map((transaction: any) => (
+                        <TableRow key={transaction.id}>
                         <TableCell>{formatDate(transaction.date)}</TableCell>
                         <TableCell>{transaction.description}</TableCell>
                         <TableCell>
@@ -223,7 +190,7 @@ const OrganizerFinancial = () => {
                           </Button>
                         </TableCell>
                       </TableRow>
-                    ))}
+                    )))}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -258,8 +225,15 @@ const OrganizerFinancial = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {expenses.map((expense) => (
-                      <TableRow key={expense.id}>
+                    {expenses.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                          Nenhuma despesa registrada.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      expenses.map((expense) => (
+                        <TableRow key={expense.id}>
                         <TableCell>{formatDate(expense.date)}</TableCell>
                         <TableCell className="font-medium">{expense.description}</TableCell>
                         <TableCell>
@@ -281,7 +255,7 @@ const OrganizerFinancial = () => {
                           </Button>
                         </TableCell>
                       </TableRow>
-                    ))}
+                    )))}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -315,8 +289,15 @@ const OrganizerFinancial = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {payouts.map((payout) => (
-                      <TableRow key={payout.id}>
+                    {(financialSummary?.payouts || []).length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+                          Nenhum repasse encontrado.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      (financialSummary?.payouts || []).map((payout: any) => (
+                        <TableRow key={payout.id}>
                         <TableCell>{formatDate(payout.date)}</TableCell>
                         <TableCell>
                           <div className="space-y-1">
@@ -339,7 +320,7 @@ const OrganizerFinancial = () => {
                           </Button>
                         </TableCell>
                       </TableRow>
-                    ))}
+                    )))}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -358,20 +339,21 @@ const OrganizerFinancial = () => {
                     <TableRow className="border-gray-100">
                       <TableHead className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-gray-500">Evento</TableHead>
                       <TableHead className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-gray-500">Data</TableHead>
-                      <TableHead className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-gray-500">Vendas</TableHead>
+                      <TableHead className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-gray-500">Transações</TableHead>
                       <TableHead className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-gray-500">Receita Bruta</TableHead>
-                      <TableHead className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-gray-500">Taxas</TableHead>
-                      <TableHead className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-gray-500">Receita Líquida</TableHead>
+                      <TableHead className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-gray-500">Taxa A2</TableHead>
+                      <TableHead className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-gray-500">Valor do Produtor</TableHead>
+                      <TableHead className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-gray-500">GMV</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {events.map((event) => {
-                      const revenue = event.tickets.reduce((sum, ticket) => {
-                        const sold = ticket.quantity - ticket.remaining;
-                        return sum + (sold * ticket.price);
-                      }, 0);
-                      const fees = revenue * 0.05; // 5% de taxa
-                      const netRevenue = revenue - fees;
+                      const eventTx = (financialSummary?.transactions || []).filter((tx: any) => tx.eventId === event.id);
+                      const transactionsCount = eventTx.length;
+                      const grossRevenue = eventTx.reduce((sum: number, tx: any) => sum + (tx.grossAmount || 0), 0);
+                      const fees = eventTx.reduce((sum: number, tx: any) => sum + (tx.platformFeeAmount || 0), 0);
+                      const netRevenue = eventTx.reduce((sum: number, tx: any) => sum + (tx.producerAmount || 0), 0);
+                      const gmv = eventTx.reduce((sum: number, tx: any) => sum + (tx.gmv || 0), 0);
 
                       return (
                         <TableRow key={event.id}>
@@ -383,12 +365,15 @@ const OrganizerFinancial = () => {
                           </TableCell>
                           <TableCell>{formatDate(event.date)}</TableCell>
                           <TableCell>
-                            {event.tickets.reduce((sum, ticket) => sum + (ticket.quantity - ticket.remaining), 0)}
+                            {transactionsCount}
                           </TableCell>
-                          <TableCell className="font-medium">{formatCurrency(revenue)}</TableCell>
+                          <TableCell className="font-medium">{formatCurrency(grossRevenue)}</TableCell>
                           <TableCell className="text-red-600">{formatCurrency(fees)}</TableCell>
                           <TableCell className="font-medium text-green-600">
                             {formatCurrency(netRevenue)}
+                          </TableCell>
+                          <TableCell className="font-medium text-indigo-600">
+                            {formatCurrency(gmv)}
                           </TableCell>
                         </TableRow>
                       );
@@ -410,54 +395,10 @@ const OrganizerFinancial = () => {
         <PayoutRequestModal
           open={payoutModalOpen}
           onOpenChange={setPayoutModalOpen}
-          availableBalance={5200.00}
+          availableBalance={financialSummary?.producerAmount || 0}
         />
 
-        {/* Asaas Integration Info */}
-        <Card className="border-none shadow-sm rounded-[2rem] overflow-hidden bg-slate-50 border-blue-100 mt-6">
-          <CardHeader className="bg-slate-50 border-b border-gray-100 pb-4 px-6 pt-6 flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center text-blue-800 font-black text-lg uppercase tracking-tight">
-              <Landmark className="h-5 w-5 mr-2" />
-              Integração Financeira Asaas
-            </CardTitle>
-            {profile && !profile.asaasId && (
-              <Button 
-                onClick={() => setAsaasModalOpen(true)}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs"
-              >
-                Ativar Conta de Recebimento
-              </Button>
-            )}
-          </CardHeader>
-          <CardContent>
-            {profile && !profile.asaasId ? (
-              <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded-xl mt-4">
-                <p className="font-bold mb-1">Atenção: Sua conta não está habilitada para receber pagamentos.</p>
-                <p className="text-sm">Clique no botão acima para criar sua subconta e começar a vender ingressos via PIX e Cartão de Crédito.</p>
-              </div>
-            ) : (
-              <>
-                <p className="text-gray-600 mb-4 mt-4">
-                  Sua conta está integrada com o <strong>Asaas</strong>. 
-                  Todos os recebimentos cairão automaticamente na sua carteira virtual (Wallet ID: <code>{profile?.walletId || '---'}</code>).
-                </p>
-                <div className="mt-4 flex gap-2">
-                  <span className="text-xs font-bold bg-blue-100 text-blue-800 px-2 py-1 rounded">Status: Conectado</span>
-                  <span className="text-xs font-bold bg-green-100 text-green-800 px-2 py-1 rounded">Split Automático Ativo</span>
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
 
-        {profile && (
-          <AsaasOnboardingModal
-            open={asaasModalOpen}
-            onOpenChange={setAsaasModalOpen}
-            organizerId={user?.id || '1'}
-            onSuccess={(updated) => setProfile(updated)}
-          />
-        )}
       </div>
     </DashboardLayout>
   );

@@ -321,10 +321,10 @@ const OrganizerDashboard = () => {
           
           {/* QUICK STATS MATRIX */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <QuickStat title="Faturamento Líquido" value={formatCurrency(kpis.currentRevenue)} icon={DollarSign} color="emerald" />
-            <QuickStat title="Ingressos Vendidos" value={kpis.ticketsSold} suffix="/ UN" icon={Target} color="indigo" />
-            <QuickStat title="Eventos Ativos" value={events.length} icon={CalendarDays} color="amber" />
-            <QuickStat title="Total de Visitas" value={analyticsData.length} icon={Users} color="rose" />
+            <QuickStat title="Volume Bruto (Gross)" value={formatCurrency(kpis.grossRevenue || 0)} icon={DollarSign} color="emerald" />
+            <QuickStat title="Transações (Vendas)" value={kpis.transactionsCount || 0} icon={Target} color="indigo" />
+            <QuickStat title="Credenciais Emitidas" value={kpis.credentialsIssued || 0} icon={Users} color="amber" />
+            <QuickStat title="Eventos Ativos" value={events.length} icon={CalendarDays} color="rose" />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

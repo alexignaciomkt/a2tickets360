@@ -210,9 +210,9 @@ const TicketValidation = () => {
 
   const stats = {
     total: tickets.length,
-    valid: tickets.filter(t => t.status === 'valid').length,
+    valid: tickets.filter(t => t.status === 'valid' || t.status === 'active').length,
     used: tickets.filter(t => t.status === 'used').length,
-    invalid: tickets.filter(t => t.status === 'invalid' || t.status === 'cancelled').length,
+    invalid: tickets.filter(t => t.status === 'invalid' || t.status === 'cancelled' || t.status === 'revoked').length,
   };
 
   return (
@@ -270,13 +270,13 @@ const TicketValidation = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total de Ingressos</CardTitle>
+              <CardTitle className="text-sm font-medium">TOTAL (TODOS OS REGISTROS)</CardTitle>
               <QrCode className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.total}</div>
               <p className="text-xs text-muted-foreground">
-                ingressos emitidos
+                válidos + utilizados + cancelados
               </p>
             </CardContent>
           </Card>

@@ -116,7 +116,6 @@ const DashboardLayout = ({ children, userType }: DashboardLayoutProps) => {
             icon: Home,
             items: [
               { name: 'Dashboard BI', path: '/organizer/dashboard', icon: LayoutDashboard },
-              { name: 'Meu Perfil (Público)', path: '/organizer/settings', icon: User },
               { name: 'Meus Eventos', path: '/organizer/events', icon: Calendar },
             ]
           },
@@ -449,7 +448,7 @@ const DashboardLayout = ({ children, userType }: DashboardLayoutProps) => {
                
                {userType === 'organizer' && user && !user.walletId && (
                   <Link 
-                    to="/organizer/finance/onboarding" 
+                    to="/organizer/settings?tab=finance" 
                     className="hidden md:flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold px-4 py-2 rounded-xl transition-colors shadow-sm animate-pulse"
                   >
                     <DollarSign className="w-4 h-4" />

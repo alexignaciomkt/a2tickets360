@@ -103,10 +103,8 @@ const CreateEvent = () => {
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Limpa URL anterior para evitar memory leak
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-
-      const token = Date.now();
+      console.log(`[UPLOAD 1] arquivo selecionado: ${file.name}`);
+      const token = Math.random();
       uploadTokenRef.current = token;
 
       // 1. Mostrar preview local imediato
@@ -115,10 +113,11 @@ const CreateEvent = () => {
       setBannerUploadError(null);
       setIsBannerUploading(true);
 
-      // 2. Upload para o servidor
       try {
-        const { url: remoteUrl } = await organizerService.uploadImage(file, user?.id, user?.name);
+        // 2. Upload para o servidor
+        const { url: remoteUrl } = await organizerService.uploadImage(file, user?.id, 'producer-banner');
         if (uploadTokenRef.current === token) {
+          console.log(`[UPLOAD 7] imageUrl setado: ${remoteUrl}`);
           setImageUrl(remoteUrl);
           setIsBannerUploading(false);
         }
@@ -133,6 +132,8 @@ const CreateEvent = () => {
             description: 'Não foi possível salvar a imagem no servidor. Tente novamente.'
           });
         }
+      } finally {
+        console.log(`[UPLOAD 8] finally executado. Token local: ${token}, Token atual: ${uploadTokenRef.current}`);
       }
     }
   };
@@ -195,6 +196,18 @@ const CreateEvent = () => {
       toast({ variant: 'destructive', title: 'Erro', description: 'Você precisa estar logado.' });
       return;
     }
+
+    let userTimeZone = '';
+    try {
+      userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (!userTimeZone) throw new Error('Timezone empty');
+      // Validate IANA
+      Intl.DateTimeFormat(undefined, { timeZone: userTimeZone }).format();
+    } catch (err) {
+      toast({ variant: 'destructive', title: 'Erro de Sistema', description: 'Não foi possível determinar o fuso horário válido (timezone) do seu navegador. Verifique as configurações do sistema.' });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       // Gerar slug amigável a partir do título
@@ -220,6 +233,7 @@ const CreateEvent = () => {
         eventType, 
         date, 
         time, 
+        timezone: userTimeZone,
         endDate, 
         endTime, 
         duration,

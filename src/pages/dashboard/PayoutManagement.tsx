@@ -4,7 +4,7 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { financialService } from '@/services/financialService';
+import { masterService } from '@/services/masterService';
 import { PayoutRequest } from '@/interfaces/financial';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
@@ -21,7 +21,7 @@ const PayoutManagement = () => {
     const fetchPayouts = async () => {
       try {
         setLoading(true);
-        const data = await financialService.getPayoutRequests();
+        const data = await masterService.getPayoutRequests();
         setPayouts(data);
       } catch (error) {
         console.error('Erro ao carregar solicitações de pagamento:', error);

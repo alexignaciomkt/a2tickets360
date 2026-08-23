@@ -159,6 +159,7 @@ class OrganizerService {
       organizer_id: eventData.organizerId,
       status: initialStatus,
       sports_integration_status: eventData.categoryCode === 'SPORT_TRUCO' ? 'pending' : 'not_applicable',
+      timezone: eventData.timezone,
       start_date: this.combineDateTime(eventData.date || eventData.startDate, eventData.time),
       end_date: this.combineDateTime(eventData.endDate, eventData.endTime),
       location_name: eventData.locationName,
@@ -340,6 +341,7 @@ class OrganizerService {
 
   async uploadImage(file: File, userId?: string, typeOverride?: string, customFileName?: string, role: string = 'producer'): Promise<{ url: string, objectKey?: string }> {
     try {
+      console.log(`[UPLOAD 2] chamando uploadImage para ${file.name}`);
       const isLogo = customFileName?.includes('logo') || typeOverride?.includes('logo');
       const type = typeOverride || (isLogo ? 'producer-logo' : 'producer-banner');
       
@@ -355,19 +357,29 @@ class OrganizerService {
       });
       
       const { presignedUrl, publicUrl, objectKey } = presignResponse;
+      console.log(`[UPLOAD 3] presign recebido. ObjectKey: ${objectKey}`);
 
       // 2. Faz o upload diretamente para o MinIO usando a URL pré-assinada
-      console.log(`[UPLOAD] Iniciando envio direto para o MinIO: ${publicUrl}`);
+      console.log(`[UPLOAD 4] iniciando PUT para: ${presignedUrl.split('?')[0]}`);
       
-      const uploadResponse = await fetch(presignedUrl, {
-        method: 'PUT',
-        body: file,
-        headers: {
-          'Content-Type': file.type || 'image/jpeg'
-        }
-      });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos timeout
 
-      console.log('[UPLOAD] PUT status:', uploadResponse.status);
+      let uploadResponse;
+      try {
+        uploadResponse = await fetch(presignedUrl, {
+          method: 'PUT',
+          body: file,
+          headers: {
+            'Content-Type': file.type || 'image/jpeg'
+          },
+          signal: controller.signal
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
+
+      console.log(`[UPLOAD 5] PUT finalizado status=${uploadResponse.status}`);
 
       if (!uploadResponse.ok) {
         const errorText = await uploadResponse.text();
@@ -375,7 +387,7 @@ class OrganizerService {
         throw new Error(`Upload failed with status ${uploadResponse.status}: ${errorText}`);
       }
       
-      console.log(`✅ Upload concluído via MinIO Presigned URL: ${publicUrl}`);
+      console.log(`[UPLOAD 6] publicUrl recebida: ${publicUrl}`);
       return { url: publicUrl, objectKey };
     } catch (storageError: any) {
       console.error('❌ Falha no upload pelo MinIO:', storageError);
@@ -429,196 +441,190 @@ class OrganizerService {
       
       if (eventIds.length === 0) {
         return {
-          kpis: { totalEvents: 0, ticketsGenerated: 0, ticketsSold: 0, currentRevenue: 0, estimatedRevenue: 0, occupancyRate: 0 },
+          kpis: { totalEvents: 0, credentialsIssued: 0, transactionsCount: 0, grossRevenue: 0, producerAmount: 0, platformFeeAmount: 0, gmv: 0, occupancyRate: 0 },
           charts: { salesByEvent: [], salesPerformance: [], revenueOverTime: [], salesByGender: [], salesByAge: [], usersByLocation: [] }
         };
       }
 
-      // 2. Fetch Sales (Purchased Tickets) sem JOIN para evitar erros de FK
+      // 2. Fetch Sales
       let salesQuery = supabase
+        .from('sales')
+        .select('*')
+        .in('event_id', eventIds)
+        .eq('payment_status', 'paid');
+      const { data: sales, error: salesError } = await salesQuery;
+      if (salesError) throw salesError;
+
+      // Fetch Purchased Tickets for Credenciais emitidas
+      let ticketsQuery = supabase
         .from('purchased_tickets')
         .select('*')
-        .in('event_id', eventIds);
-
-      // Descomentar se dataRange for suportado depois, por agora fetch tudo
-      // se quisermos, podemos usar as datas depois
-
-      const { data: sales, error: salesError } = await salesQuery;
-      if (salesError) {
-        console.error('Error fetching sales:', salesError);
-        throw salesError;
-      }
+        .in('event_id', eventIds)
+        .neq('status', 'cancelled')
+        .neq('status', 'refunded');
+      const { data: purchasedTickets, error: ticketsError } = await ticketsQuery;
+      if (ticketsError) throw ticketsError;
 
       const safeSales = sales || [];
       const safeEvents = events || [];
+      const safeTickets = purchasedTickets || [];
 
-      // 2.1 Fetch Profiles para os usuários das vendas
-      const userIds = [...new Set(safeSales.map((s: any) => s.user_id).filter(Boolean))];
+      // Fetch Demographics
+      const userIds = [...new Set(safeTickets.map((s: any) => s.user_id).filter(Boolean))];
       let profilesMap: Record<string, any> = {};
-      
       if (userIds.length > 0) {
-        try {
-          const { data: profilesData, error: profilesError } = await supabase
-            .from('profiles')
-            .select('user_id, gender, birth_date, city, state')
-            .in('user_id', userIds);
-            
-          if (!profilesError && profilesData) {
-            profilesData.forEach((p: any) => {
-              profilesMap[p.user_id] = p;
-            });
-          } else {
-            console.warn('Could not fetch profiles demographics:', profilesError);
-          }
-        } catch (err) {
-          console.warn('Exception fetching profiles:', err);
+        const { data: profilesData } = await supabase.from('profiles').select('user_id, gender, birth_date, city, state').in('user_id', userIds);
+        if (profilesData) {
+          profilesData.forEach((p: any) => { profilesMap[p.user_id] = p; });
         }
       }
 
-      // Map tickets for quick price lookup (tickets are in events)
-      const ticketPriceMap: Record<string, number> = {};
-      safeEvents.forEach(e => {
-        e.tickets?.forEach((t: any) => {
-          ticketPriceMap[t.id] = t.price || 0;
-        });
-      });
-
-      // Create a map for quick event title lookup
       const eventTitleMap: Record<string, string> = {};
-      safeEvents.forEach(e => {
-        eventTitleMap[e.id] = e.title || 'Evento Desconhecido';
-      });
+      safeEvents.forEach(e => { eventTitleMap[e.id] = e.title || 'Evento Desconhecido'; });
 
-      // 3. Process KPIs
+      // Process KPIs
       const totalEvents = safeEvents.length;
-      const totalCapacity = safeEvents.reduce((acc, event) => 
-        acc + (event.tickets?.reduce((tAcc: number, t: any) => tAcc + (t.quantity || 0), 0) || 0), 0
-      );
-      const ticketsSold = safeSales.filter((s: any) => s.status !== 'cancelled' && s.status !== 'refunded').length;
+      const totalCapacity = safeEvents.reduce((acc, event) => acc + (event.tickets?.reduce((tAcc: number, t: any) => tAcc + (t.quantity || 0), 0) || 0), 0);
+      const credentialsIssued = safeTickets.length;
       
-      const currentRevenue = safeSales.reduce((acc, sale: any) => {
-        if (sale.status === 'cancelled' || sale.status === 'refunded') return acc;
-        return acc + (ticketPriceMap[sale.ticket_id] || 0);
-      }, 0);
-      const estimatedRevenue = safeEvents.reduce((acc, event) => 
-        acc + (event.tickets?.reduce((tAcc: number, t: any) => tAcc + ((t.price || 0) * (t.quantity || 0)), 0) || 0), 0
-      );
+      const transactionsCount = safeSales.length;
+      const grossRevenue = safeSales.reduce((acc, sale: any) => acc + Number(sale.gross_amount || 0), 0);
+      const producerAmount = safeSales.reduce((acc, sale: any) => acc + Number(sale.producer_amount || 0), 0);
+      const platformFeeAmount = safeSales.reduce((acc, sale: any) => acc + Number(sale.platform_fee_amount || 0), 0);
+      const gmv = safeSales.reduce((acc, sale: any) => acc + Number(sale.buyer_total || 0), 0);
 
-      // 4. Sales by Event (BarChart) - TOP 10
+      // Sales by Event
       const eventSalesMap: Record<string, number> = {};
       safeSales.forEach((sale: any) => {
         const title = eventTitleMap[sale.event_id];
-        if (title) {
-          eventSalesMap[title] = (eventSalesMap[title] || 0) + 1;
-        }
+        if (title) { eventSalesMap[title] = (eventSalesMap[title] || 0) + 1; }
       });
-      const salesByEvent = Object.entries(eventSalesMap)
-        .map(([name, vendas]) => ({ name, vendas }))
-        .sort((a, b) => b.vendas - a.vendas)
-        .slice(0, 10);
+      const salesByEvent = Object.entries(eventSalesMap).map(([name, vendas]) => ({ name, vendas })).sort((a, b) => b.vendas - a.vendas).slice(0, 10);
 
-      // 5. Performance by Period (LineChart with multiple events) & Revenue Over Time
+      // Performance by Period
       const perfMap: Record<string, any> = {};
       safeSales.forEach((sale: any) => {
-        if (!sale.created_at || sale.status === 'cancelled') return;
+        if (!sale.created_at) return;
         const date = sale.created_at.split('T')[0];
-        if (!perfMap[date]) {
-          perfMap[date] = { date, revenue: 0 };
-        }
+        if (!perfMap[date]) perfMap[date] = { date, revenue: 0 };
         
         const title = eventTitleMap[sale.event_id];
-        if (title) {
-          perfMap[date][title] = (perfMap[date][title] || 0) + 1;
-        }
-        
-        perfMap[date].revenue += (ticketPriceMap[sale.ticket_id] || 0);
+        if (title) perfMap[date][title] = (perfMap[date][title] || 0) + 1;
+        perfMap[date].revenue += Number(sale.gross_amount || 0);
       });
       const salesPerformance = Object.values(perfMap).sort((a, b) => a.date.localeCompare(b.date));
       const revenueOverTime = salesPerformance.map(p => ({ date: p.date, revenue: p.revenue }));
 
-      // 6. Demographics: Gender
+      // Demographics
       const genderMap: Record<string, number> = { 'Masculino': 0, 'Feminino': 0, 'Outros/Não Informado': 0 };
-      safeSales.forEach((sale: any) => {
-        if (sale.status === 'cancelled') return;
-        const profile = profilesMap[sale.user_id] || {};
-        let gender = profile.gender;
+      safeTickets.forEach((sale: any) => {
+        let gender = profilesMap[sale.user_id]?.gender;
         if (!gender) gender = 'Outros/Não Informado';
         else {
           gender = gender.charAt(0).toUpperCase() + gender.slice(1).toLowerCase();
-          if (!['Masculino', 'Feminino'].includes(gender)) {
-            gender = 'Outros/Não Informado';
-          }
+          if (!['Masculino', 'Feminino'].includes(gender)) gender = 'Outros/Não Informado';
         }
         genderMap[gender]++;
       });
       const salesByGender = Object.entries(genderMap).map(([name, value]) => ({ name, value })).filter(g => g.value > 0);
 
-      // 7. Demographics: Age
       const ageRanges = [
-        { label: '0-18', min: 0, max: 18 },
-        { label: '18-24', min: 19, max: 24 },
-        { label: '25-34', min: 25, max: 34 },
-        { label: '35-44', min: 35, max: 44 },
-        { label: '45-54', min: 45, max: 54 },
-        { label: '55+', min: 55, max: 150 }
+        { label: '0-18', min: 0, max: 18 }, { label: '18-24', min: 19, max: 24 }, { label: '25-34', min: 25, max: 34 },
+        { label: '35-44', min: 35, max: 44 }, { label: '45-54', min: 45, max: 54 }, { label: '55+', min: 55, max: 150 }
       ];
       const ageStats = ageRanges.map(r => ({ name: r.label, value: 0 }));
-      
-      safeSales.forEach((sale: any) => {
-        if (sale.status === 'cancelled') return;
+      safeTickets.forEach((sale: any) => {
         const profile = profilesMap[sale.user_id] || {};
         if (profile.birth_date) {
           try {
-            const birthDate = new Date(profile.birth_date);
-            const age = new Date().getFullYear() - birthDate.getFullYear();
+            const age = new Date().getFullYear() - new Date(profile.birth_date).getFullYear();
             const range = ageRanges.find(r => age >= r.min && age <= r.max);
-            if (range) {
-              const stat = ageStats.find(s => s.name === range.label);
-              if (stat) stat.value++;
-            }
+            if (range) { const stat = ageStats.find(s => s.name === range.label); if (stat) stat.value++; }
           } catch (e) {}
         }
       });
 
-      // 8. Users by Location
       const locationMap: Record<string, number> = {};
-      safeSales.forEach((sale: any) => {
-        if (sale.status === 'cancelled') return;
+      safeTickets.forEach((sale: any) => {
         const profile = profilesMap[sale.user_id] || {};
-        let loc = 'Não Informado';
-        if (profile.state && profile.city) {
-          loc = `${profile.city} - ${profile.state}`;
-        } else if (profile.state || profile.city) {
-          loc = profile.state || profile.city;
-        }
+        let loc = profile.state && profile.city ? `${profile.city} - ${profile.state}` : (profile.state || profile.city || 'Não Informado');
         locationMap[loc] = (locationMap[loc] || 0) + 1;
       });
-      const usersByLocation = Object.entries(locationMap)
-        .map(([name, value]) => ({ name, value }))
-        .sort((a, b) => b.value - a.value)
-        .slice(0, 5);
+      const usersByLocation = Object.entries(locationMap).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 5);
 
       return {
         kpis: {
           totalEvents,
           ticketsGenerated: totalCapacity,
-          ticketsSold,
-          currentRevenue,
-          estimatedRevenue: estimatedRevenue || 0,
-          occupancyRate: totalCapacity > 0 ? (ticketsSold / totalCapacity) * 100 : 0
+          credentialsIssued,
+          transactionsCount,
+          grossRevenue,
+          producerAmount,
+          platformFeeAmount,
+          gmv,
+          occupancyRate: totalCapacity > 0 ? (credentialsIssued / totalCapacity) * 100 : 0
         },
-        charts: {
-          salesByEvent,
-          salesPerformance,
-          revenueOverTime,
-          salesByGender,
-          salesByAge: ageStats,
-          usersByLocation
-        }
+        charts: { salesByEvent, salesPerformance, revenueOverTime, salesByGender, salesByAge: ageStats, usersByLocation }
       };
     } catch (e) {
       console.error('Error calculating BI stats:', e);
       return null;
+    }
+  }
+
+  // Financial Summary
+  async getFinancialSummary(eventId: string): Promise<FinancialSummary> {
+    try {
+      const query = eventId === 'all' 
+        ? supabase.from('sales').select('*, events!inner(title)').eq('payment_status', 'paid')
+        : supabase.from('sales').select('*, events(title)').eq('event_id', eventId).eq('payment_status', 'paid');
+      
+      const { data: sales, error } = await query;
+      if (error) throw error;
+      
+      const safeSales = sales || [];
+      const transactionsCount = safeSales.length;
+      const grossRevenue = safeSales.reduce((acc, sale: any) => acc + Number(sale.gross_amount || 0), 0);
+      const commercialAmount = safeSales.reduce((acc, sale: any) => acc + Number(sale.commercial_amount || 0), 0);
+      const producerAmount = safeSales.reduce((acc, sale: any) => acc + Number(sale.producer_amount || 0), 0);
+      const platformFeeAmount = safeSales.reduce((acc, sale: any) => acc + Number(sale.platform_fee_amount || 0), 0);
+      const gmv = safeSales.reduce((acc, sale: any) => acc + Number(sale.buyer_total || 0), 0);
+      
+      // Transform into summary format
+      return {
+        transactionsCount,
+        grossRevenue,
+        commercialAmount,
+        producerAmount,
+        platformFeeAmount,
+        gmv,
+        totalRevenue: grossRevenue, // Legacy compat
+        totalPayouts: 0,
+        pendingPayouts: 0,
+        totalExpenses: 0,
+        transactions: safeSales.map((s: any) => ({
+          id: s.id,
+          eventId: s.event_id,
+          eventName: s.events?.title || 'Evento',
+          date: s.created_at,
+          description: `Venda de ingressos - ${s.events?.title || 'Evento'}`,
+          amount: Number(s.buyer_total),
+          grossAmount: Number(s.gross_amount || 0),
+          producerAmount: Number(s.producer_amount || 0),
+          platformFeeAmount: Number(s.platform_fee_amount || 0),
+          gmv: Number(s.buyer_total || 0),
+          status: s.payment_status === 'paid' ? 'completed' : 'pending',
+          type: 'credit',
+          buyer: s.buyer_name || s.buyer_email || 'Comprador'
+        })),
+        payouts: []
+      } as any;
+    } catch (e) {
+      console.error('Error getting financial summary:', e);
+      return {
+        transactionsCount: 0, grossRevenue: 0, commercialAmount: 0, producerAmount: 0, platformFeeAmount: 0, gmv: 0,
+        totalRevenue: 0, totalPayouts: 0, pendingPayouts: 0, totalExpenses: 0, transactions: [], payouts: []
+      } as any;
     }
   }
 

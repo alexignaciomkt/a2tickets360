@@ -1,44 +1,41 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { DollarSign, Calendar, TrendingUp, Download, Filter, PieChart, ChevronRight, Zap, Target } from 'lucide-react';
+import { DollarSign, Calendar, TrendingUp, Download, Filter, PieChart, ChevronRight, Zap, Target, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LineChart, Line, BarChart, Bar, PieChart as RechartsChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, Legend, TooltipProps } from 'recharts';
+import { api } from '@/services/api';
 
-const mockMonthlyData = [
-  { month: 'Jan', revenue: 45000, commission: 4500 },
-  { month: 'Fev', revenue: 52000, commission: 5200 },
-  { month: 'Mar', revenue: 61000, commission: 6100 },
-  { month: 'Abr', revenue: 78000, commission: 7800 },
-  { month: 'Mai', revenue: 92000, commission: 9200 },
-  { month: 'Jun', revenue: 105000, commission: 10500 },
-];
-
-const mockCategoryData = [
-  { name: 'SHOWS', value: 35 },
-  { name: 'FESTAS', value: 25 },
-  { name: 'CORPORATIVO', value: 18 },
-  { name: 'CULTURAL', value: 12 },
-  { name: 'ESPORTIVO', value: 10 },
-];
-
+const mockMonthlyData: any[] = [];
+const mockCategoryData: any[] = [];
 const COLORS = ['#0f172a', '#4f46e5', '#10b981', '#f59e0b', '#f43f5e'];
-
-const mockOrganizersData = [
-  { id: "1", name: "Festas Premium", revenue: 125000, commission: 12500, events: 8 },
-  { id: "2", name: "EventPro", revenue: 98500, commission: 9850, events: 6 },
-  { id: "3", name: "Arena Shows", revenue: 87000, commission: 8700, events: 5 },
-  { id: "4", name: "Cultural Eventos", revenue: 65000, commission: 6500, events: 4 },
-  { id: "5", name: "Esportes & Cia", revenue: 42000, commission: 4200, events: 3 },
-];
+const mockOrganizersData: any[] = [];
 
 const CommissionsPage = () => {
   const [timeRange, setTimeRange] = useState('month');
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<any>(null);
 
-  const totalRevenue = mockMonthlyData.reduce((acc, item) => acc + item.revenue, 0);
-  const totalCommission = mockMonthlyData.reduce((acc, item) => acc + item.commission, 0);
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        setLoading(true);
+        const data = await api.get('/api/master/financial/summary');
+        setStats(data);
+      } catch (error) {
+        console.error('Erro ao buscar resumo financeiro:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStats();
+  }, []);
+
+  const totalRevenue = stats?.gmv || 0;
+  const totalCommission = stats?.platformFeeAmount || 0;
+  const transactionsCount = stats?.transactionsCount || 0;
 
   return (
     <DashboardLayout userType="admin">
@@ -62,10 +59,10 @@ const CommissionsPage = () => {
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
            {[
-             { l: 'Receita Bruta (GMV)', v: `R$ ${totalRevenue.toLocaleString('pt-BR')}`, t: '+12.4%', i: DollarSign, c: 'bg-slate-900', tc: 'text-white' },
-             { l: 'Comissão Acumulada', v: `R$ ${totalCommission.toLocaleString('pt-BR')}`, t: '+8.2%', i: Zap, c: 'bg-indigo-50', tc: 'text-indigo-600' },
-             { l: 'Taxa Operacional', v: '10.0%', t: 'Padrão', i: Target, c: 'bg-emerald-50', tc: 'text-emerald-600' },
-             { l: 'Performance de Ativos', v: '329', t: '+15%', i: Calendar, c: 'bg-rose-50', tc: 'text-rose-600' },
+             { l: 'Receita Bruta (GMV)', v: loading ? '...' : `R$ ${totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, t: 'Total', i: DollarSign, c: 'bg-slate-900', tc: 'text-white' },
+             { l: 'Receita da Plataforma', v: loading ? '...' : `R$ ${totalCommission.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, t: 'Taxa A2', i: Zap, c: 'bg-indigo-50', tc: 'text-indigo-600' },
+             { l: 'Transações Pagas', v: loading ? '...' : transactionsCount.toString(), t: 'Concluídas', i: Target, c: 'bg-emerald-50', tc: 'text-emerald-600' },
+             { l: 'Ticket Médio', v: loading ? '...' : `R$ ${transactionsCount > 0 ? (totalRevenue / transactionsCount).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '0,00'}`, t: 'Média', i: Calendar, c: 'bg-rose-50', tc: 'text-rose-600' },
            ].map((stat, i) => (
              <Card key={i} className="rounded-[2.2rem] border-gray-100 shadow-sm bg-white overflow-hidden group hover:shadow-xl transition-all duration-700">
                <CardContent className="p-7">

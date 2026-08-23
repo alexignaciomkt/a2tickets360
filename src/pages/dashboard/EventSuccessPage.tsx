@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { organizerService } from '@/services/organizerService';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
+import { parseWallClock } from '@/utils/eventDateTime';
 
 const EventSuccessPage = () => {
     const { id } = useParams();
@@ -62,7 +63,9 @@ const EventSuccessPage = () => {
     const formatDate = (dateStr: string | null | undefined) => {
         if (!dateStr) return 'Data a definir';
         try {
-            return new Date(dateStr).toLocaleDateString('pt-BR', { 
+            const d = parseWallClock(dateStr);
+            if (!d) return dateStr;
+            return d.toLocaleDateString('pt-BR', { 
                 day: '2-digit', month: 'long', year: 'numeric' 
             });
         } catch { return dateStr; }
@@ -71,7 +74,9 @@ const EventSuccessPage = () => {
     const formatTime = (dateStr: string | null | undefined) => {
         if (!dateStr) return '';
         try {
-            return new Date(dateStr).toLocaleTimeString('pt-BR', { 
+            const d = parseWallClock(dateStr);
+            if (!d) return '';
+            return d.toLocaleTimeString('pt-BR', { 
                 hour: '2-digit', minute: '2-digit' 
             });
         } catch { return ''; }

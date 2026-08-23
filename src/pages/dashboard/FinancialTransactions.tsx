@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { Filter, Download, AlertTriangle, Check, XCircle, RotateCcw, Activity, DollarSign, Zap, Target, History, Clock, FileText, ChevronRight, ChevronLeft, RefreshCw } from 'lucide-react';
-import { financialService } from '@/services/financialService';
+import { masterService } from '@/services/masterService';
 import { Transaction } from '@/interfaces/financial';
 import { Badge } from '@/components/ui/badge';
 
@@ -46,7 +46,7 @@ const FinancialTransactions = () => {
         if (filterStatus !== 'all') {
           filters = { status: filterStatus };
         }
-        const data = await financialService.getTransactions(filters);
+        const data = await masterService.getTransactions(filters);
         setTransactions(data);
         setLoading(false);
       } catch (error) {

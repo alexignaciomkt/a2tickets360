@@ -1,9 +1,8 @@
-
-import { useState, useEffect } from 'react';
-import { Calendar, Download, TrendingUp, Users, DollarSign, BarChart3 } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Calendar, Download, TrendingUp, Users, DollarSign, BarChart3, AlertCircle } from 'lucide-react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
@@ -15,6 +14,9 @@ import {
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, LineChart, Line, PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { organizerService } from '@/services/organizerService';
 import { Event } from '@/interfaces/organizer';
+import { supabase } from '@/lib/supabase';
+import { format, subDays, parseISO } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 const OrganizerReports = () => {
   const [events, setEvents] = useState<Event[]>([]);
@@ -22,44 +24,37 @@ const OrganizerReports = () => {
   const [selectedPeriod, setSelectedPeriod] = useState<string>('30');
   const [loading, setLoading] = useState(true);
 
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [purchasedTickets, setPurchasedTickets] = useState<any[]>([]);
+
   useEffect(() => {
-    loadEvents();
+    loadData();
   }, []);
 
-  const loadEvents = async () => {
+  const loadData = async () => {
     try {
       const organizerId = '1';
       const eventsData = await organizerService.getEvents(organizerId);
       setEvents(eventsData);
+      
+      const summary = await organizerService.getFinancialSummary('all');
+      setTransactions(summary.transactions || []);
+
+      const { data: ptData } = await supabase
+        .from('purchased_tickets')
+        .select(`
+          id, event_id, status, created_at, parent_purchase_id,
+          tickets(name, price)
+        `)
+        .neq('status', 'cancelled');
+        
+      setPurchasedTickets(ptData || []);
     } catch (error) {
-      console.error('Erro ao carregar eventos:', error);
+      console.error('Erro ao carregar relatórios:', error);
     } finally {
       setLoading(false);
     }
   };
-
-  // Mock data para os gráficos
-  const salesData = [
-    { name: 'Jan', vendas: 120, receita: 24000 },
-    { name: 'Fev', vendas: 190, receita: 38000 },
-    { name: 'Mar', vendas: 150, receita: 30000 },
-    { name: 'Abr', vendas: 280, receita: 56000 },
-    { name: 'Mai', vendas: 220, receita: 44000 },
-    { name: 'Jun', vendas: 340, receita: 68000 },
-  ];
-
-  const ticketTypeData = [
-    { name: 'Pista', value: 400, color: '#8884d8' },
-    { name: 'VIP', value: 150, color: '#82ca9d' },
-    { name: 'Camarote', value: 80, color: '#ffc658' },
-    { name: 'Estudante', value: 200, color: '#ff7c7c' },
-  ];
-
-  const channelData = [
-    { name: 'Online', vendas: 450 },
-    { name: 'Físico', vendas: 280 },
-    { name: 'Parceiros', vendas: 120 },
-  ];
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -67,6 +62,76 @@ const OrganizerReports = () => {
       currency: 'BRL',
     }).format(value);
   };
+
+  // Filtragem
+  const filteredTxs = useMemo(() => {
+    const periodStart = subDays(new Date(), parseInt(selectedPeriod));
+    return transactions.filter(tx => {
+      const matchEvent = selectedEvent === 'all' || tx.eventId === selectedEvent;
+      const matchDate = new Date(tx.date) >= periodStart;
+      return matchEvent && matchDate;
+    });
+  }, [transactions, selectedEvent, selectedPeriod]);
+
+  const filteredTickets = useMemo(() => {
+    const periodStart = subDays(new Date(), parseInt(selectedPeriod));
+    return purchasedTickets.filter(pt => {
+      const matchEvent = selectedEvent === 'all' || pt.event_id === selectedEvent;
+      const matchDate = new Date(pt.created_at) >= periodStart;
+      return matchEvent && matchDate;
+    });
+  }, [purchasedTickets, selectedEvent, selectedPeriod]);
+
+  // KPIs
+  const kpis = useMemo(() => {
+    const grossTotal = filteredTxs.reduce((sum, tx) => sum + (tx.grossAmount || 0), 0);
+    const gmvTotal = filteredTxs.reduce((sum, tx) => sum + (tx.gmv || 0), 0);
+    const count = filteredTxs.length;
+    return {
+      receitaTotal: grossTotal,
+      vendas: count,
+      ticketMedio: count > 0 ? (gmvTotal / count) : 0,
+      credenciais: filteredTickets.length
+    };
+  }, [filteredTxs, filteredTickets]);
+
+  // Agregações de gráficos
+  const salesData = useMemo(() => {
+    const map = new Map();
+    filteredTxs.forEach(tx => {
+      const label = format(parseISO(tx.date), 'dd/MM', { locale: ptBR });
+      if (!map.has(label)) {
+        map.set(label, { name: label, vendas: 0, receita: 0 });
+      }
+      const dayData = map.get(label);
+      dayData.vendas += 1;
+      dayData.receita += (tx.grossAmount || 0);
+    });
+    return Array.from(map.values()).sort((a: any, b: any) => {
+      // Sort by string length then alphabetical is fine for DD/MM within a single month, but a real date sort is better.
+      // For simplicity in UI, we assume chronological iteration works mostly fine if txs are sorted, but let's reverse to show oldest first if we want, or just leave it.
+      return 1; 
+    });
+  }, [filteredTxs]);
+
+  const ticketTypeData = useMemo(() => {
+    const map = new Map();
+    filteredTickets.forEach(pt => {
+      const name = pt.tickets?.name || 'Geral';
+      if (!map.has(name)) {
+        map.set(name, { name, value: 0, revenue: 0 });
+      }
+      const data = map.get(name);
+      data.value += 1;
+      data.revenue += Number(pt.tickets?.price || 0);
+    });
+    
+    const colors = ['#8884d8', '#82ca9d', '#ffc658', '#ff7c7c', '#3b82f6'];
+    return Array.from(map.values()).map((item: any, i) => ({
+      ...item,
+      color: colors[i % colors.length]
+    }));
+  }, [filteredTickets]);
 
   if (loading) {
     return (
@@ -90,7 +155,7 @@ const OrganizerReports = () => {
             <h1 className="text-3xl font-bold">Relatórios e Análises</h1>
             <p className="text-gray-600 mt-1">Análise detalhada das suas vendas e performance</p>
           </div>
-          <Button>
+          <Button disabled title="Exportação indisponível. Funcionalidade em desenvolvimento.">
             <Download className="h-4 w-4 mr-2" />
             Exportar Relatório
           </Button>
@@ -132,8 +197,8 @@ const OrganizerReports = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-gray-500 text-sm">Receita Total</p>
-                  <h3 className="text-2xl font-bold">R$ 260.000</h3>
-                  <p className="text-green-600 text-sm mt-1">+12% vs mês anterior</p>
+                  <h3 className="text-2xl font-bold">{formatCurrency(kpis.receitaTotal)}</h3>
+                  {/* Badges falsos removidos */}
                 </div>
                 <DollarSign className="h-8 w-8 text-primary" />
               </div>
@@ -144,9 +209,8 @@ const OrganizerReports = () => {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-500 text-sm">Ingressos Vendidos</p>
-                  <h3 className="text-2xl font-bold">1.850</h3>
-                  <p className="text-green-600 text-sm mt-1">+8% vs mês anterior</p>
+                  <p className="text-gray-500 text-sm">Vendas / Transações</p>
+                  <h3 className="text-2xl font-bold">{kpis.vendas}</h3>
                 </div>
                 <Users className="h-8 w-8 text-blue-600" />
               </div>
@@ -157,9 +221,8 @@ const OrganizerReports = () => {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-500 text-sm">Ticket Médio</p>
-                  <h3 className="text-2xl font-bold">R$ 140</h3>
-                  <p className="text-green-600 text-sm mt-1">+5% vs mês anterior</p>
+                  <p className="text-gray-500 text-sm">Ticket Médio Transacional</p>
+                  <h3 className="text-2xl font-bold">{formatCurrency(kpis.ticketMedio)}</h3>
                 </div>
                 <TrendingUp className="h-8 w-8 text-green-600" />
               </div>
@@ -170,11 +233,10 @@ const OrganizerReports = () => {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-500 text-sm">Taxa de Conversão</p>
-                  <h3 className="text-2xl font-bold">3.2%</h3>
-                  <p className="text-red-600 text-sm mt-1">-0.5% vs mês anterior</p>
+                  <p className="text-gray-500 text-sm">Credenciais Emitidas</p>
+                  <h3 className="text-2xl font-bold">{kpis.credenciais}</h3>
                 </div>
-                <BarChart3 className="h-8 w-8 text-orange-600" />
+                <BarChart3 className="h-8 w-8 text-indigo-600" />
               </div>
             </CardContent>
           </Card>
@@ -193,21 +255,28 @@ const OrganizerReports = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Vendas e Receita por Período</CardTitle>
+                <CardDescription>Consolidado por dia das vendas aprovadas</CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={400}>
-                  <BarChart data={salesData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis yAxisId="left" />
-                    <YAxis yAxisId="right" orientation="right" />
-                    <Tooltip formatter={(value, name) => 
-                      name === 'receita' ? formatCurrency(Number(value)) : value
-                    } />
-                    <Bar yAxisId="left" dataKey="vendas" fill="#8884d8" name="Vendas" />
-                    <Bar yAxisId="right" dataKey="receita" fill="#82ca9d" name="Receita" />
-                  </BarChart>
-                </ResponsiveContainer>
+                {salesData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={400}>
+                    <BarChart data={salesData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis yAxisId="left" />
+                      <YAxis yAxisId="right" orientation="right" />
+                      <Tooltip formatter={(value, name) => 
+                        name === 'Receita' ? formatCurrency(Number(value)) : value
+                      } />
+                      <Bar yAxisId="left" dataKey="vendas" fill="#8884d8" name="Vendas" />
+                      <Bar yAxisId="right" dataKey="receita" fill="#82ca9d" name="Receita" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-[400px] flex items-center justify-center text-gray-500">
+                    Nenhum dado de venda para este período
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -219,24 +288,30 @@ const OrganizerReports = () => {
                   <CardTitle>Distribuição por Tipo de Ingresso</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie
-                        data={ticketTypeData}
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="value"
-                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                      >
-                        {ticketTypeData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
+                  {ticketTypeData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={300}>
+                      <PieChart>
+                        <Pie
+                          data={ticketTypeData}
+                          cx="50%"
+                          cy="50%"
+                          outerRadius={80}
+                          fill="#8884d8"
+                          dataKey="value"
+                          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                        >
+                          {ticketTypeData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-[300px] flex items-center justify-center text-gray-500">
+                      Nenhuma credencial emitida neste período
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -256,13 +331,16 @@ const OrganizerReports = () => {
                           <span className="font-medium">{item.name}</span>
                         </div>
                         <div className="text-right">
-                          <div className="font-bold">{item.value} vendidos</div>
+                          <div className="font-bold">{item.value} emitidos</div>
                           <div className="text-sm text-gray-500">
-                            {formatCurrency(item.value * 150)}
+                            Estimativa: {formatCurrency(item.revenue)}
                           </div>
                         </div>
                       </div>
                     ))}
+                    {ticketTypeData.length === 0 && (
+                      <div className="text-center text-gray-500">Sem dados.</div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -272,18 +350,11 @@ const OrganizerReports = () => {
           <TabsContent value="channels">
             <Card>
               <CardHeader>
-                <CardTitle>Vendas por Canal</CardTitle>
+                <CardTitle>Canais de Venda</CardTitle>
               </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={400}>
-                  <BarChart data={channelData} layout="horizontal">
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis type="number" />
-                    <YAxis dataKey="name" type="category" />
-                    <Tooltip />
-                    <Bar dataKey="vendas" fill="#8884d8" />
-                  </BarChart>
-                </ResponsiveContainer>
+              <CardContent className="h-64 flex flex-col items-center justify-center text-gray-500 gap-2">
+                <AlertCircle className="w-8 h-8 text-gray-400" />
+                <p>O rastreamento de Canais de Venda (Promoters, PDVs, UTMs) ainda não possui dados reais suficientes para exibição.</p>
               </CardContent>
             </Card>
           </TabsContent>
@@ -293,22 +364,9 @@ const OrganizerReports = () => {
               <CardHeader>
                 <CardTitle>Taxa de Conversão por Período</CardTitle>
               </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={400}>
-                  <LineChart data={salesData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Line 
-                      type="monotone" 
-                      dataKey="vendas" 
-                      stroke="#8884d8" 
-                      strokeWidth={2}
-                      name="Taxa de Conversão (%)"
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+              <CardContent className="h-64 flex flex-col items-center justify-center text-gray-500 gap-2">
+                <AlertCircle className="w-8 h-8 text-gray-400" />
+                <p>A taxa de conversão estará disponível quando o tracking de visitas de página (page views vs checkouts) estiver ativo.</p>
               </CardContent>
             </Card>
           </TabsContent>

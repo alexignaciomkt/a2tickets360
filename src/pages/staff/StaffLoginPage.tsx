@@ -1,12 +1,9 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useStaffAuth } from '@/contexts/StaffAuthContext';
-import { Eye, EyeOff, Users, Shield } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
+import AuthShell from '@/components/auth/AuthShell';
 
 const StaffLoginPage = () => {
   const [email, setEmail] = useState('');
@@ -29,85 +26,72 @@ const StaffLoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/10 to-secondary/10 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center mb-4">
-            <Shield className="h-12 w-12 text-primary mr-2" />
-            <h2 className="mt-6 text-center text-3xl font-black text-gray-900 uppercase tracking-tight">A2 Tickets 360</h2>
-          </div>
-          <p className="text-gray-600">Acesso para Staff do Evento</p>
+    <AuthShell
+      eyebrow="Área de Trabalho"
+      title="Acesse sua conta"
+      subtitle="Use suas credenciais para acessar seus eventos e atividades."
+    >
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <div className="space-y-1.5">
+          <label htmlFor="email" className="block text-[10px] font-black uppercase tracking-widest text-zinc-400">
+            Email do Staff
+          </label>
+          <input
+            id="email"
+            type="email"
+            placeholder="seu.email@exemplo.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full bg-zinc-800/50 border border-white/10 rounded-xl px-4 h-14 text-sm text-white placeholder:text-zinc-500 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all outline-none"
+            required
+            disabled={loading}
+          />
         </div>
 
-        <Card>
-          <CardHeader className="text-center">
-            <CardTitle className="flex items-center justify-center">
-              <Users className="h-5 w-5 mr-2" />
-              Login do Staff
-            </CardTitle>
-            <CardDescription>
-              Entre com suas credenciais fornecidas pelo organizador
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="seu.email@exemplo.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  disabled={loading}
-                />
-              </div>
+        <div className="space-y-1.5 relative">
+          <label htmlFor="password" className="block text-[10px] font-black uppercase tracking-widest text-zinc-400">
+            Senha
+          </label>
+          <div className="relative">
+            <input
+              id="password"
+              type={showPassword ? 'text' : 'password'}
+              placeholder="Digite sua senha"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full bg-zinc-800/50 border border-white/10 rounded-xl px-4 h-14 pr-12 text-sm text-white placeholder:text-zinc-500 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all outline-none"
+              required
+              disabled={loading}
+            />
+            <button
+              type="button"
+              className="absolute right-4 top-1/2 transform -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
+              onClick={() => setShowPassword(!showPassword)}
+            >
+              {showPassword ? (
+                <EyeOff className="h-4 w-4" />
+              ) : (
+                <Eye className="h-4 w-4" />
+              )}
+            </button>
+          </div>
+        </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password">Senha</Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="Digite sua senha"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    disabled={loading}
-                  />
-                  <button
-                    type="button"
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4 text-gray-400" />
-                    ) : (
-                      <Eye className="h-4 w-4 text-gray-400" />
-                    )}
-                  </button>
-                </div>
-              </div>
+        <div className="pt-2">
+          <button 
+            type="submit" 
+            className="w-full h-14 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white rounded-xl font-black uppercase tracking-widest text-xs shadow-lg shadow-indigo-500/20 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:hover:scale-100 flex items-center justify-center" 
+            disabled={loading}
+          >
+            {loading ? 'Entrando...' : 'Entrar'}
+          </button>
+        </div>
 
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? 'Entrando...' : 'Entrar'}
-              </Button>
-            </form>
-
-            <div className="mt-6 pt-4 border-t">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p className="text-sm text-blue-800">
-                  <strong>Para demonstração:</strong><br />
-                  Email: joao@staff.com<br />
-                  Senha: qualquer senha
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+        <div className="text-center pt-2">
+          <p className="text-zinc-600 font-bold uppercase tracking-widest text-[9px]">Acesso Restrito para Colaboradores</p>
+        </div>
+      </form>
+    </AuthShell>
   );
 };
 

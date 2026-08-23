@@ -24,6 +24,7 @@ import { organizerService } from '@/services/organizerService';
 import { supabase } from '@/lib/supabase';
 import { Event } from '@/interfaces/organizer';
 import { useAuth } from '@/contexts/AuthContext';
+import { formatEventDate } from '@/utils/eventDateTime';
 
 const OrganizerEvents = () => {
   const { user } = useAuth();
@@ -46,18 +47,26 @@ const OrganizerEvents = () => {
         setEvents([]);
         return;
       }
-      const { data: sales } = await supabase
+      const { data: ptData } = await supabase
         .from('purchased_tickets')
-        .select('event_id, tickets(price)')
+        .select('event_id, status')
         .in('event_id', eventIds)
-        .in('status', ['active', 'used']);
+        .in('status', ['active', 'used', 'confirmed', 'ACTIVE']);
+
+      const { data: salesData } = await supabase
+        .from('sales')
+        .select('event_id, gross_amount, payment_status')
+        .in('event_id', eventIds)
+        .eq('payment_status', 'paid');
 
       const updatedEvents = eventsData.map(event => {
-        const eventSales = sales?.filter(s => s.event_id === event.id) || [];
+        const eventPt = ptData?.filter(s => s.event_id === event.id) || [];
+        const eventSales = salesData?.filter(s => s.event_id === event.id) || [];
         return {
           ...event,
-          real_sold_count: eventSales.length,
-          real_revenue: eventSales.reduce((acc, s: any) => acc + (s.tickets?.price || 0), 0)
+          real_sold_count: eventSales.length, // Sales count (Transactions = 2)
+          real_credentials_count: eventPt.length, // Credentials = 4
+          real_revenue: eventSales.reduce((acc, s: any) => acc + Number(s.gross_amount || 0), 0)
         };
       });
 
@@ -107,7 +116,7 @@ const OrganizerEvents = () => {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-BR');
+    return formatEventDate(dateString);
   };
 
   const calculateTicketsSold = (event: any) => {
@@ -223,7 +232,8 @@ const OrganizerEvents = () => {
                 <TableHead className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest text-gray-500">Evento</TableHead>
                 <TableHead className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest text-gray-500">Data</TableHead>
                 <TableHead className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest text-gray-500">Status</TableHead>
-                <TableHead className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest text-gray-500">Vendas</TableHead>
+                <TableHead className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest text-gray-500">Transações (Vendas)</TableHead>
+                <TableHead className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest text-gray-500">Credenciais Emitidas</TableHead>
                 <TableHead className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest text-gray-500">Receita</TableHead>
                 <TableHead className="px-4 py-3 text-right text-[10px] font-black uppercase tracking-widest text-gray-500">Ações</TableHead>
               </TableRow>
@@ -231,6 +241,7 @@ const OrganizerEvents = () => {
             <TableBody>
               {filteredEvents.map((event) => {
                 const ticketsSold = calculateTicketsSold(event);
+                const credentialsIssued = event.real_credentials_count || 0;
                 const totalCapacity = calculateTotalCapacity(event);
                 const revenue = calculateRevenue(event);
 
@@ -260,13 +271,12 @@ const OrganizerEvents = () => {
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">
-                        <div>{ticketsSold} / {totalCapacity}</div>
-                        <div className="w-20 bg-gray-200 rounded-full h-1.5 mt-1">
-                          <div
-                            className="bg-primary h-1.5 rounded-full"
-                            style={{ width: `${(ticketsSold / totalCapacity) * 100}%` }}
-                          ></div>
-                        </div>
+                        <div className="font-black text-slate-800">{ticketsSold} vendas</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm">
+                        <div className="font-black text-indigo-600">{credentialsIssued} válidas</div>
                       </div>
                     </TableCell>
                     <TableCell>

@@ -6,6 +6,7 @@ export interface Event {
   category: string;
   date: string;
   time: string;
+  timezone: string;
   duration?: string;
   ticket_design?: {
     template: string;

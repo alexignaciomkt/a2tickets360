@@ -23,10 +23,12 @@ const BUCKET_NAME = process.env.MINIO_BUCKET || 'a2tickets360';
 
 router.post('/presign', async (c: Context) => {
   try {
+    console.log('[PRESIGN 1] request recebido');
     const payload = c.get('jwtPayload');
     if (!payload || !payload.id) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
+    console.log('[PRESIGN 2] user validado', payload.id);
     const userId = payload.id;
 
     const body = await c.req.json();
@@ -114,12 +116,15 @@ router.post('/presign', async (c: Context) => {
       Key: objectKey,
       ContentType: contentType,
     });
+    console.log(`[PRESIGN 3] objectKey gerado: ${objectKey}`);
 
     // URL expires in 5 minutes (300 seconds)
     const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 300 });
+    console.log('[PRESIGN 4] signedUrl gerada');
 
     const endpoint = process.env.MINIO_ENDPOINT || 'https://s3.a2tickets360.com.br';
     const publicUrl = `${endpoint}/${BUCKET_NAME}/${objectKey}`;
+    console.log(`[PRESIGN 5] publicUrl retornada: ${publicUrl}`);
 
     return c.json({
       presignedUrl,

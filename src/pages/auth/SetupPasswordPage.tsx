@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import Logo from '@/components/ui/logo';
 import { Lock, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import AuthShell from '@/components/auth/AuthShell';
 
 export default function SetupPasswordPage() {
     const [password, setPassword] = useState('');
@@ -98,10 +99,10 @@ export default function SetupPasswordPage() {
 
     if (checkingSession) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-slate-950">
+            <div className="min-h-screen flex items-center justify-center bg-zinc-950">
                 <div className="text-center space-y-4">
-                    <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto" />
-                    <p className="text-slate-400 text-sm font-medium">Validando seu convite...</p>
+                    <Loader2 className="w-8 h-8 text-indigo-500 animate-spin mx-auto" />
+                    <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest">Validando seu convite...</p>
                 </div>
             </div>
         );
@@ -109,120 +110,100 @@ export default function SetupPasswordPage() {
 
     if (sessionError) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-slate-950 p-4 font-sans w-full overflow-hidden">
-                <div className="max-w-lg w-full text-center space-y-8 relative z-10">
-                    <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl space-y-6 flex flex-col items-center">
-                        <div className="w-full flex justify-center mb-6 mt-4">
-                            <div className="scale-[1.4] origin-center">
-                                <Logo variant="large" showText={true} />
-                            </div>
-                        </div>
-                        <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <Lock className="w-8 h-8 text-red-500" />
-                        </div>
-                        <div>
-                            <h2 className="text-xl font-black text-white uppercase tracking-tight mb-2">Este convite expirou ou já foi utilizado.</h2>
-                            <p className="text-sm text-slate-400 font-medium">Solicite ao responsável pelo evento um novo acesso.</p>
-                        </div>
-                        <Button 
-                            onClick={() => navigate('/login', { replace: true })}
-                            variant="outline"
-                            className="w-full border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white uppercase font-bold text-xs"
-                        >
-                            Voltar ao Login
-                        </Button>
+            <AuthShell
+                eyebrow="Acesso Expirado"
+                title="Convite Inválido"
+                subtitle="Este convite expirou ou já foi utilizado."
+                footer={
+                    <Button 
+                        onClick={() => navigate('/login', { replace: true })}
+                        variant="outline"
+                        className="w-full border-white/10 text-zinc-300 hover:bg-white/5 hover:text-white uppercase font-bold text-xs h-14 rounded-xl transition-all"
+                    >
+                        Voltar ao Login
+                    </Button>
+                }
+            >
+                <div className="text-center mb-6">
+                    <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/20">
+                        <Lock className="w-8 h-8 text-red-500" />
                     </div>
+                    <p className="text-sm text-zinc-400 font-medium">Solicite ao responsável pelo evento um novo acesso.</p>
                 </div>
-            </div>
+            </AuthShell>
         );
     }
 
     return (
-        <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8 font-sans w-full overflow-hidden">
-            <div className="w-full max-w-lg relative z-10 mt-8">
-                <div className="bg-slate-900 py-12 px-6 shadow-2xl rounded-3xl sm:px-10 border border-slate-800">
-                    
-                    <div className="w-full flex justify-center mb-10 mt-4">
-                        <div className="scale-[1.75] origin-center">
-                            <Logo variant="large" showText={true} />
+        <AuthShell
+            eyebrow="Primeiro Acesso"
+            title="Crie sua Senha"
+            subtitle="Defina sua senha de acesso à A2Tickets360."
+        >
+            <form className="space-y-5" onSubmit={handleSubmit}>
+                <div className="space-y-1.5">
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                        Nova Senha
+                    </label>
+                    <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                            <Lock className="h-5 w-5 text-zinc-500" />
                         </div>
+                        <Input
+                            type={showPassword ? "text" : "password"}
+                            required
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            className="w-full bg-zinc-800/50 border border-white/10 rounded-xl pl-12 pr-12 h-14 text-sm text-white placeholder:text-zinc-500 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all outline-none"
+                            placeholder="No mínimo 6 caracteres"
+                        />
+                        <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute inset-y-0 right-4 flex items-center"
+                        >
+                            {showPassword ? (
+                                <EyeOff className="h-5 w-5 text-zinc-500 hover:text-zinc-300 transition-colors" />
+                            ) : (
+                                <Eye className="h-5 w-5 text-zinc-500 hover:text-zinc-300 transition-colors" />
+                            )}
+                        </button>
                     </div>
-
-                    <div className="text-center mb-8">
-                        <h2 className="text-2xl font-black text-white uppercase tracking-tight">
-                            Crie sua Senha
-                        </h2>
-                        <p className="mt-2 text-sm text-slate-400 font-medium">
-                            Defina sua senha de acesso à A2Tickets360.
-                        </p>
-                    </div>
-
-                    <form className="space-y-6" onSubmit={handleSubmit}>
-                        <div>
-                            <label className="block text-xs font-bold text-slate-300 uppercase tracking-widest mb-2">
-                                Nova Senha
-                            </label>
-                            <div className="relative">
-                                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                    <Lock className="h-5 w-5 text-slate-500" />
-                                </div>
-                                <Input
-                                    type={showPassword ? "text" : "password"}
-                                    required
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    className="block w-full pl-12 pr-12 h-14 bg-slate-950 border-slate-800 text-white rounded-2xl focus:ring-primary focus:border-primary transition-all font-medium placeholder:text-slate-600"
-                                    placeholder="No mínimo 6 caracteres"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute inset-y-0 right-0 pr-4 flex items-center"
-                                >
-                                    {showPassword ? (
-                                        <EyeOff className="h-5 w-5 text-slate-500 hover:text-slate-300 transition-colors" />
-                                    ) : (
-                                        <Eye className="h-5 w-5 text-slate-500 hover:text-slate-300 transition-colors" />
-                                    )}
-                                </button>
-                            </div>
-                        </div>
-
-                        <div>
-                            <label className="block text-xs font-bold text-slate-300 uppercase tracking-widest mb-2">
-                                Confirmar Senha
-                            </label>
-                            <div className="relative">
-                                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                    <Lock className="h-5 w-5 text-slate-500" />
-                                </div>
-                                <Input
-                                    type={showPassword ? "text" : "password"}
-                                    required
-                                    value={confirmPassword}
-                                    onChange={(e) => setConfirmPassword(e.target.value)}
-                                    className="block w-full pl-12 pr-12 h-14 bg-slate-950 border-slate-800 text-white rounded-2xl focus:ring-primary focus:border-primary transition-all font-medium placeholder:text-slate-600"
-                                    placeholder="Repita sua nova senha"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="pt-2">
-                            <Button 
-                                type="submit" 
-                                className="w-full h-14 bg-primary hover:bg-primary/90 text-white font-black uppercase tracking-widest text-sm rounded-2xl shadow-lg shadow-primary/20 transition-all"
-                                disabled={loading}
-                            >
-                                {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : 'Criar Minha Senha'}
-                            </Button>
-                        </div>
-                        
-                        <p className="text-center text-xs text-slate-500 font-medium pt-2">
-                            Você usará este acesso sempre que precisar entrar na plataforma.
-                        </p>
-                    </form>
                 </div>
-            </div>
-        </div>
+
+                <div className="space-y-1.5">
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                        Confirmar Senha
+                    </label>
+                    <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                            <Lock className="h-5 w-5 text-zinc-500" />
+                        </div>
+                        <Input
+                            type={showPassword ? "text" : "password"}
+                            required
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            className="w-full bg-zinc-800/50 border border-white/10 rounded-xl pl-12 pr-12 h-14 text-sm text-white placeholder:text-zinc-500 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all outline-none"
+                            placeholder="Repita sua nova senha"
+                        />
+                    </div>
+                </div>
+
+                <div className="pt-2">
+                    <button 
+                        type="submit" 
+                        className="w-full h-14 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white rounded-xl font-black uppercase tracking-widest text-xs shadow-lg shadow-indigo-500/20 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:hover:scale-100 flex items-center justify-center" 
+                        disabled={loading}
+                    >
+                        {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Criar Minha Senha'}
+                    </button>
+                </div>
+                
+                <p className="text-center text-[9px] text-zinc-500 font-bold uppercase tracking-widest pt-2">
+                    Você usará este acesso sempre que precisar entrar.
+                </p>
+            </form>
+        </AuthShell>
     );
 }

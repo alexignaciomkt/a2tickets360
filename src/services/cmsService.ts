@@ -1,4 +1,4 @@
-import { supabase, supabaseAdmin } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface SiteSection {
@@ -69,7 +69,7 @@ class CMSService {
 
     async updateSection(key: string, updates: any): Promise<void> {
         try {
-            const { error } = await supabaseAdmin
+            const { error } = await supabase
                 .from('site_sections')
                 .upsert({
                     ...updates,

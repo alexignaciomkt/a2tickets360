@@ -2,7 +2,6 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { SUPABASE_CONFIG } from './supabase-config';
 
 let supabaseInstance: SupabaseClient | null = null;
-let supabaseAdminInstance: SupabaseClient | null = null;
 
 // Singleton para o Front-end com trava de storage desativada para evitar deadlocks
 export const supabase = (() => {
@@ -29,19 +28,3 @@ export const supabase = (() => {
   return supabaseInstance;
 })();
 
-// Singleton para Administrativo
-export const supabaseAdmin = (() => {
-  if (!supabaseAdminInstance) {
-    supabaseAdminInstance = createClient(
-      SUPABASE_CONFIG.url,
-      SUPABASE_CONFIG.serviceRole,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
-    );
-  }
-  return supabaseAdminInstance;
-})();

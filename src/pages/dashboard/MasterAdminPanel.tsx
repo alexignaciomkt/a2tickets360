@@ -132,10 +132,10 @@ const MasterAdminPanel = () => {
 
         {/* Dynamic Matrix Stats Matrix */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <QuickStat title="Total de Usuários" value={(stats?.totalUsers || 0).toLocaleString('pt-BR')} icon={Users} color="indigo" />
-          <QuickStat title="Produtores Ativos" value={stats?.activeOrganizers || 0} icon={ShieldCheck} color="emerald" />
-          <QuickStat title="Eventos Pendentes" value={stats?.pendingEvents || 0} icon={Activity} color="amber" />
-          <QuickStat title="Eventos no Mês" value={stats?.eventsThisMonth || 0} icon={Calendar} color="rose" />
+          <QuickStat title="Total de Usuários (Customers)" value={(stats?.customersCount || 0).toLocaleString('pt-BR')} icon={Users} color="indigo" />
+          <QuickStat title="Produtores Registrados" value={stats?.organizersCount || 0} icon={ShieldCheck} color="emerald" />
+          <QuickStat title="Total de Eventos" value={stats?.eventsCount || 0} icon={Activity} color="amber" />
+          <QuickStat title="Transações Pagas" value={stats?.transactionsCount || 0} icon={Calendar} color="rose" />
         </div>
 
         {/* Master Operational Units Hierarchy */}
@@ -146,9 +146,8 @@ const MasterAdminPanel = () => {
             icon={Users}
             color="indigo"
             stats={[
-              { label: "Total Registrado", value: stats?.totalOrganizers || 0 },
-              { label: "Aguardando Análise", value: stats?.pendingOrganizers || 0 },
-              { label: "Ativos na Plataforma", value: stats?.activeOrganizers || 0 },
+              { label: "Total Registrado", value: stats?.organizersCount || 0 },
+              { label: "Usuários (Customers)", value: stats?.customersCount || 0 },
             ]}
             buttonText="Gerenciar Produtores"
             onClick={() => navigate('/master/organizers')}
@@ -159,9 +158,8 @@ const MasterAdminPanel = () => {
             icon={DollarSign}
             color="emerald"
             stats={[
-              { label: "Volume Transacionado (GMV)", value: `R$ ${(stats?.totalRevenue || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` },
-              { label: "Lucro Retido", value: `R$ ${(stats?.totalCommissions || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` },
-              { label: "Saques na Fila", value: stats?.totalPayouts || 0 },
+              { label: "Volume Transacionado (GMV)", value: `R$ ${(stats?.gmv || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` },
+              { label: "Receita da Plataforma (Taxa A2)", value: `R$ ${(stats?.platformFeeAmount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` },
             ]}
             buttonText="Painel Financeiro"
             onClick={() => navigate('/master/financial')}
@@ -172,8 +170,8 @@ const MasterAdminPanel = () => {
             icon={CheckCircle}
             color="slate"
             stats={[
-              { label: "Na Fila de Moderação", value: stats?.pendingEvents || 0 },
-              { label: "Publicados Ativos", value: stats?.totalEvents || 0 },
+              { label: "Eventos Registrados", value: stats?.eventsCount || 0 },
+              { label: "Transações", value: stats?.transactionsCount || 0 },
             ]}
             buttonText="Aprovar Eventos"
             onClick={() => navigate('/master/approve')}

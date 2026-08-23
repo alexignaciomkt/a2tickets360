@@ -15,15 +15,19 @@ export const OrganizerEventHighlightBox = ({ eventId }: OrganizerEventHighlightB
     const { toast } = useToast();
     const [status, setStatus] = useState<FeaturedCreditStatus | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [isActionLoading, setIsActionLoading] = useState(false);
     const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
 
     const loadStatus = async () => {
         try {
+            setError(null);
+            setIsLoading(true);
             const data = await serviceCreditsService.getFeaturedCreditStatus(eventId);
             setStatus(data);
         } catch (error) {
             console.error('Error loading highlight status:', error);
+            setError('Não foi possível carregar o status do destaque');
         } finally {
             setIsLoading(false);
         }
@@ -33,14 +37,14 @@ export const OrganizerEventHighlightBox = ({ eventId }: OrganizerEventHighlightB
         loadStatus();
     }, [eventId]);
 
-    const handleReserve = async () => {
+    const handleActivate = async () => {
         try {
             setIsActionLoading(true);
-            await serviceCreditsService.reserveFeaturedCredit(eventId);
-            toast({ title: 'Sucesso', description: 'Crédito reservado com sucesso. Aguardando aprovação/ativação do destaque.' });
+            await serviceCreditsService.activateFeaturedCredit(eventId);
+            toast({ title: 'Sucesso', description: 'Destaque ativado com sucesso!' });
             await loadStatus();
         } catch (error: any) {
-            toast({ variant: 'destructive', title: 'Erro', description: error.response?.data?.error || error.message || 'Falha ao reservar crédito.' });
+            toast({ variant: 'destructive', title: 'Erro', description: error.response?.data?.error || error.message || 'Falha ao ativar destaque.' });
         } finally {
             setIsActionLoading(false);
         }
@@ -59,16 +63,27 @@ export const OrganizerEventHighlightBox = ({ eventId }: OrganizerEventHighlightB
         }
     };
 
-    if (isLoading || !status) {
+    if (isLoading) {
         return (
-            <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex items-center justify-center min-h-[150px]">
-                <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
+            <div className="flex justify-center items-center p-8 bg-white rounded-3xl border border-slate-100 shadow-sm">
+                <Loader2 className="w-8 h-8 animate-spin text-slate-300" />
+            </div>
+        );
+    }
+
+    if (error || !status) {
+        return (
+            <div className="bg-red-50 border border-red-200 p-6 rounded-3xl shadow-sm flex flex-col items-center justify-center text-center gap-3">
+                <p className="text-sm font-medium text-red-600">{error || 'Não foi possível carregar o status do destaque'}</p>
+                <Button variant="outline" size="sm" onClick={loadStatus} className="text-red-700 border-red-300 hover:bg-red-100 rounded-full uppercase text-xs font-bold">
+                    Tentar novamente
+                </Button>
             </div>
         );
     }
 
     // Estado 1: Destaque Ativo
-    if (status.activeHighlight) {
+    if (status?.activeHighlight) {
         const featuredUntilDate = new Date(status.activeHighlight.featuredUntil);
         return (
             <div className="bg-indigo-50/50 border border-indigo-100 p-6 rounded-3xl shadow-sm relative overflow-hidden group">
@@ -91,7 +106,7 @@ export const OrganizerEventHighlightBox = ({ eventId }: OrganizerEventHighlightB
     }
 
     // Estado 2: Crédito Reservado (Aguardando Ativação)
-    if (status.reservedCredit) {
+    if (status?.reservedCredit) {
         return (
             <div className="bg-amber-50/50 border border-amber-200/50 p-6 rounded-3xl shadow-sm relative overflow-hidden group">
                 <div className="flex flex-col md:flex-row items-center gap-6 relative z-10">
@@ -104,7 +119,15 @@ export const OrganizerEventHighlightBox = ({ eventId }: OrganizerEventHighlightB
                             1 Crédito de Destaque reservado para este evento.
                         </p>
                     </div>
-                    <div className="shrink-0">
+                    <div className="flex flex-col sm:flex-row gap-3 shrink-0">
+                        <Button 
+                            onClick={handleActivate} 
+                            disabled={isActionLoading}
+                            className="rounded-full font-bold uppercase text-xs bg-amber-500 hover:bg-amber-600 text-white shadow-md shadow-amber-500/20"
+                        >
+                            {isActionLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Star className="w-4 h-4 mr-2" />}
+                            Ativar Destaque
+                        </Button>
                         <Button 
                             onClick={handleRelease} 
                             disabled={isActionLoading}
@@ -136,12 +159,12 @@ export const OrganizerEventHighlightBox = ({ eventId }: OrganizerEventHighlightB
                     </div>
                     <div className="shrink-0">
                         <Button 
-                            onClick={handleReserve} 
+                            onClick={handleActivate} 
                             disabled={isActionLoading}
-                            className="rounded-full font-bold uppercase text-xs bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200"
+                            className="rounded-full px-6 font-bold uppercase tracking-wide text-xs bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-500/20"
                         >
-                            {isActionLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                            Usar 1 Crédito Neste Evento
+                            {isActionLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Star className="w-4 h-4 mr-2" />}
+                            USAR 1 CRÉDITO NESTE EVENTO
                         </Button>
                     </div>
                 </div>

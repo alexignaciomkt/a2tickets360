@@ -58,6 +58,58 @@ class StaffService {
   /**
    * Obtém a lista de staff
    */
+  async getFinancialSummary(eventId: string): Promise<any> {
+    try {
+      // Como determinado pela auditoria P0.3, a estrutura financeira 
+      // (cachê, valor, horas) ainda não existe em event_staff ou functions.
+      // Retornamos os counts REAIS de pessoas por evento, 
+      // mas custos como nulos para mostrar os empty states corretos.
+      let query = supabase
+        .from('event_staff')
+        .select(`
+          id,
+          staff_functions(name)
+        `);
+      
+      if (eventId !== 'all') {
+        query = query.eq('event_id', eventId);
+      }
+      
+      const { data, error } = await query;
+      if (error) throw error;
+      
+      const staffList = data || [];
+      const totalStaff = staffList.length;
+      
+      // Agrupar por função
+      const rolesMap: Record<string, number> = {};
+      staffList.forEach((st: any) => {
+        const functionName = st.staff_functions?.name || 'Sem Função';
+        rolesMap[functionName] = (rolesMap[functionName] || 0) + 1;
+      });
+      
+      const roleBreakdown = Object.entries(rolesMap).map(([name, count], index) => {
+        const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#64748b'];
+        return {
+          roleName: name,
+          count: count,
+          cost: null, // Ainda não informado no schema
+          color: colors[index % colors.length]
+        };
+      });
+
+      return {
+        totalCost: null, // Indica "ainda não informado"
+        totalStaff,
+        hourlyStaff: null,
+        fixedStaff: null,
+        roleBreakdown
+      };
+    } catch (e) {
+      console.error('[STAFF_SERVICE] Erro ao buscar financial summary:', e);
+      throw e;
+    }
+  }
   async getEventStaff(eventId: string): Promise<StaffMember[]> {
     try {
       const { api } = await import('@/services/api');

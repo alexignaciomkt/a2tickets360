@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { 
   TrendingUp, TrendingDown, DollarSign, Users, 
-  Ticket, Clock, ShieldCheck, Target, BarChart3, ChevronRight, Zap, Cpu, Database, Wallet, Loader2, CheckCircle
+  Ticket, Clock, ShieldCheck, Target, BarChart3, ChevronRight, Zap, Cpu, Database, Wallet, Loader2, CheckCircle, AlertTriangle
 } from 'lucide-react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { financialService } from '@/services/financialService';
@@ -12,21 +12,21 @@ import { Badge } from '@/components/ui/badge';
 const MasterFinancialBI = () => {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
   const [payouts, setPayouts] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchBI = async () => {
       try {
         setLoading(true);
-        const [summary, payoutReqs] = await Promise.all([
-          financialService.getFinancialSummary(),
-          financialService.getPayoutRequests()
-        ]);
+        setError(null);
+        const { api } = await import('@/services/api');
+        const summary = await api.get('/api/master/financial/summary');
         setStats(summary);
-        const pending = (payoutReqs || []).filter(p => p.status === 'pending' || p.status === 'processing').slice(0, 5);
-        setPayouts(pending);
-      } catch (error) {
-        console.error('Erro no BI Master Financeiro:', error);
+        setPayouts([]); // TODO: master payouts
+      } catch (err: any) {
+        console.error('Erro no BI Master Financeiro:', err);
+        setError(err.message || 'Falha ao sincronizar dados');
       } finally {
         setLoading(false);
       }
@@ -90,47 +90,52 @@ const MasterFinancialBI = () => {
            </div>
            <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-xl border border-slate-100 shadow-sm">
               <div className="flex items-center gap-2">
-                 <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                 <span className="text-[9px] font-black uppercase tracking-wider text-slate-700">Sincronização Ativa</span>
+                 <div className={`w-1.5 h-1.5 rounded-full ${error ? 'bg-red-500' : 'bg-emerald-500 animate-pulse'}`} />
+                 <span className="text-[9px] font-black uppercase tracking-wider text-slate-700">
+                   {error ? 'Erro de Sincronização' : 'Sincronização Ativa'}
+                 </span>
               </div>
               <div className="w-px h-3 bg-slate-200" />
-              <Zap className="w-3 h-3 text-amber-500" />
+              <Zap className={`w-3 h-3 ${error ? 'text-red-500' : 'text-amber-500'}`} />
            </div>
         </div>
+
+        {error && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-600 font-medium text-sm flex items-center gap-2">
+            <AlertTriangle className="w-5 h-5" />
+            Não foi possível carregar os dados financeiros: {error}
+          </div>
+        )}
 
         {/* Big Numbers Grid Matrix */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
            <BigStat 
              title="Volume Bruto (GMV)" 
-             value={stats ? `R$ ${stats.totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'R$ 0,00'}
-             subValue="Nó de Autoridade Transacional"
+             value={error ? 'ERRO' : stats ? `R$ ${(stats.gmv || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'R$ 0,00'}
+             subValue="Volume Transacionado"
              icon={Database}
              color="indigo"
-             trend={12.5}
            />
            <BigStat 
-             title="Lucro Líquido da Plataforma" 
-             value={stats ? `R$ ${stats.platformRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'R$ 0,00'}
-             subValue="Receita de Taxas do Ecossistema"
+             title="Receita da Plataforma (Taxa A2)" 
+             value={error ? 'ERRO' : stats ? `R$ ${(stats.platformFeeAmount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'R$ 0,00'}
+             subValue="Receita Retida pela Plataforma"
              icon={Wallet}
              color="emerald"
-             trend={8.2}
            />
            <BigStat 
-             title="Ingressos Autorizados" 
-             value={stats ? (stats.transactionsCount || 0).toLocaleString('pt-BR') : '0'}
-             subValue="Carga Total de Distribuição"
+             title="Transações Pagas" 
+             value={error ? 'ERRO' : stats ? (stats.transactionsCount || 0).toLocaleString('pt-BR') : '0'}
+             subValue="Total de Pedidos Aprovados"
              icon={Ticket}
              color="amber"
-             trend={15.4}
            />
            <BigStat 
              title="Ticket Médio Transacional" 
-             value={stats && stats.transactionsCount > 0 ? `R$ ${(stats.totalRevenue / stats.transactionsCount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'R$ 0,00'}
-             subValue="Média de Performance do Cluster"
+             value={error ? 'ERRO' : stats && stats.transactionsCount > 0 ? `R$ ${(stats.gmv / stats.transactionsCount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'R$ 0,00'}
+             subValue="Média por Transação"
              icon={Cpu}
              color="slate"
-             trend={-2.1}
            />
         </div>
 
@@ -140,58 +145,21 @@ const MasterFinancialBI = () => {
               <Card className="rounded-2xl border border-gray-100 shadow-sm overflow-hidden bg-white group flex-1">
                  <CardHeader className="pb-4 border-b border-gray-50 bg-slate-50/50 px-6 py-4">
                     <CardTitle className="text-[10px] font-black uppercase tracking-wide text-slate-900 flex items-center gap-2">
-                       <BarChart3 className="w-4 h-4 text-indigo-600" /> Hub de Distribuição Financeira
+                       <BarChart3 className="w-4 h-4 text-indigo-600" /> Detalhamento de Pagamentos
                     </CardTitle>
                  </CardHeader>
                  <CardContent className="p-6">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-                       <MiniStat title="Fluxo de Gateway PIX" value={stats ? `R$ ${(stats.totalRevenue * 0.7).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'R$ 0,00'} icon={Zap} />
-                       <MiniStat title="Fluxo de Nó de Crédito" value={stats ? `R$ ${(stats.totalRevenue * 0.3).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'R$ 0,00'} icon={DollarSign} />
-                       <MiniStat title="Carga de Ativos Pendentes" value={stats ? `R$ ${(stats.pendingAmount || 0).toLocaleString('pt-BR')}` : 'R$ 0,00'} icon={Clock} />
-                       <MiniStat title="Flags de Integridade de Auditoria" value="00_SEGURO" icon={ShieldCheck} />
-                    </div>
-                    
-                    <div className="pt-8 border-t border-gray-50">
-                       <div className="flex justify-between items-end mb-4">
-                          <div className="space-y-1">
-                             <p className="text-xs font-black text-slate-900 uppercase tracking-tight leading-none">Hierarquia de Integridade do Gateway</p>
-                             <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide leading-none">Taxa global de sucesso em todos os nós do ecossistema.</p>
-                          </div>
-                          <p className="text-2xl font-black text-slate-900 tracking-tight tabular-nums leading-none">98.5%</p>
-                       </div>
-                       <div className="w-full bg-slate-50 h-3 rounded-full overflow-hidden border border-gray-100 relative">
-                          <div className="bg-slate-900 h-full w-[98.5%] rounded-full relative">
-                             <div className="absolute right-0 top-0 bottom-0 w-1 bg-white/20 animate-pulse" />
-                          </div>
-                       </div>
+                       <MiniStat title="Transações via PIX" value={stats?.paymentMethodBreakdown?.find((p: any) => p.method === 'PIX')?.count || 0} icon={Zap} />
+                       <MiniStat title="Transações via Cartão" value={stats?.paymentMethodBreakdown?.find((p: any) => p.method === 'CREDIT_CARD')?.count || 0} icon={DollarSign} />
+                       <MiniStat title="Outros" value={stats?.paymentMethodBreakdown?.find((p: any) => p.method !== 'PIX' && p.method !== 'CREDIT_CARD')?.count || 0} icon={Clock} />
+                       <MiniStat title="Flags de Integridade" value="00_SEGURO" icon={ShieldCheck} />
                     </div>
                  </CardContent>
               </Card>
            </div>
-
-           {/* Settlement Loop Cluster */}
+           {/* Settlement Loop Cluster removido pois era mock */}
            <div className="flex flex-col gap-6">
-              <div className="bg-slate-900 rounded-2xl p-6 text-white relative overflow-hidden group shadow-md border border-slate-800 flex-none">
-                 <div className="absolute -top-8 -right-8 opacity-10 transform group-hover:scale-110 transition-transform duration-700">
-                    <Target className="w-32 h-32" />
-                 </div>
-                 <div className="relative z-10 space-y-6">
-                    <div className="space-y-2">
-                       <p className="text-[9px] font-black uppercase tracking-wide text-slate-400 leading-none">Objetivo de Lucro Mensal</p>
-                       <h3 className="text-3xl font-black tracking-tight leading-none tabular-nums">R$ 500.000</h3>
-                    </div>
-                    <div className="space-y-3">
-                       <div className="flex justify-between text-[9px] font-black uppercase tracking-wide text-slate-400 leading-none">
-                          <span>Progresso do Pipeline</span>
-                          <span className="text-white tabular-nums">{(stats ? (stats.platformRevenue / 500000) * 100 : 0).toFixed(1)}%</span>
-                       </div>
-                       <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden">
-                          <div className="bg-white h-full rounded-full transition-all duration-1000" style={{ width: `${Math.min(100, stats ? (stats.platformRevenue / 500000) * 100 : 0)}%` }} />
-                       </div>
-                    </div>
-                 </div>
-              </div>
-
               <Card className="rounded-2xl border border-gray-100 shadow-sm bg-white overflow-hidden group flex-1 flex flex-col">
                  <CardHeader className="py-4 px-6 border-b border-gray-50 bg-slate-50/50">
                     <CardTitle className="text-[10px] font-black uppercase tracking-wide text-slate-900">Registro: Fila de Liquidação (Saques)</CardTitle>

@@ -130,6 +130,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setPersonalModules(data.personalModules || { tickets: true, promoter: false, staff: false });
         setStaffPendingInvites(data.staffPendingInvites || 0);
         setContexts(data.contexts || []);
+      } else {
+        console.warn('⚠️ [AuthProvider] API retornou false para success ao buscar contextos, aplicando fallback.', data);
+        setPersonalModules({ tickets: true, promoter: false, staff: false });
       }
     } catch (error) {
       console.error('Erro ao atualizar capacidades:', error);
@@ -149,17 +152,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           } catch { /* ignore parse errors */ }
         }
 
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error || !session?.user) {
+          // SE O TOKEN FALHAR OU NÃO TIVER SESSÃO, LIMPAR CACHE TOTAL
+          localStorage.removeItem('A2Tickets_user');
+          localStorage.removeItem('A2Tickets_token');
+          localStorage.removeItem('A2Tickets_context');
+          setUser(null);
+          setPersonalModules(undefined);
+          setContexts(undefined);
+        } else {
           const profile = await fetchUserProfile(session.user.id, session.user.email!);
           if (profile) {
             setUser(profile);
             localStorage.setItem('A2Tickets_user', JSON.stringify(profile));
           }
           await refreshCapabilities();
-        } else if (!savedUser) {
-          // No session and no saved user
-          setUser(null);
         }
       } catch (error) {
         console.error('Erro na sessão:', error);

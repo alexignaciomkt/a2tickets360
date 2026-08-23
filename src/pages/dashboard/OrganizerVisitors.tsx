@@ -89,7 +89,7 @@ const OrganizerVisitors = ({ overrideEventId, hideHeader }: OrganizerVisitorsPro
       // 2. Raw purchased_tickets (no FK join to avoid policy issues)
       const { data: raw, error } = await supabase
         .from('purchased_tickets')
-        .select('id, user_id, event_id, ticket_id, qr_code_data, status, photo_url, created_at, validated_at, is_courtesy')
+        .select('id, user_id, event_id, ticket_id, qr_code_data, status, photo_url, created_at, validated_at, is_courtesy, participant_id')
         .in('event_id', eventIds)
         .order('created_at', { ascending: false });
 
@@ -99,8 +99,9 @@ const OrganizerVisitors = ({ overrideEventId, hideHeader }: OrganizerVisitorsPro
       // 3. Batch fetch related data
       const userIds   = [...new Set(raw.map((r: any) => r.user_id).filter(Boolean))];
       const ticketIds = [...new Set(raw.map((r: any) => r.ticket_id).filter(Boolean))];
+      const participantIds = [...new Set(raw.map((r: any) => r.participant_id).filter(Boolean))];
 
-      const [{ data: profiles }, { data: eventsData }, { data: ticketsData }] = await Promise.all([
+      const [{ data: profiles }, { data: eventsData }, { data: ticketsData }, { data: participants }] = await Promise.all([
         supabase
           .from('profiles')
           .select('user_id, name, email, cpf, phone, city, state, address, birth_date, photo_url')
@@ -109,16 +110,46 @@ const OrganizerVisitors = ({ overrideEventId, hideHeader }: OrganizerVisitorsPro
         ticketIds.length > 0
           ? supabase.from('tickets').select('id, name').in('id', ticketIds)
           : Promise.resolve({ data: [] }),
+        participantIds.length > 0
+          ? supabase.from('event_participants').select('*').in('id', participantIds)
+          : Promise.resolve({ data: [] }),
       ]);
 
       const profileMap = Object.fromEntries((profiles || []).map((p: any) => [p.user_id, p]));
       const eventMap   = Object.fromEntries((eventsData || []).map((e: any) => [e.id, e]));
       const ticketMap  = Object.fromEntries((ticketsData || []).map((t: any) => [t.id, t]));
+      const participantMap = Object.fromEntries((participants || []).map((p: any) => [p.id, p]));
 
       const mapped: Visitor[] = raw.map((pt: any) => {
         const p = profileMap[pt.user_id] || {};
         const e = eventMap[pt.event_id] || {};
         const t = ticketMap[pt.ticket_id] || {};
+        const ep = pt.participant_id ? participantMap[pt.participant_id] : null;
+
+        let finalName = '—';
+        let finalEmail = '—';
+        let finalCpf = '—';
+        let finalPhone = '—';
+
+        if (ep) {
+          finalName = ep.full_name || '—';
+          finalEmail = ep.email || '—';
+          finalCpf = ep.cpf || '—';
+          finalPhone = ep.phone || '—';
+        } else {
+          // Sem participante estruturado. Pode ser legado, cortesia ou ingresso comum (onde o profile assume a posse).
+          if (pt.status === 'cancelled') {
+            finalName = p.name ? `${p.name} (Legado/Comprador)` : 'Registro Legado/Cancelado';
+          } else if (pt.is_courtesy) {
+            finalName = p.name ? `${p.name} (Titular Cortesia)` : 'Cortesia';
+          } else {
+            finalName = p.name ? `${p.name} (Titular Ingresso)` : '—';
+          }
+          finalEmail = p.email || '—';
+          finalCpf = p.cpf || '—';
+          finalPhone = p.phone || '—';
+        }
+
         return {
           ticket_purchase_id: pt.id,
           qr_code_data:  pt.qr_code_data || '',
@@ -128,17 +159,18 @@ const OrganizerVisitors = ({ overrideEventId, hideHeader }: OrganizerVisitorsPro
           event_id:      pt.event_id,
           purchase_date: pt.created_at,
           validated_at:  pt.validated_at,
-          ticket_photo:  pt.photo_url || '',   // selfie capturada no checkout
+          ticket_photo:  ep?.photo_url || pt.photo_url || '',
           user_id:       pt.user_id,
-          name:          p.name || '—',
-          email:         p.email || '—',
-          cpf:           p.cpf || '—',
-          phone:         p.phone || '—',
+          name:          finalName,
+          email:         finalEmail,
+          cpf:           finalCpf,
+          phone:         finalPhone,
           city:          p.city || '—',
           state:         p.state || '—',
           address:       p.address || '—',
           birth_date:    p.birth_date || '—',
           profile_photo: p.photo_url || '',
+
           is_courtesy:   pt.is_courtesy || false,
         };
       });
@@ -152,9 +184,10 @@ const OrganizerVisitors = ({ overrideEventId, hideHeader }: OrganizerVisitorsPro
   };
 
   // --- Stats ---
-  const totalCount = visitors.length;
-  const checkedIn  = visitors.filter(v => v.ticket_status === 'used').length;
-  const pending    = visitors.filter(v => v.ticket_status === 'active').length;
+  const validVisitors = visitors.filter(v => v.ticket_status !== 'cancelled');
+  const totalCount = validVisitors.length;
+  const checkedIn  = validVisitors.filter(v => v.ticket_status === 'used').length;
+  const pending    = totalCount - checkedIn;
 
   // --- Filter ---
   const filtered = useMemo(() => {
@@ -218,7 +251,7 @@ const OrganizerVisitors = ({ overrideEventId, hideHeader }: OrganizerVisitorsPro
       v.event_title,
       v.ticket_name,
       v.qr_code_data,
-      v.ticket_status === 'used' ? 'Check-in Feito' : v.ticket_status === 'active' ? 'Aguardando' : 'Cancelado',
+      v.ticket_status === 'used' ? 'Check-in Feito' : v.ticket_status === 'active' ? 'Aguardando entrada' : v.ticket_status === 'pending' ? 'Pagamento Pendente' : 'Cancelado',
       fmt(v.purchase_date),
       fmt(v.validated_at),
       v.ticket_photo || v.profile_photo,
@@ -322,7 +355,7 @@ const OrganizerVisitors = ({ overrideEventId, hideHeader }: OrganizerVisitorsPro
               onChange={(e) => setStatusFilter(e.target.value as any)}
             >
               <option value="all">Todos os Status</option>
-              <option value="active">Aguardando</option>
+              <option value="active">Aguardando entrada</option>
               <option value="used">Check-in Feito</option>
             </select>
             <select
@@ -330,8 +363,8 @@ const OrganizerVisitors = ({ overrideEventId, hideHeader }: OrganizerVisitorsPro
               value={courtesyFilter}
               onChange={(e) => setCourtesyFilter(e.target.value as any)}
             >
-              <option value="all">Venda + Cortesia</option>
-              <option value="sale">Apenas Vendas</option>
+              <option value="all">Credencial + Cortesia</option>
+              <option value="sale">Apenas Credenciais</option>
               <option value="courtesy">Apenas Cortesias</option>
             </select>
           </div>
@@ -446,7 +479,11 @@ const OrganizerVisitors = ({ overrideEventId, hideHeader }: OrganizerVisitorsPro
                           </span>
                         ) : v.ticket_status === 'active' ? (
                           <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full">
-                            <Clock className="w-3 h-3" />Aguardando
+                            <Clock className="w-3 h-3" />Aguardando entrada
+                          </span>
+                        ) : v.ticket_status === 'pending' ? (
+                          <span className="inline-flex items-center gap-1 bg-gray-50 text-gray-500 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full">
+                            <Clock className="w-3 h-3" />Pgto Pendente
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 bg-red-50 text-red-700 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full">

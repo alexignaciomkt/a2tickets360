@@ -14,7 +14,7 @@ const {
     aiChatLogs, syncQueue, legalPages, productCategories, products, productVariants, productOrders,
     organizerPosts, sportRegistrations, sportRegistrationPlayers, purchasedTickets
 } = schema;
-import { eq, or, and, isNull, sql, inArray, lte, gte, gt } from 'drizzle-orm';
+import { eq, or, and, isNull, isNotNull, sql, inArray, lte, gte, gt } from 'drizzle-orm';
 import Redis from 'ioredis';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { join } from 'node:path';
@@ -37,11 +37,12 @@ import portariaRoutes from './routes/portaria';
 import uploadsRoutes from './routes/uploads';
 import albumsRoutes from './routes/albums';
 import publicAlbumsRoutes from './routes/publicAlbums';
+import masterRoutes from './routes/master';
 
 import { logger } from 'hono/logger';
 import { authMiddleware, clerkAuthMiddleware } from './middlewares/auth';
-import { calculateFinancialDistribution } from './domain/financialEngine';
-import { reserveFeaturedCredit, releaseFeaturedCredit } from './services/credits';
+import { calculateFinancialDistribution, deriveBillableUnits } from './domain/financialEngine';
+import { reserveFeaturedCredit, releaseFeaturedCredit, activateFeaturedCredit } from './services/credits';
 
 const app = new Hono();
 app.use('*', logger());
@@ -102,6 +103,7 @@ app.route('/api/portaria', portariaRoutes);
 app.route('/api/uploads', uploadsRoutes);
 app.route('/api/organizer/albums', albumsRoutes);
 app.route('/api/public/producers', publicAlbumsRoutes);
+app.route('/api/master', masterRoutes);
 
 app.get('/', (c: Context) => c.text('A2 Tickets 360º API - High Performance Ready'));
 
@@ -499,7 +501,7 @@ app.get('/api/events/:id/featured-credit-status', authMiddleware, async (c: Cont
         const activeCycles = await db.query.eventFeaturedCycles.findMany({
             where: and(
                 eq(schema.eventFeaturedCycles.eventId, eventId),
-                gt(schema.eventFeaturedCycles.featuredUntil, new Date().toISOString())
+                gt(schema.eventFeaturedCycles.featuredUntil, new Date())
             ),
             limit: 1
         });
@@ -537,7 +539,7 @@ app.post('/api/payments/checkout', async (c: Context) => {
                 .from(schema.sales)
                 .where(
                     and(
-                        eq(schema.sales.buyerCpf, normalizeCpf(buyerCpf)),
+                        eq(sql`${schema.sales.buyerInfo}->>'cpf'`, normalizeCpf(buyerCpf)),
                         eq(schema.sales.paymentStatus, 'pending'),
                         isNotNull(schema.sales.asaasPaymentId),
                         gt(schema.sales.createdAt, fiveMinsAgo)
@@ -587,7 +589,7 @@ app.post('/api/payments/checkout', async (c: Context) => {
                     and(
                         eq(purchasedTickets.eventId, ticket.eventId),
                         // Assuming buyerId is present, we can check by userId for logged in users:
-                        eq(purchasedTickets.userId, buyerId || ''),
+                        eq(purchasedTickets.userId, buyerId || '00000000-0000-0000-0000-000000000000'),
                         or(
                             eq(purchasedTickets.status, 'paid'),
                             eq(purchasedTickets.status, 'active'),
@@ -678,12 +680,34 @@ app.post('/api/payments/checkout', async (c: Context) => {
         });
         if (!organizer) throw new Error('Organizador nao encontrado.');
 
-        let revenueType = 'TICKET';
+        let revenueType: 'TICKET' | 'REGISTRATION' | 'REPECHAGE' = 'TICKET';
         if (isSportTicket) {
             revenueType = ticket.ticketPurpose === 'REPECHAGE' ? 'REPECHAGE' : 'REGISTRATION';
         }
 
-        const billableUnits = calculateFinancialDistribution(revenueType, quantity, ticket.capacityPerUnit || 1);
+        // Validações PRE-TRANSACTION para Esportes
+        if (revenueType === 'REGISTRATION') {
+            if (!sportData || !sportData.players || !Array.isArray(sportData.players)) {
+                throw new Error('Dados esportivos (jogadores) ausentes ou inválidos.');
+            }
+            const expectedPlayers = ticket.participantsPerRegistration || 1;
+            if (sportData.players.length !== expectedPlayers) {
+                throw new Error(`Quantidade de jogadores inválida. Esperado: ${expectedPlayers}, Recebido: ${sportData.players.length}.`);
+            }
+            
+            const cpfSet = new Set();
+            for (let i = 0; i < sportData.players.length; i++) {
+                const p = sportData.players[i];
+                if (!p.name || !p.name.trim()) throw new Error(`O nome do Jogador ${i+1} é obrigatório.`);
+                const c = p.cpf ? normalizeCpf(p.cpf) : '';
+                if (c) {
+                    if (cpfSet.has(c)) throw new Error('O mesmo CPF foi informado mais de uma vez na inscrição.');
+                    cpfSet.add(c);
+                }
+            }
+        }
+
+        const billableUnits = deriveBillableUnits(revenueType, quantity, ticket.capacityPerUnit || 1);
 
         const organizerSettings = organizer.settings as any || {};
         const eventSettings = ticket.event.settings as any;
@@ -704,84 +728,169 @@ app.post('/api/payments/checkout', async (c: Context) => {
         const totalValue = dist.buyerTotalCents / 100;
         const producerNetValue = dist.producerAmountCents / 100;
 
-        // 1. Criar Sale ANTES de chamar o Asaas
-        const saleResult = await db.insert(schema.sales).values({
-            eventId: ticket.eventId,
-            buyerInfo: { name: buyerName, email: buyerEmail, cpf: normalizeCpf(buyerCpf) },
-            
-            unitPrice: (Math.round(Number(ticket.price) * 100) / 100).toString(),
-            quantity: quantity,
-            billableUnits: dist.billableUnits,
-            grossAmount: (dist.grossAmountCents / 100).toString(),
-            discountAmount: (dist.discountAmountCents / 100).toString(),
-            commercialAmount: (dist.commercialAmountCents / 100).toString(),
-            platformFeeAmount: (dist.platformFeeCents / 100).toString(),
-            producerAmount: (dist.producerAmountCents / 100).toString(),
-            feePassedToBuyer: passFeeToBuyer,
-            buyerTotal: (dist.buyerTotalCents / 100).toString(),
-
-            totalAmount: totalValue.toString(),
-            revenueType,
-            paymentStatus: 'pending',
-            paymentMethod: paymentMethod
-        }).returning({ id: schema.sales.id });
-        const saleId = saleResult[0].id;
-
-        // 2. Criar purchased_ticket pendente
-        let numberOfTicketsToCreate = 1;
-        if (revenueType === 'TICKET') {
-            numberOfTicketsToCreate = quantity * (ticket.capacityPerUnit || 1);
-        } else {
-            numberOfTicketsToCreate = 1;
-        }
-
-        const ptInserts = [];
-        for (let i = 0; i < numberOfTicketsToCreate; i++) {
-            const qrCode = `TKT_${crypto.randomBytes(16).toString('hex')}`;
-            ptInserts.push({
+        // Transaction Interna (Fase 4.2)
+        const txResult = await db.transaction(async (tx) => {
+            // 1. Criar Sale ANTES de chamar o Asaas
+            const saleResult = await tx.insert(schema.sales).values({
                 eventId: ticket.eventId,
-                userId: buyerId || ticket.event.organizerId,
-                ticketId: ticket.id,
-                parentPurchaseId: saleId,
-                status: 'pending',
-                qrCodeData: qrCode
-            });
-        }
-        
-        const ptResult = await db.insert(purchasedTickets).values(ptInserts).returning({ id: purchasedTickets.id });
-        const purchasedTicketId = ptResult[0].id;
+                buyerInfo: { name: buyerName, email: buyerEmail, cpf: normalizeCpf(buyerCpf) },
+                
+                unitPrice: (Math.round(Number(ticket.price) * 100) / 100).toString(),
+                quantity: quantity,
+                billableUnits: dist.billableUnits,
+                grossAmount: (dist.grossAmountCents / 100).toString(),
+                discountAmount: (dist.discountAmountCents / 100).toString(),
+                commercialAmount: (dist.commercialAmountCents / 100).toString(),
+                platformFeeAmount: (dist.platformFeeCents / 100).toString(),
+                producerAmount: (dist.producerAmountCents / 100).toString(),
+                feePassedToBuyer: passFeeToBuyer,
+                buyerTotal: (dist.buyerTotalCents / 100).toString(),
+    
+                totalAmount: totalValue.toString(),
+                revenueType,
+                paymentStatus: 'pending',
+                paymentMethod: paymentMethod
+            }).returning({ id: schema.sales.id });
+            const saleId = saleResult[0].id;
 
-        // 3. Criar sport_registration pendente (se for ticket esportivo)
-        let sportRegId: string | null = null;
-        if (isSportTicket) {
-            const srValues: any = {
-                eventId: ticket.eventId,
-                ticketId: ticket.id,
-                saleId: saleId,
-                purchasedTicketId: purchasedTicketId,
-                teamName: sportData?.teamName || null,
-                registrationType: ticket.registrationType || 'INDIVIDUAL',
-                participantsPerRegistration: ticket.participantsPerRegistration || 1,
-                ticketPurpose: ticket.ticketPurpose || 'REGISTRATION',
-                originalRegistrationId: originalRegistrationId,
-                status: 'pending',
-            };
+            let purchasedTicketId: string | null = null;
+            let sportRegId: string | null = null;
 
-            const srResult = await db.insert(sportRegistrations).values(srValues).returning({ id: sportRegistrations.id });
-            sportRegId = srResult[0].id;
+            if (revenueType === 'REGISTRATION') {
+                // Fluxo Esportivo (Fase 4.2)
+                const srValues: any = {
+                    eventId: ticket.eventId,
+                    ticketId: ticket.id,
+                    saleId: saleId,
+                    purchasedTicketId: null, // Múltiplas credenciais individuais
+                    teamName: sportData?.teamName || null,
+                    registrationType: ticket.registrationType || 'INDIVIDUAL',
+                    participantsPerRegistration: ticket.participantsPerRegistration || 1,
+                    ticketPurpose: ticket.ticketPurpose || 'REGISTRATION',
+                    originalRegistrationId: originalRegistrationId,
+                    status: 'pending',
+                };
+    
+                const srResult = await tx.insert(sportRegistrations).values(srValues).returning({ id: sportRegistrations.id });
+                sportRegId = srResult[0].id;
 
-            // Inserir jogadores somente para REGISTRATION
-            if (ticket.ticketPurpose === 'REGISTRATION' && sportData?.players?.length) {
-                const playerInserts = (sportData.players as any[]).map((p: any, idx: number) => ({
-                    registrationId: sportRegId!,
-                    playerOrder: idx + 1,
-                    name: p.name?.trim() || '',
-                    cpf: normalizeCpf(p.cpf),
-                    phone: p.phone?.replace(/\D/g, '') || null,
-                }));
-                await db.insert(sportRegistrationPlayers).values(playerInserts);
+                const playerInserts: any[] = [];
+
+                for (let idx = 0; idx < sportData.players.length; idx++) {
+                    const p = sportData.players[idx];
+                    const normCpf = p.cpf ? normalizeCpf(p.cpf) : null;
+                    const phone = p.phone?.replace(/\D/g, '') || null;
+                    
+                    let eventParticipantId: string | null = null;
+                    
+                    // Upsert EventParticipant
+                    if (normCpf) {
+                        const existingParts = await tx.select().from(schema.eventParticipants).where(
+                            and(
+                                eq(schema.eventParticipants.eventId, ticket.eventId),
+                                eq(schema.eventParticipants.cpf, normCpf)
+                            )
+                        ).limit(1);
+                        
+                        if (existingParts.length > 0) {
+                            eventParticipantId = existingParts[0].id;
+                            const newName = p.name?.trim();
+                            const hasNewName = newName && newName !== existingParts[0].fullName;
+                            const hasNewPhone = phone && phone !== existingParts[0].phone;
+                            
+                            if (hasNewName || hasNewPhone) {
+                                await tx.update(schema.eventParticipants)
+                                    .set({
+                                        fullName: hasNewName ? newName : existingParts[0].fullName,
+                                        phone: hasNewPhone ? phone : existingParts[0].phone
+                                    })
+                                    .where(eq(schema.eventParticipants.id, eventParticipantId));
+                            }
+                        }
+                    }
+                    
+                    if (!eventParticipantId) {
+                        const newPart = await tx.insert(schema.eventParticipants).values({
+                            eventId: ticket.eventId,
+                            fullName: p.name?.trim(),
+                            cpf: normCpf,
+                            phone: phone,
+                        }).returning({ id: schema.eventParticipants.id });
+                        eventParticipantId = newPart[0].id;
+                    }
+
+                    // Criar PurchasedTicket individual
+                    const qrCode = `TKT_${crypto.randomBytes(16).toString('hex')}`;
+                    const ptResult = await tx.insert(purchasedTickets).values({
+                        eventId: ticket.eventId,
+                        userId: buyerId || ticket.event.organizerId,
+                        ticketId: ticket.id,
+                        parentPurchaseId: saleId,
+                        status: 'pending',
+                        qrCodeData: qrCode,
+                        participantId: eventParticipantId
+                    }).returning({ id: purchasedTickets.id });
+                    
+                    if (idx === 0) purchasedTicketId = ptResult[0].id; // Retorno pro frontend (legacy)
+                    
+                    playerInserts.push({
+                        registrationId: sportRegId,
+                        eventId: ticket.eventId,
+                        eventParticipantId: eventParticipantId,
+                        playerOrder: idx + 1,
+                        name: p.name?.trim(),
+                        cpf: normCpf,
+                        phone: phone,
+                    });
+                }
+                
+                await tx.insert(sportRegistrationPlayers).values(playerInserts);
+
+            } else {
+                // Fluxo NORMAL ou REPECHAGE
+                let numberOfTicketsToCreate = 1;
+                if (revenueType === 'TICKET') {
+                    numberOfTicketsToCreate = quantity * (ticket.capacityPerUnit || 1);
+                }
+                
+                const ptInserts = [];
+                for (let i = 0; i < numberOfTicketsToCreate; i++) {
+                    const qrCode = `TKT_${crypto.randomBytes(16).toString('hex')}`;
+                    ptInserts.push({
+                        eventId: ticket.eventId,
+                        userId: buyerId || ticket.event.organizerId,
+                        ticketId: ticket.id,
+                        parentPurchaseId: saleId,
+                        status: 'pending',
+                        qrCodeData: qrCode
+                    });
+                }
+                
+                const ptResult = await tx.insert(purchasedTickets).values(ptInserts).returning({ id: purchasedTickets.id });
+                purchasedTicketId = ptResult[0].id;
+                
+                if (revenueType === 'REPECHAGE') {
+                    const srValues: any = {
+                        eventId: ticket.eventId,
+                        ticketId: ticket.id,
+                        saleId: saleId,
+                        purchasedTicketId: purchasedTicketId,
+                        teamName: null,
+                        registrationType: ticket.registrationType || 'INDIVIDUAL',
+                        participantsPerRegistration: ticket.participantsPerRegistration || 1,
+                        ticketPurpose: 'REPECHAGE',
+                        originalRegistrationId: originalRegistrationId,
+                        status: 'pending',
+                    };
+                    const srResult = await tx.insert(sportRegistrations).values(srValues).returning({ id: sportRegistrations.id });
+                    sportRegId = srResult[0].id;
+                }
             }
-        }
+
+            return { saleId, purchasedTicketId, sportRegId };
+        });
+
+        const { saleId, purchasedTicketId, sportRegId } = txResult;
 
         // 4. Criar cliente e pagamento no Asaas
         let asaasCustomer: any;
@@ -809,7 +918,7 @@ app.post('/api/payments/checkout', async (c: Context) => {
             });
         } catch (asaasErr: any) {
             console.error('[CHECKOUT] Asaas API error:', asaasErr.message);
-            // ROLLBACK: Deletar registros locais pendentes órfãos
+            // ROLLBACK MANUAL LEGADO (Não apagamos EventParticipants por segurança)
             if (sportRegId) {
                 await db.delete(sportRegistrationPlayers).where(eq(sportRegistrationPlayers.registrationId, sportRegId));
                 await db.delete(sportRegistrations).where(eq(sportRegistrations.id, sportRegId));
@@ -929,6 +1038,31 @@ app.post('/api/service-credits/reserve', authMiddleware, async (c: Context) => {
     } catch (error: any) {
         console.error('[RESERVE CREDIT]', error);
         return c.json({ error: error.message }, 400); // Bad Request (or conflict)
+    }
+});
+
+// --- Ativar Destaque (Consome Crédito) ---
+app.post('/api/service-credits/activate-featured', authMiddleware, async (c: Context) => {
+    try {
+        const payload = c.get('jwtPayload');
+        if (!payload || !payload.id) return c.json({ error: 'Unauthorized' }, 401);
+
+        const { eventId } = await c.req.json();
+        if (!eventId) return c.json({ error: 'O ID do evento é obrigatório.' }, 400);
+
+        const organizer = await db.query.organizers.findFirst({
+            where: eq(schema.organizers.userId, payload.id)
+        });
+
+        if (!organizer) {
+            return c.json({ error: 'Produtora não encontrada.' }, 403);
+        }
+
+        const result = await activateFeaturedCredit(eventId, organizer.id, payload.id, payload.id);
+        return c.json(result);
+    } catch (error: any) {
+        console.error('[ACTIVATE FEATURED]', error);
+        return c.json({ error: error.message }, 400);
     }
 });
 
@@ -1880,14 +2014,14 @@ app.get('/api/public/featured-events', async (c: Context) => {
             where: and(
                 or(eq(events.status, 'published'), eq(events.status, 'active')),
                 eq(events.isFeatured, true),
-                lte(events.featuredAt, new Date().toISOString()),
-                gt(events.featuredUntil, new Date().toISOString())
+                lte(events.featuredAt, new Date()),
+                gt(events.featuredUntil, new Date())
             ),
             with: {
                 tickets: true,
                 organizer: true
             },
-            orderBy: (events: any, { desc }: any) => [desc(events.date)]
+            orderBy: (events: any, { desc }: any) => [desc(events.startDate)]
         } as any);
 
         const transformedResults = results.map((event: any) => ({

@@ -99,7 +99,13 @@ const StaffFinancialPage = () => {
                                     <DollarSign className="h-4 w-4 text-green-600" />
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="text-2xl font-bold">{formatCurrency(summary.totalCost)}</div>
+                                    <div className="text-2xl font-bold">
+                                        {summary.totalCost === null ? (
+                                            <span className="text-sm font-normal text-muted-foreground italic">Ainda não informado</span>
+                                        ) : (
+                                            formatCurrency(summary.totalCost)
+                                        )}
+                                    </div>
                                     <p className="text-xs text-muted-foreground">Baseado nos contratos ativos</p>
                                 </CardContent>
                             </Card>
@@ -121,7 +127,13 @@ const StaffFinancialPage = () => {
                                     <Briefcase className="h-4 w-4 text-orange-600" />
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="text-2xl font-bold">{summary.fixedStaff}</div>
+                                    <div className="text-2xl font-bold">
+                                        {summary.fixedStaff === null ? (
+                                            <span className="text-sm font-normal text-muted-foreground italic">Ainda não informado</span>
+                                        ) : (
+                                            summary.fixedStaff
+                                        )}
+                                    </div>
                                     <p className="text-xs text-muted-foreground">Diárias ou CLT</p>
                                 </CardContent>
                             </Card>
@@ -132,7 +144,13 @@ const StaffFinancialPage = () => {
                                     <Clock className="h-4 w-4 text-purple-600" />
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="text-2xl font-bold">{summary.hourlyStaff}</div>
+                                    <div className="text-2xl font-bold">
+                                        {summary.hourlyStaff === null ? (
+                                            <span className="text-sm font-normal text-muted-foreground italic">Ainda não informado</span>
+                                        ) : (
+                                            summary.hourlyStaff
+                                        )}
+                                    </div>
                                     <p className="text-xs text-muted-foreground">Pagamento por hora</p>
                                 </CardContent>
                             </Card>
@@ -160,9 +178,11 @@ const StaffFinancialPage = () => {
                                                     </p>
                                                 </div>
                                                 <div className="text-right">
-                                                    <div className="font-medium">{formatCurrency(role.cost)}</div>
+                                                    <div className="font-medium">
+                                                        {role.cost === null ? <span className="text-sm font-normal text-muted-foreground italic">Não informado</span> : formatCurrency(role.cost)}
+                                                    </div>
                                                     <p className="text-xs text-muted-foreground">
-                                                        {((role.cost / (summary.totalCost || 1)) * 100).toFixed(1)}% do total
+                                                        {role.cost === null ? '-' : `${((role.cost / (summary.totalCost || 1)) * 100).toFixed(1)}% do total`}
                                                     </p>
                                                 </div>
                                             </div>
@@ -189,13 +209,13 @@ const StaffFinancialPage = () => {
                                             <div key={role.roleName} className="space-y-2">
                                                 <div className="flex justify-between text-xs">
                                                     <span>{role.roleName}</span>
-                                                    <span className="text-gray-500">{((role.cost / (summary.totalCost || 1)) * 100).toFixed(0)}%</span>
+                                                    <span className="text-gray-500">{role.cost === null ? '-' : `${((role.cost / (summary.totalCost || 1)) * 100).toFixed(0)}%`}</span>
                                                 </div>
                                                 <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
                                                     <div
                                                         className="h-full rounded-full"
                                                         style={{
-                                                            width: `${(role.cost / (summary.totalCost || 1)) * 100}%`,
+                                                            width: role.cost === null ? '0%' : `${(role.cost / (summary.totalCost || 1)) * 100}%`,
                                                             backgroundColor: role.color
                                                         }}
                                                     />

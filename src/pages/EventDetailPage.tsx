@@ -28,6 +28,7 @@ import {
 import { eventService, Event } from '@/services/eventService';
 import { organizerService } from '@/services/organizerService';
 import { cmsService, SiteSection } from '@/services/cmsService';
+import { parseWallClock } from '@/utils/eventDateTime';
 import { Loader2 } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
@@ -151,9 +152,8 @@ const EventDetailPage = () => {
   }
 
   const now = new Date();
-  const eventDateRaw = event.date.includes('T') 
-    ? new Date(event.date) 
-    : new Date(`${event.date}T${event.time || '00:00'}`);
+  const rawString = event.date.includes('T') ? event.date : `${event.date}T${event.time || '00:00'}`;
+  const eventDateRaw = parseWallClock(rawString) || new Date();
   const durationHours = parseInt(event.duration || '4');
   const eventEndDate = new Date(eventDateRaw.getTime() + durationHours * 60 * 60 * 1000);
   const isEnded = now > eventEndDate;
@@ -242,7 +242,7 @@ const EventDetailPage = () => {
                     <div>
                       <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Data e Hora</p>
                       <p className="font-black text-lg uppercase tracking-tight">
-                        {new Date(event.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' })}
+                        {eventDateRaw.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' })}
                       </p>
                       <p className="text-sm font-bold text-indigo-300 uppercase">{event.time}h • {event.duration}h de duração</p>
                     </div>
@@ -318,7 +318,7 @@ const EventDetailPage = () => {
                       </div>
                       <div className="space-y-1">
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Data do Evento</p>
-                        <p className="font-black text-slate-900 uppercase text-sm tracking-tight">{new Date(event.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
+                        <p className="font-black text-slate-900 uppercase text-sm tracking-tight">{eventDateRaw.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
                       </div>
                     </div>
                     <div className="flex gap-4">

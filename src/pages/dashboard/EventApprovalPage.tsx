@@ -14,6 +14,7 @@ import { masterService } from '@/services/masterService';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { formatEventDate, formatEventTime } from '@/utils/eventDateTime';
 
 const EventApprovalPage = () => {
   const { toast } = useToast();
@@ -24,7 +25,6 @@ const EventApprovalPage = () => {
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
-  const [featuredOnApprove, setFeaturedOnApprove] = useState(true);
 
   const loadEvents = async () => {
     try {
@@ -40,15 +40,13 @@ const EventApprovalPage = () => {
 
   useEffect(() => { loadEvents(); }, [activeTab]);
 
-  const handleApprove = async (id: string, withFeatured?: boolean) => {
+  const handleApprove = async (id: string) => {
     try {
       setIsApproving(true);
-      const featured = withFeatured !== undefined ? withFeatured : featuredOnApprove;
-      await masterService.approveEvent(id, featured);
+      await masterService.approveEvent(id);
       setIsModalOpen(false);
-      setFeaturedOnApprove(true);
       loadEvents();
-      toast({ title: 'Evento Aprovado', description: featured ? 'Evento publicado e exibido no carrossel da home.' : 'Evento publicado com sucesso.' });
+      toast({ title: 'Evento Aprovado', description: 'Evento publicado com sucesso.' });
     } catch (error: any) {
       toast({ 
         title: 'Erro na Aprovação', 
@@ -89,14 +87,8 @@ const EventApprovalPage = () => {
     setIsModalOpen(true);
   };
 
-  const formatDate = (d: string) => {
-    if (!d) return '—';
-    try { return new Date(d).toLocaleDateString('pt-BR'); } catch { return d; }
-  };
-  const formatTime = (d: string) => {
-    if (!d) return '';
-    try { return new Date(d).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); } catch { return ''; }
-  };
+  const formatDate = (d: string) => formatEventDate(d);
+  const formatTime = (d: string) => formatEventTime(d);
   const formatCurrency = (v: number) => `R$ ${(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
 
   const ev = selectedEvent;
@@ -368,22 +360,6 @@ const EventApprovalPage = () => {
             )}
 
             <div className="p-6 bg-slate-50 border-t border-slate-100 space-y-4 rounded-b-2xl">
-              {org.status === 'approved' && activeTab === 'pending' && (
-                <label className="flex items-center gap-3 p-3 bg-white rounded-lg border border-slate-200 cursor-pointer hover:border-indigo-300 transition-colors">
-                  <input 
-                    type="checkbox" 
-                    checked={featuredOnApprove} 
-                    onChange={(e) => setFeaturedOnApprove(e.target.checked)}
-                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                  />
-                  <div className="space-y-0.5">
-                    <span className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-                      <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" /> Exibir banner no carrossel da Home
-                    </span>
-                    <span className="text-xs text-slate-500 block">O banner deste evento aparecerá no carrossel principal da página inicial.</span>
-                  </div>
-                </label>
-              )}
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button variant="ghost" onClick={() => setIsModalOpen(false)} className="flex-1 h-10 rounded-md text-xs font-semibold text-slate-500 hover:text-slate-900 bg-white border border-slate-200">Fechar</Button>
                 
