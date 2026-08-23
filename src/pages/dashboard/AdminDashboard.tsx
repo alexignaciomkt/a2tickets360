@@ -13,6 +13,7 @@ import masterService from '@/services/masterService';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { getEventTemporalStatus } from '@/utils/eventDateTime';
 
 const AdminDashboard = () => {
   const { toast } = useToast();
@@ -283,10 +284,10 @@ const AdminDashboard = () => {
                               </td>
                               <td className="px-12 py-8">
                                 <Badge className={`text-[8px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full border-none shadow-sm ${
-                                  event.status === 'published' ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-slate-400'
-                                }`}>
-                                  {event.status === 'published' ? 'LIVE_NODE' : 'IDLE_ASSET'}
-                                </Badge>
+                                getEventTemporalStatus(event.startDate || event.start_date, event.endDate || event.end_date) === 'EM ANDAMENTO' ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-slate-400'
+                              }`}>
+                                {getEventTemporalStatus(event.startDate || event.start_date, event.endDate || event.end_date) === 'EM ANDAMENTO' ? 'LIVE_NODE' : 'IDLE_ASSET'}
+                              </Badge>
                               </td>
                               <td className="px-12 py-8 text-right">
                                 <Button variant="ghost" className="h-10 w-10 rounded-full p-0 text-slate-200 hover:text-slate-900 hover:bg-gray-100 transition-all">

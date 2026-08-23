@@ -45,6 +45,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import { getEventTemporalStatus } from '@/utils/eventDateTime';
 
 const COLORS = ['#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16', '#F97316', '#6366F1'];
 
@@ -320,11 +321,12 @@ const OrganizerDashboard = () => {
         <div className="space-y-6" ref={reportRef} style={{ backgroundColor: '#ffffff', padding: '2px', borderRadius: '8px' }}>
           
           {/* QUICK STATS MATRIX */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-4">
             <QuickStat title="Volume Bruto (Gross)" value={formatCurrency(kpis.grossRevenue || 0)} icon={DollarSign} color="emerald" />
             <QuickStat title="Transações (Vendas)" value={kpis.transactionsCount || 0} icon={Target} color="indigo" />
             <QuickStat title="Credenciais Emitidas" value={kpis.credentialsIssued || 0} icon={Users} color="amber" />
-            <QuickStat title="Eventos Ativos" value={events.length} icon={CalendarDays} color="rose" />
+            <QuickStat title="Total de Eventos" value={events.length} icon={CalendarDays} color="slate" />
+            <QuickStat title="Em Andamento" value={events.filter(e => getEventTemporalStatus(e.startDate, e.endDate) === 'EM ANDAMENTO').length} icon={Activity} color="rose" />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
