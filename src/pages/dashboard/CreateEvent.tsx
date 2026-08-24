@@ -64,6 +64,7 @@ const CreateEvent = () => {
   // Featured Credits State
   const [availableCredits, setAvailableCredits] = useState<number | null>(null);
   const [useFeaturedCredit, setUseFeaturedCredit] = useState(false);
+  const reservationTokenRef = useRef(crypto.randomUUID());
 
   useEffect(() => {
     const fetchCredits = async () => {
@@ -285,6 +286,36 @@ const CreateEvent = () => {
     if (currentStep < 5 && canAdvance()) setCurrentStep(prev => prev + 1);
   };
 
+  const handleReserveCredit = async () => {
+    try {
+      const response = await serviceCreditsService.reserveSession(reservationTokenRef.current);
+      setUseFeaturedCredit(true);
+      if (response.summary) {
+        setAvailableCredits(response.summary.available);
+      }
+      toast({ title: 'Reserva Confirmada', description: 'O crédito foi reservado com sucesso.' });
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Erro', description: err.message || 'Não foi possível reservar o crédito.' });
+    }
+  };
+
+  const handleCancelReservation = async (isBackground = false) => {
+    try {
+      const response = await serviceCreditsService.cancelReservation(reservationTokenRef.current);
+      if (!isBackground) {
+        setUseFeaturedCredit(false);
+        if (response.summary) {
+          setAvailableCredits(response.summary.available);
+        }
+        toast({ title: 'Reserva Cancelada', description: 'A reserva de crédito foi desfeita.' });
+      }
+    } catch (err: any) {
+      if (!isBackground) {
+        toast({ variant: 'destructive', title: 'Erro', description: err.message || 'Não foi possível cancelar a reserva.' });
+      }
+    }
+  };
+
   const prevStep = () => {
     if (currentStep > 1) setCurrentStep(prev => prev - 1);
   };
@@ -371,6 +402,10 @@ const CreateEvent = () => {
           
           const newEvent = await organizerService.createEvent(eventData);
           if (forceStatus === 'draft') {
+            if (useFeaturedCredit) {
+                // Best-effort cancel
+                handleCancelReservation(true).catch(e => console.warn('Cancelamento de rascunho em background falhou:', e));
+            }
             toast({ title: '💾 Rascunho salvo!', description: 'Você pode continuar editando.' });
             navigate('/organizer/events');
             return;
@@ -378,7 +413,7 @@ const CreateEvent = () => {
 
           if (useFeaturedCredit) {
             try {
-              await serviceCreditsService.activateFeaturedCredit(newEvent.id);
+              await serviceCreditsService.consumeReservation(reservationTokenRef.current, newEvent.id);
             } catch (err) {
               console.error('Erro ao ativar destaque:', err);
               // Avançado: reconsultar estado
@@ -390,7 +425,7 @@ const CreateEvent = () => {
                    toast({
                      variant: 'destructive',
                      title: 'Aviso',
-                     description: 'Seu evento foi publicado, mas não foi possível ativar o destaque. Nenhum crédito foi utilizado.'
+                     description: 'Seu evento foi publicado, mas o destaque ainda não foi concluído.'
                    });
                 }
               } catch (recheckErr) {
@@ -808,7 +843,7 @@ const CreateEvent = () => {
             {useFeaturedCredit ? (
               <Button
                 type="button"
-                onClick={() => setUseFeaturedCredit(false)}
+                onClick={() => handleCancelReservation(false)}
                 className={`rounded-full h-12 px-8 font-black uppercase text-xs tracking-widest transition-all bg-gray-200 hover:bg-gray-300 text-gray-800`}
               >
                 Cancelar Destaque
@@ -817,7 +852,7 @@ const CreateEvent = () => {
               <div className="flex flex-col gap-2 w-full md:w-auto items-center">
                 <Button
                   type="button"
-                  onClick={() => setUseFeaturedCredit(true)}
+                  onClick={handleReserveCredit}
                   className={`rounded-full h-12 px-8 font-black uppercase text-xs tracking-widest transition-all bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-200`}
                 >
                   <Star className="w-4 h-4 mr-2 fill-current" />

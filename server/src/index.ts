@@ -42,7 +42,7 @@ import masterRoutes from './routes/master';
 import { logger } from 'hono/logger';
 import { authMiddleware, clerkAuthMiddleware } from './middlewares/auth';
 import { calculateFinancialDistribution, deriveBillableUnits } from './domain/financialEngine';
-import { reserveFeaturedCredit, releaseFeaturedCredit, activateFeaturedCredit } from './services/credits';
+import { reserveSessionCredit, cancelReservationSession, consumeFeaturedReservation, activateFeaturedCredit, lazyCleanupExpiredReservations } from './services/credits';
 
 const app = new Hono();
 app.use('*', logger());
@@ -974,6 +974,8 @@ app.get('/api/service-credits', authMiddleware, async (c: Context) => {
             return c.json({ error: 'Produtora não encontrada para o usuário autenticado.' }, 403);
         }
 
+        await lazyCleanupExpiredReservations(organizer.id);
+
         const credits = await db.query.organizerServiceCredits.findMany({
             where: eq(schema.organizerServiceCredits.organizerId, organizer.id),
             orderBy: (credits, { desc }) => [desc(credits.createdAt)]
@@ -1016,14 +1018,14 @@ app.get('/api/service-credits', authMiddleware, async (c: Context) => {
     }
 });
 
-// --- Reservar Crédito ---
-app.post('/api/service-credits/reserve', authMiddleware, async (c: Context) => {
+// --- Reservar Crédito Temporário (Sessão) ---
+app.post('/api/service-credits/reserve-session', authMiddleware, async (c: Context) => {
     try {
         const payload = c.get('jwtPayload');
         if (!payload || !payload.id) return c.json({ error: 'Unauthorized' }, 401);
 
-        const { eventId } = await c.req.json();
-        if (!eventId) return c.json({ error: 'O ID do evento é obrigatório.' }, 400);
+        const { reservationToken } = await c.req.json();
+        if (!reservationToken) return c.json({ error: 'O token de reserva é obrigatório.' }, 400);
 
         const organizer = await db.query.organizers.findFirst({
             where: eq(schema.organizers.userId, payload.id)
@@ -1033,47 +1035,39 @@ app.post('/api/service-credits/reserve', authMiddleware, async (c: Context) => {
             return c.json({ error: 'Produtora não encontrada.' }, 403);
         }
 
-        const result = await reserveFeaturedCredit(eventId, organizer.id, payload.id, payload.id);
-        return c.json(result);
-    } catch (error: any) {
-        console.error('[RESERVE CREDIT]', error);
-        return c.json({ error: error.message }, 400); // Bad Request (or conflict)
-    }
-});
-
-// --- Ativar Destaque (Consome Crédito) ---
-app.post('/api/service-credits/activate-featured', authMiddleware, async (c: Context) => {
-    try {
-        const payload = c.get('jwtPayload');
-        if (!payload || !payload.id) return c.json({ error: 'Unauthorized' }, 401);
-
-        const { eventId } = await c.req.json();
-        if (!eventId) return c.json({ error: 'O ID do evento é obrigatório.' }, 400);
-
-        const organizer = await db.query.organizers.findFirst({
-            where: eq(schema.organizers.userId, payload.id)
+        const result = await reserveSessionCredit(reservationToken, organizer.id, payload.id);
+        
+        // Retornar summary atualizado
+        const credits = await db.query.organizerServiceCredits.findMany({
+            where: eq(schema.organizerServiceCredits.organizerId, organizer.id)
+        });
+        
+        let available = 0, reserved = 0, consumed = 0, cancelled = 0;
+        credits.forEach(credit => {
+            if (credit.status === 'AVAILABLE') available++;
+            else if (credit.status === 'RESERVED') reserved++;
+            else if (credit.status === 'CONSUMED') consumed++;
+            else if (credit.status === 'CANCELLED') cancelled++;
         });
 
-        if (!organizer) {
-            return c.json({ error: 'Produtora não encontrada.' }, 403);
-        }
-
-        const result = await activateFeaturedCredit(eventId, organizer.id, payload.id, payload.id);
-        return c.json(result);
+        return c.json({
+            ...result,
+            summary: { available, reserved, consumed, cancelled, total: credits.length }
+        });
     } catch (error: any) {
-        console.error('[ACTIVATE FEATURED]', error);
+        console.error('[RESERVE SESSION CREDIT]', error);
         return c.json({ error: error.message }, 400);
     }
 });
 
-// --- Liberar Crédito Reservado ---
-app.post('/api/service-credits/release', authMiddleware, async (c: Context) => {
+// --- Cancelar Reserva ---
+app.post('/api/service-credits/cancel-reservation', authMiddleware, async (c: Context) => {
     try {
         const payload = c.get('jwtPayload');
         if (!payload || !payload.id) return c.json({ error: 'Unauthorized' }, 401);
 
-        const { eventId } = await c.req.json();
-        if (!eventId) return c.json({ error: 'O ID do evento é obrigatório.' }, 400);
+        const { reservationToken } = await c.req.json();
+        if (!reservationToken) return c.json({ error: 'O token de reserva é obrigatório.' }, 400);
 
         const organizer = await db.query.organizers.findFirst({
             where: eq(schema.organizers.userId, payload.id)
@@ -1083,10 +1077,69 @@ app.post('/api/service-credits/release', authMiddleware, async (c: Context) => {
             return c.json({ error: 'Produtora não encontrada.' }, 403);
         }
 
-        const result = await releaseFeaturedCredit(eventId, organizer.id, payload.id, payload.id);
-        return c.json(result);
+        const result = await cancelReservationSession(reservationToken, organizer.id, payload.id);
+
+        // Retornar summary atualizado
+        const credits = await db.query.organizerServiceCredits.findMany({
+            where: eq(schema.organizerServiceCredits.organizerId, organizer.id)
+        });
+        
+        let available = 0, reserved = 0, consumed = 0, cancelled = 0;
+        credits.forEach(credit => {
+            if (credit.status === 'AVAILABLE') available++;
+            else if (credit.status === 'RESERVED') reserved++;
+            else if (credit.status === 'CONSUMED') consumed++;
+            else if (credit.status === 'CANCELLED') cancelled++;
+        });
+
+        return c.json({
+            ...result,
+            summary: { available, reserved, consumed, cancelled, total: credits.length }
+        });
     } catch (error: any) {
-        console.error('[RELEASE CREDIT]', error);
+        console.error('[CANCEL RESERVATION]', error);
+        return c.json({ error: error.message }, 400);
+    }
+});
+
+// --- Consumir Reserva ---
+app.post('/api/service-credits/consume-reservation', authMiddleware, async (c: Context) => {
+    try {
+        const payload = c.get('jwtPayload');
+        if (!payload || !payload.id) return c.json({ error: 'Unauthorized' }, 401);
+
+        const { reservationToken, eventId } = await c.req.json();
+        if (!reservationToken || !eventId) return c.json({ error: 'reservationToken e eventId são obrigatórios.' }, 400);
+
+        const organizer = await db.query.organizers.findFirst({
+            where: eq(schema.organizers.userId, payload.id)
+        });
+
+        if (!organizer) {
+            return c.json({ error: 'Produtora não encontrada.' }, 403);
+        }
+
+        const result = await consumeFeaturedReservation(reservationToken, eventId, organizer.id, payload.id, payload.id);
+        
+        // Opcionalmente podemos retornar summary aqui também, mas não é estritamente usado pelo flow atual.
+        const credits = await db.query.organizerServiceCredits.findMany({
+            where: eq(schema.organizerServiceCredits.organizerId, organizer.id)
+        });
+        
+        let available = 0, reserved = 0, consumed = 0, cancelled = 0;
+        credits.forEach(credit => {
+            if (credit.status === 'AVAILABLE') available++;
+            else if (credit.status === 'RESERVED') reserved++;
+            else if (credit.status === 'CONSUMED') consumed++;
+            else if (credit.status === 'CANCELLED') cancelled++;
+        });
+
+        return c.json({
+            ...result,
+            summary: { available, reserved, consumed, cancelled, total: credits.length }
+        });
+    } catch (error: any) {
+        console.error('[CONSUME RESERVATION]', error);
         return c.json({ error: error.message }, 400);
     }
 });

@@ -62,13 +62,41 @@
       "idx": 8,
       "version": "5",
       "when": 1786996000000,
-      "tag": "0011_financial_engine",
+      "tag": "0011_financial_engine"
     },
     {
       "idx": 9,
       "version": "5",
       "when": 1786997000000,
       "tag": "0012_service_featured_credits",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1786998000000,
+      "tag": "0013_event_participants",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "5",
+      "when": 1786999000000,
+      "tag": "0014_event_participants_buyer_select",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "5",
+      "when": 1787000000000,
+      "tag": "0015_sales_organizer_select_policy",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "5",
+      "when": 1787001000000,
+      "tag": "0016_featured_credits_reservation",
       "breakpoints": true
     }
   ]

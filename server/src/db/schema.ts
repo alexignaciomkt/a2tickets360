@@ -1337,16 +1337,22 @@ export const organizerServiceCredits = pgTable('organizer_service_credits', {
     creditNumber: integer('credit_number').notNull(),
     creditType: serviceCreditTypeEnum('credit_type').notNull(),
     status: serviceCreditStatusEnum('status').notNull().default('AVAILABLE'),
+    reservationToken: varchar('reservation_token', { length: 255 }),
     originEventId: uuid('origin_event_id').references(() => events.id),
     reservedEventId: uuid('reserved_event_id').references(() => events.id),
     consumedEventId: uuid('consumed_event_id').references(() => events.id),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     reservedAt: timestamp('reserved_at'),
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
     consumedAt: timestamp('consumed_at'),
     cancelledAt: timestamp('cancelled_at'),
     updatedAt: timestamp('updated_at').notNull().defaultNow()
 }, (table) => {
     return {
+        uqReservationToken: uniqueIndex('uq_service_credits_reservation_token')
+            .on(table.reservationToken)
+            .where(sql`"reservation_token" IS NOT NULL`),
+        idxExpiration: index('idx_service_credits_expiration').on(table.organizerId, table.status, table.expiresAt),
         unqOrderCreditNum: unique('unqOrderCreditNum').on(table.orderId, table.creditNumber),
         chkCreditNum: check('chk_credit_number', sql`credit_number > 0`),
         idxStatus: index('idx_service_credits_org_status').on(table.organizerId, table.status),

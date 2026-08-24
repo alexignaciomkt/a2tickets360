@@ -71,5 +71,20 @@ export const serviceCreditsService = {
     async activateFeaturedCredit(eventId: string): Promise<any> {
         const response = await api.post('/api/service-credits/activate-featured', { eventId });
         return response;
+    },
+
+    async reserveSession(reservationToken: string): Promise<{ success: boolean; creditId: string; summary: ServiceCreditsSummary }> {
+        const response = await api.post('/api/service-credits/reserve-session', { reservationToken });
+        return response as any;
+    },
+
+    async cancelReservation(reservationToken: string): Promise<{ success: boolean; creditId: string; summary: ServiceCreditsSummary }> {
+        const response = await api.post('/api/service-credits/cancel-reservation', { reservationToken });
+        return response as any;
+    },
+
+    async consumeReservation(reservationToken: string, eventId: string): Promise<{ success: boolean; summary: ServiceCreditsSummary }> {
+        const response = await api.post('/api/service-credits/consume-reservation', { reservationToken, eventId });
+        return response as any;
     }
 };
