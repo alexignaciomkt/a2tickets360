@@ -257,8 +257,21 @@ router.put('/events/:id/reject', async (c) => {
 router.get('/organizers', async (c) => {
     try {
         // As requested: calculate GMV from sales for each organizer natively
-        const organizersList = await db.select().from(organizersTable)
-            .orderBy(sql`${organizersTable.createdAt} DESC`);
+        // Left join with profiles to get status, profileComplete and email
+        const organizersList = await db.select({
+            id: organizersTable.id,
+            userId: organizersTable.userId,
+            companyName: organizersTable.companyName,
+            slug: organizersTable.slug,
+            category: organizersTable.category,
+            logoUrl: organizersTable.logoUrl,
+            createdAt: organizersTable.createdAt,
+            status: profiles.status,
+            profileComplete: profiles.profileComplete,
+            email: profiles.email
+        }).from(organizersTable)
+        .leftJoin(profiles, eq(organizersTable.userId, profiles.userId))
+        .orderBy(sql`${organizersTable.createdAt} DESC`);
 
         // Get GMV per organizer by joining sales and events
         const gmvResult = await db.select({
