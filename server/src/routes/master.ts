@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { db } from '../db';
 import { profiles, sales, events, purchasedTickets, sportRegistrations, organizers as organizersTable } from '../db/schema';
 import { profiles, sales, events, purchasedTickets, sportRegistrations } from '../db/schema';
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, desc } from 'drizzle-orm';
 import { authMiddleware } from '../middlewares/auth';
 
 const router = new Hono();
@@ -256,8 +256,6 @@ router.put('/events/:id/reject', async (c) => {
 // Organizers
 router.get('/organizers', async (c) => {
     try {
-        // As requested: calculate GMV from sales for each organizer natively
-        // Left join with profiles to get status, profileComplete and email
         const organizersList = await db.select({
             id: organizersTable.id,
             userId: organizersTable.userId,
@@ -271,11 +269,10 @@ router.get('/organizers', async (c) => {
             email: profiles.email
         }).from(organizersTable)
         .leftJoin(profiles, eq(organizersTable.userId, profiles.userId))
-        .orderBy(sql`${organizersTable.createdAt} DESC`);
+        .orderBy(desc(organizersTable.createdAt));
 
-        // Get GMV per organizer by joining sales and events
         const gmvResult = await db.select({
-            organizerId: events.organizerId, // This is auth.users.id
+            organizerId: events.organizerId,
             gmv: sql<number>`COALESCE(SUM(${sales.buyerTotal}), 0)`
         }).from(sales)
         .innerJoin(events, eq(sales.eventId, events.id))
@@ -283,12 +280,8 @@ router.get('/organizers', async (c) => {
         .groupBy(events.organizerId);
 
         const gmvMap = Object.fromEntries(gmvResult.map(r => [r.organizerId, Number(r.gmv)]));
-
-        const mappedOrganizers = organizersList.map(org => ({
-            ...org,
-            gmv: gmvMap[org.userId] || 0
-        }));
-
+        const mappedOrganizers = organizersList.map(org => ({ ...org, gmv: gmvMap[org.userId] || 0 }));
+        
         return c.json(mappedOrganizers);
     } catch (error: any) {
         console.error('Get organizers error:', error);
