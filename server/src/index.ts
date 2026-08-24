@@ -2350,145 +2350,7 @@ app.post('/api/candidates/:id/proposals/:propId/respond', async (c: Context) => 
     }
 });
 
-// --- MASTER ADMIN: Gestão de Organizadores ---
 
-// 1. Listar todos os organizadores (Apenas ativos)
-app.get('/api/master/organizers', async (c: Context) => {
-    try {
-        const organizersList = await db.query.organizers.findMany({
-            where: or(eq(organizersTable.isActive, true), isNull(organizersTable.isActive)),
-            orderBy: (organizers, { desc }) => [desc(organizers.createdAt)]
-        });
-        return c.json(organizersList);
-    } catch (error: any) {
-        return c.json({ error: error.message }, 400);
-    }
-});
-
-// 2. Criar Organizador via Master (Direto)
-app.post('/api/master/organizers', async (c: Context) => {
-    const { name, email, password } = await c.req.json();
-    try {
-        const passwordHash = await Bun.password.hash(password);
-        const [newOrganizer] = await db.insert(organizersTable).values({
-            name,
-            email,
-            passwordHash,
-            emailVerified: true, // Master cria já verificado
-            isActive: true
-        }).returning();
-        return c.json(newOrganizer);
-    } catch (error: any) {
-        return c.json({ error: error.message }, 400);
-    }
-});
-
-// 3. Editar Organizador
-app.put('/api/master/organizers/:id', async (c: Context) => {
-    const id = c.req.param('id');
-    const data = await c.req.json();
-    try {
-        if (data.password) {
-            data.passwordHash = await Bun.password.hash(data.password);
-            delete data.password;
-        }
-        const [updated] = await db.update(organizersTable)
-            .set({
-                ...data,
-                updatedAt: new Date()
-            })
-            .where(eq(organizersTable.id, id))
-            .returning();
-        return c.json(updated);
-    } catch (error: any) {
-        return c.json({ error: error.message }, 400);
-    }
-});
-
-// 4. Excluir Organizador (Soft Delete)
-app.delete('/api/master/organizers/:id', async (c: Context) => {
-    const id = c.req.param('id');
-    try {
-        const [updated] = await db.update(organizersTable)
-            .set({
-                isActive: false,
-                updatedAt: new Date()
-            })
-            .where(eq(organizersTable.id, id))
-            .returning();
-
-        if (!updated) {
-            return c.json({ error: 'Organizador não encontrado' }, 404);
-        }
-
-        return c.json({ message: 'Organizador excluído com sucesso' });
-    } catch (error: any) {
-        return c.json({ error: error.message }, 400);
-    }
-});
-
-// 5. Listar eventos pendentes para aprovação (draft E pending)
-app.get('/api/master/events/pending', async (c: Context) => {
-    try {
-        const pendingEvents = await db.query.events.findMany({
-            where: or(eq(events.status, 'draft'), eq(events.status, 'pending')),
-            with: {
-                organizer: true
-            },
-            orderBy: (events, { desc }) => [desc(events.createdAt)]
-        });
-        return c.json(pendingEvents);
-    } catch (error: any) {
-        return c.json({ error: error.message }, 400);
-    }
-});
-
-// 6. Aprovar evento (aceita draft, pending → published)
-app.put('/api/master/events/:id/approve', async (c: Context) => {
-    const id = c.req.param('id');
-    try {
-        const event = await db.query.events.findFirst({ where: eq(events.id, id) });
-        if (!event) return c.json({ error: 'Evento não encontrado' }, 404);
-
-        if (!['draft', 'pending'].includes(event.status as string)) {
-            return c.json({ error: `Evento com status '${event.status}' não pode ser aprovado.` }, 400);
-        }
-
-        const [updated] = await db.update(events)
-            .set({
-                status: 'published',
-                updatedAt: new Date()
-            })
-            .where(eq(events.id, id))
-            .returning();
-
-        return c.json({ message: 'Evento aprovado com sucesso', event: updated });
-    } catch (error: any) {
-        return c.json({ error: error.message }, 400);
-    }
-});
-
-// 7. Aprovar Organizador Manualmente (Bypass Onboarding)
-app.post('/api/master/organizers/:id/approve-manually', async (c: Context) => {
-    const id = c.req.param('id');
-    try {
-        const [updated] = await db.update(organizersTable)
-            .set({
-                profileComplete: true,
-                updatedAt: new Date()
-            })
-            .where(eq(organizersTable.id, id))
-            .returning();
-
-        if (!updated) {
-            return c.json({ error: 'Organizador não encontrado' }, 404);
-        }
-
-        return c.json({ status: 'success', message: 'Cadastro aprovado manualmente!' });
-    } catch (error: any) {
-        return c.json({ error: error.message }, 400);
-    }
-});
 
 
 // --- MÓDULO DE PATROCINADORES ---
@@ -2807,48 +2669,7 @@ function isProfileActuallyComplete(org: any) {
 // Removido /api/master/events não autenticado
 
 
-app.get('/api/master/stats', async (c: Context) => {
-    try {
-        const totalEvents = await db.select({ count: sql`count(*)` }).from(events);
-        const totalOrganizers = await db.select({ count: sql`count(*)` }).from(organizersTable);
-        const activeOrganizers = await db.select({ count: sql`count(*)` }).from(organizersTable).where(eq(organizersTable.isActive, true));
-        const pendingOrganizers = await db.select({ count: sql`count(*)` }).from(organizersTable).where(eq(organizersTable.profileComplete, false));
 
-        const totalVisitors = await db.select({ count: sql`count(*)` }).from(visitors);
-
-        const pendingEvents = await db.select({ count: sql`count(*)` }).from(events).where(eq(events.status, 'draft'));
-
-        // Total Revenue from paid sales
-        const revenueResult = await db.select({ total: sql`sum(total_price)` }).from(sales).where(eq(sales.paymentStatus, 'paid'));
-        const totalRevenue = Number(revenueResult[0]?.total || 0);
-        const totalCommissions = totalRevenue * 0.10; // Assuming 10% flat commission for now
-
-        // Events this month
-        const firstDayOfMonth = new Date();
-        firstDayOfMonth.setDate(1);
-        firstDayOfMonth.setHours(0, 0, 0, 0);
-        const eventsThisMonth = await db.select({ count: sql`count(*)` })
-            .from(events)
-            .where(gte(events.date, firstDayOfMonth.toISOString().split('T')[0]));
-
-        return c.json({
-            totalEvents: Number(totalEvents[0].count),
-            totalOrganizers: Number(totalOrganizers[0].count),
-            activeOrganizers: Number(activeOrganizers[0].count),
-            pendingOrganizers: Number(pendingOrganizers[0].count),
-            totalUsers: Number(totalVisitors[0].count),
-            pendingEvents: Number(pendingEvents[0].count),
-            totalRevenue: totalRevenue,
-            totalCommissions: totalCommissions,
-            totalPayouts: 0,
-            eventsThisMonth: Number(eventsThisMonth[0].count),
-            alertsCount: Number(pendingEvents[0].count) + Number(pendingOrganizers[0].count),
-            newOrganizersMonth: 0
-        });
-    } catch (error: any) {
-        return c.json({ error: error.message }, 400);
-    }
-});
 
 app.get('/api/customer/tickets', async (c: Context) => {
     const email = c.req.query('email');
@@ -2902,26 +2723,6 @@ app.get('/api/organizers/:id/stats', async (c: Context) => {
     }
 });
 
-app.put('/api/master/events/:id/featured', async (c: Context) => {
-    const id = c.req.param('id');
-    const { isFeatured } = await c.req.json();
-    try {
-        const [updated] = await db.update(events)
-            .set({
-                isFeatured,
-                featuredUntil: isFeatured ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) : null,
-                updatedAt: new Date()
-            })
-            .where(eq(events.id, id))
-            .returning();
-
-        if (!updated) {
-            return c.json({ error: 'Evento não encontrado' }, 404);
-        }
-
-        return c.json(updated);
-    } catch (error: any) {
-        return c.json({ error: error.message }, 400);
     }
 });
 

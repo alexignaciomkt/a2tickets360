@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { db } from '../db';
+import { profiles, sales, events, purchasedTickets, sportRegistrations, organizers as organizersTable } from '../db/schema';
 import { profiles, sales, events, purchasedTickets, sportRegistrations } from '../db/schema';
 import { eq, sql } from 'drizzle-orm';
 import { authMiddleware } from '../middlewares/auth';
@@ -186,19 +187,160 @@ router.get('/financial/payouts', async (c) => {
 router.get('/events', async (c) => {
     try {
         const queryParams = c.req.query();
-        const allEvents = await db.query.events.findMany({
-            with: { organizer: true },
-            orderBy: (events, { desc }) => [desc(events.createdAt)]
-        });
         
+        // Manual JOIN to fix auth vs document ID mismatch
+        // events.organizerId stores auth.users.id
+        // organizersTable.userId stores auth.users.id
+        const rawEvents = await db.select({
+            event: events,
+            organizer: organizersTable
+        }).from(events).leftJoin(organizersTable, eq(events.organizerId, organizersTable.userId));
+
+        let mappedEvents = rawEvents.map(row => ({
+            ...row.event,
+            organizer: row.organizer
+        }));
+        
+        // Sort by desc createdAt
+        mappedEvents.sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
+
         if (queryParams.status) {
-            return c.json(allEvents.filter(e => e.status === queryParams.status));
+            mappedEvents = mappedEvents.filter(e => e.status === queryParams.status);
         }
-        return c.json(allEvents);
+        return c.json(mappedEvents);
     } catch (e: any) {
         console.error('Master Events Error:', e);
         return c.json({ error: 'Internal Server Error' }, 500);
     }
+});
+
+// Event Actions
+router.put('/events/:id/approve', async (c) => {
+    const id = c.req.param('id');
+    try {
+        const event = await db.query.events.findFirst({ where: eq(events.id, id) });
+        if (!event) return c.json({ error: 'Evento não encontrado' }, 404);
+
+        if (!['draft', 'pending'].includes(event.status as string)) {
+            return c.json({ error: `Evento com status '${event.status}' não pode ser aprovado.` }, 400);
+        }
+
+        const [updated] = await db.update(events)
+            .set({ status: 'published', updatedAt: new Date() })
+            .where(eq(events.id, id))
+            .returning();
+
+        return c.json({ message: 'Evento aprovado com sucesso', event: updated });
+    } catch (error: any) {
+        return c.json({ error: error.message }, 400);
+    }
+});
+
+router.put('/events/:id/reject', async (c) => {
+    const id = c.req.param('id');
+    try {
+        const event = await db.query.events.findFirst({ where: eq(events.id, id) });
+        if (!event) return c.json({ error: 'Evento não encontrado' }, 404);
+
+        const [updated] = await db.update(events)
+            .set({ status: 'draft', updatedAt: new Date() })
+            .where(eq(events.id, id))
+            .returning();
+
+        return c.json({ message: 'Evento rejeitado', event: updated });
+    } catch (error: any) {
+        return c.json({ error: error.message }, 400);
+    }
+});
+
+// Organizers
+router.get('/organizers', async (c) => {
+    try {
+        // As requested: calculate GMV from sales for each organizer natively
+        const organizersList = await db.select().from(organizersTable)
+            .orderBy(sql`${organizersTable.createdAt} DESC`);
+
+        // Get GMV per organizer by joining sales and events
+        const gmvResult = await db.select({
+            organizerId: events.organizerId, // This is auth.users.id
+            gmv: sql<number>`COALESCE(SUM(${sales.buyerTotal}), 0)`
+        }).from(sales)
+        .innerJoin(events, eq(sales.eventId, events.id))
+        .where(eq(sales.paymentStatus, 'paid'))
+        .groupBy(events.organizerId);
+
+        const gmvMap = Object.fromEntries(gmvResult.map(r => [r.organizerId, Number(r.gmv)]));
+
+        const mappedOrganizers = organizersList.map(org => ({
+            ...org,
+            gmv: gmvMap[org.userId] || 0
+        }));
+
+        return c.json(mappedOrganizers);
+    } catch (error: any) {
+        console.error('Get organizers error:', error);
+        return c.json({ error: error.message }, 400);
+    }
+});
+
+router.post('/organizers/:id/approve', async (c) => {
+    const id = c.req.param('id');
+    try {
+        const [updated] = await db.update(organizersTable)
+            .set({ status: 'approved', profileComplete: true, updatedAt: new Date() })
+            .where(eq(organizersTable.id, id))
+            .returning();
+        if (!updated) return c.json({ error: 'Not found' }, 404);
+        return c.json({ message: 'Organizador aprovado', organizer: updated });
+    } catch (error: any) { return c.json({ error: error.message }, 400); }
+});
+
+router.post('/organizers/:id/reject', async (c) => {
+    const id = c.req.param('id');
+    try {
+        const [updated] = await db.update(organizersTable)
+            .set({ status: 'rejected', updatedAt: new Date() })
+            .where(eq(organizersTable.id, id))
+            .returning();
+        if (!updated) return c.json({ error: 'Not found' }, 404);
+        return c.json({ message: 'Organizador rejeitado', organizer: updated });
+    } catch (error: any) { return c.json({ error: error.message }, 400); }
+});
+
+router.post('/organizers/:id/suspend', async (c) => {
+    const id = c.req.param('id');
+    try {
+        const [updated] = await db.update(organizersTable)
+            .set({ status: 'suspended', isActive: false, updatedAt: new Date() })
+            .where(eq(organizersTable.id, id))
+            .returning();
+        if (!updated) return c.json({ error: 'Not found' }, 404);
+        return c.json({ message: 'Organizador suspenso', organizer: updated });
+    } catch (error: any) { return c.json({ error: error.message }, 400); }
+});
+
+router.post('/organizers/:id/reactivate', async (c) => {
+    const id = c.req.param('id');
+    try {
+        const [updated] = await db.update(organizersTable)
+            .set({ status: 'approved', isActive: true, updatedAt: new Date() })
+            .where(eq(organizersTable.id, id))
+            .returning();
+        if (!updated) return c.json({ error: 'Not found' }, 404);
+        return c.json({ message: 'Organizador reativado', organizer: updated });
+    } catch (error: any) { return c.json({ error: error.message }, 400); }
+});
+
+router.delete('/organizers/:id', async (c) => {
+    const id = c.req.param('id');
+    try {
+        const [updated] = await db.update(organizersTable)
+            .set({ isActive: false, updatedAt: new Date() })
+            .where(eq(organizersTable.id, id))
+            .returning();
+        if (!updated) return c.json({ error: 'Not found' }, 404);
+        return c.json({ message: 'Organizador inativado', organizer: updated });
+    } catch (error: any) { return c.json({ error: error.message }, 400); }
 });
 
 export default router;

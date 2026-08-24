@@ -23,7 +23,7 @@ const MasterFinancialBI = () => {
         const { api } = await import('@/services/api');
         const summary = await api.get('/api/master/financial/summary');
         setStats(summary);
-        setPayouts([]); // TODO: master payouts
+        setPayouts([]); // waiting for master payouts tracking
       } catch (err: any) {
         console.error('Erro no BI Master Financeiro:', err);
         setError(err.message || 'Falha ao sincronizar dados');

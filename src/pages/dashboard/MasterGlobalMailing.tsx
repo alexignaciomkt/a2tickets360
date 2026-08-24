@@ -30,6 +30,7 @@ const ProgressBar = ({ label, value, max, color = 'bg-slate-900' }: { label: str
 const MasterGlobalMailing = () => {
   const [data, setData] = useState<any>({ customers: [], stats: null });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -37,10 +38,17 @@ const MasterGlobalMailing = () => {
   useEffect(() => {
     const fetchAnalytics = async () => {
       try {
+        setLoading(true);
+        setError(null);
         const result = await masterService.getMailingAnalytics();
-        setData(result);
-      } catch (error) {
-        console.error('Erro ao buscar analytics de mailing:', error);
+        if (result.message) {
+           setError(result.message);
+        } else {
+           setData(result);
+        }
+      } catch (err: any) {
+        console.error('Erro ao buscar analytics de mailing:', err);
+        setError('Falha ao carregar mailing.');
       } finally {
         setLoading(false);
       }
@@ -122,6 +130,16 @@ const MasterGlobalMailing = () => {
         {loading ? (
            <div className="h-64 flex items-center justify-center border-2 border-gray-100 rounded-[3rem] bg-white">
               <Loader2 className="w-10 h-10 animate-spin text-slate-300" />
+           </div>
+        ) : error ? (
+           <div className="flex flex-col items-center justify-center py-24 text-center px-4">
+              <div className="w-20 h-20 rounded-full bg-slate-50 flex items-center justify-center mx-auto mb-6 border border-slate-100 shadow-inner">
+                 <Database className="w-8 h-8 text-slate-300" />
+              </div>
+              <h3 className="text-base font-bold text-slate-700">{error}</h3>
+              <p className="text-sm text-slate-500 mt-2 max-w-sm mx-auto">
+                 Os dados de analytics e mailing global ainda não estão sendo processados pelo motor atual.
+              </p>
            </div>
         ) : (
            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">

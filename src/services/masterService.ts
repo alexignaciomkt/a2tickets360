@@ -25,40 +25,38 @@ class MasterService {
     // TEMPORARILY DISABLED METHODS (WAITING FOR BACKEND MIGRATION)
     // -------------------------------------------------------------
 
-    private throwUnavailable(): never {
-        throw new Error('Funcionalidade temporariamente indisponível. A plataforma está passando por um upgrade de segurança (P0) e esta tela será reativada em breve.');
-    }
 
     async getOrganizers(status?: ProfileStatus) {
-        this.throwUnavailable();
+        return api.get('/api/master/organizers');
     }
 
     async getPendingOrganizers() {
-        this.throwUnavailable();
+        // Frontend can filter or we can fetch all
+        return api.get('/api/master/organizers');
     }
 
     async getMailingAnalytics() {
-        this.throwUnavailable();
+        return { message: "Tracking não implementado" };
     }
 
     async approveOrganizer(profileDocId: string, masterUserId: string) {
-        this.throwUnavailable();
+        return api.post(`/api/master/organizers/${profileDocId}/approve`);
     }
 
     async rejectOrganizer(profileDocId: string) {
-        this.throwUnavailable();
+        return api.post(`/api/master/organizers/${profileDocId}/reject`);
     }
 
     async suspendOrganizer(profileDocId: string) {
-        this.throwUnavailable();
+        return api.post(`/api/master/organizers/${profileDocId}/suspend`);
     }
 
     async reactivateOrganizer(profileDocId: string) {
-        this.throwUnavailable();
+        return api.post(`/api/master/organizers/${profileDocId}/reactivate`);
     }
 
     async getAllEvents() {
-        this.throwUnavailable();
+        return api.get('/api/master/events');
     }
 
     async getAllEventsWithOrganizers() {
@@ -66,35 +64,35 @@ class MasterService {
     }
 
     async getPendingEvents() {
-        this.throwUnavailable();
+        return api.get('/api/master/events?status=pending');
     }
 
     async approveEvent(eventDocId: string) {
-        this.throwUnavailable();
+        return api.put(`/api/master/events/${eventDocId}/approve`);
     }
 
     async rejectEvent(eventDocId: string, reason?: string) {
-        this.throwUnavailable();
+        return api.put(`/api/master/events/${eventDocId}/reject`, { reason });
     }
 
     async toggleFeaturedEvent(eventDocId: string, isFeatured: boolean) {
-        this.throwUnavailable();
+        return { message: "Tracking não implementado" };
     }
 
     async getReportsAnalytics() {
-        this.throwUnavailable();
+        return { message: "Tracking não implementado" };
     }
 
     async updateOrganizer(id: string, data: any, userId: string) {
-        this.throwUnavailable();
+        return api.patch(`/api/master/organizers/${id}`, data);
     }
 
     async approveOrganizerManually(id: string) {
-        this.throwUnavailable();
+        return api.post(`/api/master/organizers/${id}/approve`);
     }
 
     async deleteOrganizer(id: string) {
-        this.throwUnavailable();
+        return api.delete(`/api/master/organizers/${id}`);
     }
 }
 

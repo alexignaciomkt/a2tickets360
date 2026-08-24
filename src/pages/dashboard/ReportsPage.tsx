@@ -12,15 +12,22 @@ const ReportsPage = () => {
   const [dateRange, setDateRange] = useState('month');
   const [loading, setLoading] = useState(true);
   const [reportData, setReportData] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchReports = async () => {
       try {
         setLoading(true);
+        setError(null);
         const data = await masterService.getReportsAnalytics();
-        setReportData(data);
-      } catch (error) {
-        console.error('Erro ao buscar dados do relatório:', error);
+        if (data.message) {
+           setError(data.message);
+        } else {
+           setReportData(data);
+        }
+      } catch (err: any) {
+        console.error('Erro ao buscar dados do relatório:', err);
+        setError('Falha ao carregar relatórios.');
       } finally {
         setLoading(false);
       }
@@ -98,6 +105,16 @@ const ReportsPage = () => {
               {loading ? (
                 <div className="h-[400px] flex items-center justify-center">
                   <Loader2 className="w-8 h-8 animate-spin text-slate-200" />
+                </div>
+              ) : error ? (
+                <div className="flex flex-col items-center justify-center h-[400px] text-center px-4">
+                   <div className="w-20 h-20 rounded-full bg-slate-50 flex items-center justify-center mx-auto mb-6 border border-slate-100 shadow-inner">
+                      <BarChart2 className="w-8 h-8 text-slate-300" />
+                   </div>
+                   <h3 className="text-base font-bold text-slate-700">{error}</h3>
+                   <p className="text-sm text-slate-500 mt-2 max-w-sm mx-auto">
+                      Os dados de relatórios e analytics não estão sendo processados pelo motor atual.
+                   </p>
                 </div>
               ) : (
                 <>

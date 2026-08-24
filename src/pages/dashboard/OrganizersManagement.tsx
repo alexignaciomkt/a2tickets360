@@ -48,13 +48,17 @@ const OrganizersManagement = () => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [orgToDeleteId, setOrgToDeleteId] = useState<string | null>(null);
 
+  const [error, setError] = useState<string | null>(null);
+
   const loadOrganizers = async () => {
     try {
       setIsLoading(true);
+      setError(null);
       const data = await masterService.getOrganizers();
       setOrganizers(data);
-    } catch (error) {
-      toast({ title: 'Sync Error', description: 'Não foi possível buscar a base de parceiros do cluster.', variant: 'destructive' });
+    } catch (err: any) {
+      setError(err.message || 'Não foi possível buscar a base de parceiros do cluster.');
+      toast({ title: 'Erro de Sincronização', description: 'Não foi possível buscar a base de parceiros do cluster.', variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }
@@ -229,6 +233,17 @@ const OrganizersManagement = () => {
                         </div>
                       </td>
                     </tr>
+                  ) : error ? (
+                    <tr>
+                      <td colSpan={6} className="px-16 py-32 text-center">
+                         <div className="w-24 h-24 rounded-full bg-rose-50 flex items-center justify-center mx-auto mb-6 border border-rose-100">
+                            <AlertTriangle className="h-10 w-10 text-rose-500" />
+                         </div>
+                         <h3 className="text-sm font-semibold text-slate-900">Erro ao carregar organizadores</h3>
+                         <p className="text-xs text-slate-500 mt-2">{error}</p>
+                         <Button onClick={loadOrganizers} variant="outline" className="mt-6 text-xs h-8">Tentar Novamente</Button>
+                      </td>
+                    </tr>
                   ) : filteredOrganizers.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="px-16 py-48 text-center">
@@ -247,7 +262,9 @@ const OrganizersManagement = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-600">{org.companyName || '—'}</td>
-                      <td className="px-6 py-4 text-sm font-medium text-slate-900 text-center tabular-nums">R$ 0,00</td>
+                      <td className="px-6 py-4 text-sm font-medium text-slate-900 text-center tabular-nums">
+                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((org as any).gmv || 0)}
+                      </td>
                       <td className="px-6 py-4">
                         <Badge variant="outline" className={`text-xs font-medium px-2 py-0.5 rounded-md ${
                           org.status === 'approved' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' :
