@@ -22,6 +22,7 @@ const EventApprovalPage = () => {
   const [events, setEvents] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState('pending');
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
@@ -29,9 +30,11 @@ const EventApprovalPage = () => {
   const loadEvents = async () => {
     try {
       setIsLoading(true);
+      setError(null);
       const data = await masterService.getAllEventsWithOrganizers();
       setEvents(data.filter((e: any) => e.status === activeTab));
-    } catch (error) {
+    } catch (err: any) {
+      setError(err.message || 'Não foi possível buscar os eventos.');
       toast({ title: 'Erro ao carregar', description: 'Não foi possível buscar os eventos.', variant: 'destructive' });
     } finally {
       setIsLoading(false);
@@ -146,13 +149,22 @@ const EventApprovalPage = () => {
                 <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
                 <p className="text-xs font-semibold text-slate-500">Carregando eventos...</p>
               </div>
+            ) : error ? (
+              <div className="flex flex-col items-center justify-center py-32 text-center">
+                <div className="w-20 h-20 rounded-full bg-rose-50 flex items-center justify-center mb-6 border border-rose-100">
+                   <AlertTriangle className="h-8 w-8 text-rose-500" />
+                </div>
+                <h3 className="text-sm font-semibold text-slate-900">Erro ao carregar</h3>
+                <p className="text-xs text-slate-500 mt-2">{error}</p>
+                <Button onClick={loadEvents} variant="outline" className="mt-4 text-xs h-8">Tentar Novamente</Button>
+              </div>
             ) : events.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-32 text-center">
                 <div className="w-20 h-20 rounded-full bg-slate-50 flex items-center justify-center mb-6 border border-slate-100">
                    <ShieldCheck className="h-8 w-8 text-slate-400" />
                 </div>
                 <h3 className="text-sm font-semibold text-slate-900">Tudo Limpo!</h3>
-                <p className="text-xs text-slate-500 mt-2">Não há eventos pendentes de aprovação no momento.</p>
+                <p className="text-xs text-slate-500 mt-2">Não há eventos para exibir no momento.</p>
               </div>
             ) : (
               <div className="overflow-x-auto">

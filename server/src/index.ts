@@ -2804,20 +2804,7 @@ function isProfileActuallyComplete(org: any) {
 }
 
 // Rota para validar e atualizar status de completude
-app.get('/api/master/events', async (c: Context) => {
-    try {
-        const allEvents = await db.query.events.findMany({
-            with: {
-                organizer: true,
-                tickets: true
-            },
-            orderBy: (events, { desc }) => [desc(events.createdAt)]
-        });
-        return c.json(allEvents);
-    } catch (error: any) {
-        return c.json({ error: error.message }, 400);
-    }
-});
+// Removido /api/master/events não autenticado
 
 
 app.get('/api/master/stats', async (c: Context) => {

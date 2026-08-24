@@ -62,7 +62,7 @@ class MasterService {
     }
 
     async getAllEventsWithOrganizers() {
-        this.throwUnavailable();
+        return api.get('/api/master/events');
     }
 
     async getPendingEvents() {

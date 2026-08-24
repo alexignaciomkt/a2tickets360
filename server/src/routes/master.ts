@@ -183,4 +183,22 @@ router.get('/financial/payouts', async (c) => {
     }
 });
 
+router.get('/events', async (c) => {
+    try {
+        const queryParams = c.req.query();
+        const allEvents = await db.query.events.findMany({
+            with: { organizer: true },
+            orderBy: (events, { desc }) => [desc(events.createdAt)]
+        });
+        
+        if (queryParams.status) {
+            return c.json(allEvents.filter(e => e.status === queryParams.status));
+        }
+        return c.json(allEvents);
+    } catch (e: any) {
+        console.error('Master Events Error:', e);
+        return c.json({ error: 'Internal Server Error' }, 500);
+    }
+});
+
 export default router;
