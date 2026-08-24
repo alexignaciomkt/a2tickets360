@@ -2723,9 +2723,6 @@ app.get('/api/organizers/:id/stats', async (c: Context) => {
     }
 });
 
-    }
-});
-
 app.get('/api/purchased-tickets/:id/status', async (c: Context) => {
     try {
         const id = c.req.param('id');
