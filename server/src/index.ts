@@ -38,6 +38,7 @@ import uploadsRoutes from './routes/uploads';
 import albumsRoutes from './routes/albums';
 import publicAlbumsRoutes from './routes/publicAlbums';
 import masterRoutes from './routes/master';
+import eventsRoutes from './routes/events';
 
 import { logger } from 'hono/logger';
 import { authMiddleware, clerkAuthMiddleware } from './middlewares/auth';
@@ -102,6 +103,7 @@ app.route('/api/checkin/tickets', ticketCheckinRoutes);
 app.route('/api/portaria', portariaRoutes);
 app.route('/api/uploads', uploadsRoutes);
 app.route('/api/organizer/albums', albumsRoutes);
+app.route('/api/organizer/events', eventsRoutes);
 app.route('/api/public/producers', publicAlbumsRoutes);
 app.route('/api/master', masterRoutes);
 

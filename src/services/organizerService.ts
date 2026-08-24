@@ -144,19 +144,17 @@ class OrganizerService {
     return `${dateStr}T${timeStr}:00`;
   }
 
-  async createEvent(eventData: any): Promise<Event> {
-    // Força o status inicial como 'pending' para fluxo de aprovação master
-    // Só permite 'draft' se o usuário salvou explicitamente como rascunho
+  async createEvent(eventData: any, operationId?: string): Promise<Event> {
     const initialStatus = eventData.status === 'draft' ? 'draft' : 'pending';
     
-    // Map camelCase to snake_case
+    // Map camelCase to snake_case payload
     const dbData: any = {
       title: eventData.title,
       slug: eventData.slug || uuidv4().substring(0, 8),
       description: eventData.description,
       category: eventData.category,
       category_code: eventData.categoryCode,
-      organizer_id: eventData.organizerId,
+      organizer_id: eventData.organizerId, // Will be ignored by backend, but we keep for type check if needed
       status: initialStatus,
       sports_integration_status: eventData.categoryCode === 'SPORT_TRUCO' ? 'pending' : 'not_applicable',
       timezone: eventData.timezone,
@@ -169,70 +167,73 @@ class OrganizerService {
       postal_code: eventData.locationPostalCode || eventData.postalCode,
       capacity: eventData.capacity || 0,
       event_type: eventData.eventType || 'paid',
-      banner_url: eventData.imageUrl || eventData.bannerUrl
+      banner_url: eventData.imageUrl || eventData.bannerUrl,
+      tickets: eventData.tickets
     };
 
-    const { data, error } = await supabase
-      .from('events')
-      .insert(dbData)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    // Handle initial tickets if provided
-    if (eventData.tickets && eventData.tickets.length > 0) {
-      const ticketsData = eventData.tickets.map((t: any) => ({
-        event_id: data.id,
-        name: t.name,
-        price: t.price,
-        quantity: t.quantity,
-        remaining: t.quantity,
-        category: t.category || 'standard',
-        registration_type: t.registrationType || 'INDIVIDUAL',
-        participants_per_registration: t.participantsPerRegistration || 1,
-        ticket_purpose: t.ticketPurpose || 'REGISTRATION'
-      }));
-      const { error: ticketError } = await supabase.from('tickets').insert(ticketsData);
-      if (ticketError) {
-        console.error('Erro ao inserir tickets:', ticketError);
-        throw new Error(`Evento criado, mas falha ao salvar ingressos: ${ticketError.message}`);
-      }
+    if (!operationId) {
+      throw new Error('operationId (X-Idempotency-Key) é obrigatório para criação de evento.');
     }
 
-    // Webhook: Evento Criado (dispara para rascunhos e publicações)
-    const webhookPayload = {
-      eventId: data.id,
-      title: data.title,
-      slug: data.slug,
-      description: data.description,
-      category: data.category,
-      eventType: data.event_type,
-      status: data.status,
-      startDate: data.start_date,
-      endDate: data.end_date,
-      locationName: data.location_name,
-      address: data.address,
-      city: data.city,
-      state: data.state,
-      capacity: data.capacity,
-      bannerUrl: data.banner_url,
-      organizerId: data.organizer_id,
-      tickets: eventData.tickets || [],
-      timestamp: new Date().toISOString()
-    };
-
-    webhookService.dispatch('event_created', webhookPayload);
-
-    // Webhook: Evento Publicado (dispara apenas quando o produtor solicitou publicação)
-    if (initialStatus === 'pending') {
-      webhookService.dispatch('event_published', {
-        ...webhookPayload,
-        message: `O produtor solicitou a publicação do evento "${data.title}". Evento aguardando análise.`
+    try {
+      const response = await api.post('/organizer/events', dbData, {
+        headers: {
+          'X-Idempotency-Key': operationId
+        },
+        timeout: 30000 // 30 seconds
       });
-    }
 
-    return { id: data.id, ...data } as unknown as Event;
+      const data = response.data;
+      if (response.status === 202) {
+        throw new Error('PROCESSING_AMBIGUOUS');
+      }
+
+      // Webhook: Evento Criado
+      const webhookPayload = {
+        eventId: data.id,
+        title: data.title,
+        slug: data.slug,
+        description: data.description,
+        category: data.category,
+        eventType: data.eventType || data.event_type,
+        status: data.status,
+        startDate: data.startDate || data.start_date,
+        endDate: data.endDate || data.end_date,
+        locationName: data.locationName || data.location_name,
+        address: data.address,
+        city: data.city,
+        state: data.state,
+        capacity: data.capacity,
+        bannerUrl: data.bannerUrl || data.banner_url,
+        organizerId: data.organizerId || data.organizer_id,
+        tickets: eventData.tickets || [],
+        timestamp: new Date().toISOString()
+      };
+
+      webhookService.dispatch('event_created', webhookPayload);
+
+      // Webhook: Evento Publicado
+      if (initialStatus === 'pending') {
+        webhookService.dispatch('event_published', {
+          ...webhookPayload,
+          message: `O produtor solicitou a publicação do evento "${data.title}". Evento aguardando análise.`
+        });
+      }
+
+      return { id: data.id, ...data } as unknown as Event;
+
+    } catch (error: any) {
+      if (error.message === 'PROCESSING_AMBIGUOUS') {
+        throw error;
+      }
+      if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+        const timeoutError = new Error('TIMEOUT_AMBIGUOUS');
+        (timeoutError as any).isTimeout = true;
+        throw timeoutError;
+      }
+      console.error('Erro na API createEvent:', error);
+      throw new Error(error.response?.data?.error || error.message || 'Falha ao criar evento.');
+    }
   }
 
   async updateEvent(eventId: string, eventData: any): Promise<Event> {

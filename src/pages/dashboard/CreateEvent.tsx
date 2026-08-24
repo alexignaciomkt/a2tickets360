@@ -65,6 +65,7 @@ const CreateEvent = () => {
   const [availableCredits, setAvailableCredits] = useState<number | null>(null);
   const [useFeaturedCredit, setUseFeaturedCredit] = useState(false);
   const reservationTokenRef = useRef(crypto.randomUUID());
+  const operationIdRef = useRef(crypto.randomUUID());
 
   useEffect(() => {
     const fetchCredits = async () => {
@@ -400,7 +401,47 @@ const CreateEvent = () => {
             ticketPurpose: t.ticketPurpose
           }));
           
-          const newEvent = await organizerService.createEvent(eventData);
+          let newEvent: any = null;
+          try {
+            newEvent = await organizerService.createEvent(eventData, operationIdRef.current);
+          } catch (createErr: any) {
+            if (createErr.isTimeout) {
+               // Timeout AMBIGUOUS recovery via endpoint
+               try {
+                 const { api } = await import('@/services/api');
+                 const statusRes = await api.get(`/organizer/events/operations/${operationIdRef.current}`);
+                 if (statusRes.data?.status === 'COMPLETED') {
+                    newEvent = { id: statusRes.data.eventId };
+                 } else if (statusRes.data?.status === 'PROCESSING') {
+                    toast({ variant: 'destructive', title: 'Aviso', description: 'O evento ainda está sendo processado. Aguarde alguns instantes e verifique sua lista de eventos.' });
+                    setIsSubmitting(false);
+                    return;
+                 } else {
+                    // FAILED or NOT_FOUND
+                    if (useFeaturedCredit) {
+                       await handleCancelReservation(true).catch(() => {});
+                    }
+                    throw new Error('Falha na criação ou o tempo se esgotou sem sucesso.');
+                 }
+               } catch (recoveryErr) {
+                 toast({ variant: 'destructive', title: 'Aviso', description: 'Conexão lenta. Seu evento pode ter sido criado. Verifique antes de tentar novamente.' });
+                 setIsSubmitting(false);
+                 return;
+               }
+            } else if (createErr.message === 'PROCESSING_AMBIGUOUS') {
+               toast({ variant: 'destructive', title: 'Processando', description: 'Esta operação já está em processamento. Aguarde.' });
+               setIsSubmitting(false);
+               return;
+            } else {
+               // Erro definitivo (4xx, 5xx), liberar crédito se necessário e gerar novo operationId
+               if (useFeaturedCredit) {
+                  await handleCancelReservation(true).catch(() => {});
+               }
+               operationIdRef.current = crypto.randomUUID();
+               throw createErr;
+            }
+          }
+
           if (forceStatus === 'draft') {
             if (useFeaturedCredit) {
                 // Best-effort cancel
@@ -411,7 +452,7 @@ const CreateEvent = () => {
             return;
           }
 
-          if (useFeaturedCredit) {
+          if (useFeaturedCredit && newEvent?.id) {
             try {
               await serviceCreditsService.consumeReservation(reservationTokenRef.current, newEvent.id);
             } catch (err) {
@@ -438,6 +479,7 @@ const CreateEvent = () => {
             }
           }
 
+          operationIdRef.current = crypto.randomUUID(); // Renew for future creations if user stays
           toast({ title: 'Sucesso!', description: 'Evento criado.' });
           navigate('/organizer/events');
           return;
@@ -831,7 +873,7 @@ const CreateEvent = () => {
             </h4>
             <p className="text-sm text-gray-500 font-medium">
               {useFeaturedCredit 
-                ? `Este evento será destacado após a publicação. 1 crédito será utilizado. Após a publicação você ficará com ${(availableCredits || 0) - 1} crédito(s) disponível(is).`
+                ? `Este evento será destacado após a publicação. 1 crédito será utilizado. Após a publicação você ficará com ${availableCredits || 0} crédito(s) disponível(is).`
                 : availableCredits && availableCredits > 0
                   ? `Você possui ${availableCredits} crédito(s) disponível(is). Deseja usar 1 crédito para destacar este evento no carrossel principal da plataforma?`
                   : 'Destaque seu evento no carrossel principal da plataforma.'
