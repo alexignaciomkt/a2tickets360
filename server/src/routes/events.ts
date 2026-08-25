@@ -129,7 +129,6 @@ router.post('/', async (c) => {
 
                 return newEvent;
             });
-
             await idempotencyService.setCompleted(userId, operationId, eventResult.id);
             return c.json({ id: eventResult.id, ...eventResult }, 201);
             
@@ -147,14 +146,15 @@ router.post('/', async (c) => {
             throw dbError; // Bubble up para o catch block principal
         }
 
-    } catch (err: any) {
-        console.error('[EVENTS_POST] Error:', err);
+    } catch (error: any) {
+        console.error('[EVENT API] ERROR at final catch', error);
+        await idempotencyService.setFailed(c.get('jwtPayload').id, c.req.header('X-Idempotency-Key')!, error.message);
         const payload = c.get('jwtPayload');
         const operationId = c.req.header('X-Idempotency-Key');
         if (payload && operationId) {
-            await idempotencyService.setFailed(payload.id, operationId, err.message || 'UNKNOWN');
+            await idempotencyService.setFailed(payload.id, operationId, error.message || 'UNKNOWN');
         }
-        return c.json({ error: 'Erro ao criar evento.', detail: err.message }, 500);
+        return c.json({ error: 'Erro ao criar evento.', detail: error.message }, 500);
     }
 });
 

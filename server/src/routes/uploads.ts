@@ -137,4 +137,70 @@ router.post('/presign', async (c: Context) => {
   }
 });
 
+router.post('/banner', async (c: Context) => {
+  try {
+    const payload = c.get('jwtPayload');
+    if (!payload || !payload.id) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    if (payload.role !== 'organizer' && payload.role !== 'master') {
+      return c.json({ error: 'Acesso negado. Apenas organizadores podem fazer upload de banner.' }, 403);
+    }
+
+    const userId = payload.id;
+    const body = await c.req.parseBody();
+    const file = body['file'] as File;
+
+    if (!file) {
+      return c.json({ error: 'Nenhum arquivo enviado.' }, 400);
+    }
+
+    // Validate MIME
+    const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowedMimeTypes.includes(file.type)) {
+      return c.json({ error: 'Tipo de arquivo inválido. Apenas JPEG, PNG e WebP são permitidos.' }, 400);
+    }
+
+    // Validate size (10 MB)
+    if (file.size > 10 * 1024 * 1024) {
+      return c.json({ error: 'O tamanho da imagem excede o limite de 10MB.' }, 400);
+    }
+
+    // Generate secure key
+    const ext = file.name.split('.').pop() || 'jpg';
+    const objectKey = `producers/${userId}/banner/${uuidv4()}.${ext}`;
+
+    // Read file buffer
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    // PutObject directly via SDK
+    const command = new PutObjectCommand({
+      Bucket: BUCKET_NAME,
+      Key: objectKey,
+      Body: buffer,
+      ContentType: file.type,
+    });
+
+    // Implement a 60s timeout for the AWS SDK call by wrapping it in Promise.race or abortController if needed,
+    // though the S3Client will respect its internal timeouts. We'll rely on node-fetch or internal http agent.
+    
+    await s3Client.send(command);
+
+    const endpoint = process.env.MINIO_ENDPOINT || 'https://s3.a2tickets360.com.br';
+    const publicUrl = `${endpoint}/${BUCKET_NAME}/${objectKey}`;
+
+    return c.json({
+      success: true,
+      key: objectKey,
+      url: publicUrl
+    });
+
+  } catch (error: any) {
+    console.error('[UPLOADS] Erro ao enviar banner:', error);
+    return c.json({ error: 'Falha no upload do arquivo.' }, 500);
+  }
+});
+
 export default router;

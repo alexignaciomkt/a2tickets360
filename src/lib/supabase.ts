@@ -15,12 +15,7 @@ export const supabase = (() => {
           autoRefreshToken: true,
           detectSessionInUrl: true,
           storageKey: 'a3tickets_sb_auth',
-          flowType: 'implicit',
-          // Bypass navigator.locks para evitar "Lock was released because another request stole it"
-          // A assinatura correta é: lock(name, acquireTimeout, fn) => Promise
-          lock: async (_name: string, _acquireTimeout: number, fn: () => Promise<any>) => {
-            return await fn();
-          }
+          flowType: 'implicit'
         }
       }
     );

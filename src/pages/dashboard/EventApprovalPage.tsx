@@ -14,7 +14,7 @@ import { masterService } from '@/services/masterService';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { formatEventDate, formatEventTime } from '@/utils/eventDateTime';
+import { useRef } from 'react';
 
 const EventApprovalPage = () => {
   const { toast } = useToast();
@@ -44,8 +44,10 @@ const EventApprovalPage = () => {
   useEffect(() => { loadEvents(); }, [activeTab]);
 
   const handleApprove = async (id: string) => {
+    if (isApprovingRef.current) return;
+    isApprovingRef.current = true;
+    setIsApproving(true);
     try {
-      setIsApproving(true);
       await masterService.approveEvent(id);
       setIsModalOpen(false);
       loadEvents();
@@ -58,20 +60,24 @@ const EventApprovalPage = () => {
       });
     } finally {
       setIsApproving(false);
+      isApprovingRef.current = false;
     }
   };
 
   const handleReject = async (id: string) => {
+    if (isApprovingRef.current) return;
+    isApprovingRef.current = true;
     try {
       setIsApproving(true);
       await masterService.rejectEvent(id);
       setIsModalOpen(false);
       loadEvents();
       toast({ title: 'Evento Rejeitado', description: 'O produtor foi notificado.' });
-    } catch (error) {
-      toast({ title: 'Erro ao rejeitar', variant: 'destructive' });
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Erro na Aprovação', description: err.message });
     } finally {
       setIsApproving(false);
+      isApprovingRef.current = false;
     }
   };
 
@@ -90,8 +96,31 @@ const EventApprovalPage = () => {
     setIsModalOpen(true);
   };
 
-  const formatDate = (d: string) => formatEventDate(d);
-  const formatTime = (d: string) => formatEventTime(d);
+  const formatDate = (d: string, tz?: string) => {
+    if (!d) return '—';
+    try {
+      const dateObj = new Date(d);
+      return new Intl.DateTimeFormat('pt-BR', {
+        timeZone: tz || 'America/Sao_Paulo'
+      }).format(dateObj);
+    } catch {
+      return '—';
+    }
+  };
+
+  const formatTime = (d: string, tz?: string) => {
+    if (!d) return '';
+    try {
+      const dateObj = new Date(d);
+      return new Intl.DateTimeFormat('pt-BR', {
+        timeZone: tz || 'America/Sao_Paulo',
+        hour: '2-digit',
+        minute: '2-digit'
+      }).format(dateObj);
+    } catch {
+      return '';
+    }
+  };
   const formatCurrency = (v: number) => `R$ ${(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
 
   const ev = selectedEvent;
@@ -208,8 +237,8 @@ const EventApprovalPage = () => {
                         </td>
                         <td className="px-6 py-4">
                           <div className="space-y-1">
-                            <div className="flex items-center gap-2 text-sm font-medium text-slate-900"><Calendar className="w-4 h-4 text-slate-400" /> {formatDate(event.startDate || event.start_date)}</div>
-                            <div className="flex items-center gap-2 text-xs font-medium text-slate-500"><Clock className="w-4 h-4 text-slate-400" /> {formatTime(event.startDate || event.start_date)}</div>
+                            <div className="flex items-center gap-2 text-sm font-medium text-slate-900"><Calendar className="w-4 h-4 text-slate-400" /> {formatDate(event.startDate || event.start_date, event.timezone)}</div>
+                            <div className="flex items-center gap-2 text-xs font-medium text-slate-500"><Clock className="w-4 h-4 text-slate-400" /> {formatTime(event.startDate || event.start_date, event.timezone)}</div>
                           </div>
                         </td>
                         <td className="px-6 py-4">
@@ -299,7 +328,7 @@ const EventApprovalPage = () => {
                       </div>
                       <div className="space-y-1">
                         <p className="text-xs font-semibold text-slate-500">Data / Hora</p>
-                        <p className="text-sm font-medium text-slate-900">{formatDate(ev.startDate || ev.start_date)} • {formatTime(ev.startDate || ev.start_date)}</p>
+                        <p className="text-sm font-medium text-slate-900">{formatDate(ev.startDate || ev.start_date, ev.timezone)} • {formatTime(ev.startDate || ev.start_date, ev.timezone)}</p>
                       </div>
                       <div className="space-y-1 col-span-2">
                         <p className="text-xs font-semibold text-slate-500">Local</p>

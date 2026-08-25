@@ -145,6 +145,7 @@ class OrganizerService {
   }
 
   async createEvent(eventData: any, operationId?: string): Promise<Event> {
+    console.log('[PUBLISH SERVICE] entered', { operationId });
     const initialStatus = eventData.status === 'draft' ? 'draft' : 'pending';
     
     // Map camelCase to snake_case payload
@@ -176,14 +177,16 @@ class OrganizerService {
     }
 
     try {
-      const response = await api.post('/organizer/events', dbData, {
+      console.log('[PUBLISH SERVICE] POST starting');
+      const response = await api.post('/api/organizer/events', dbData, {
         headers: {
           'X-Idempotency-Key': operationId
         },
         timeout: 30000 // 30 seconds
       });
+      console.log('[PUBLISH SERVICE] POST response', response);
 
-      const data = response.data;
+      const data = response.data || response;
       if (response.status === 202) {
         throw new Error('PROCESSING_AMBIGUOUS');
       }
@@ -219,14 +222,27 @@ class OrganizerService {
           message: `O produtor solicitou a publicação do evento "${data.title}". Evento aguardando análise.`
         });
       }
-
-      return { id: data.id, ...data } as unknown as Event;
+      console.log('[PUBLISH SERVICE] success, returning data');
+      return { id: data.id, slug: data.slug } as Event;
 
     } catch (error: any) {
+      console.error('[P0.14] 13 API_POST_ERROR', Date.now(), error);
+      console.error('[PUBLISH SERVICE] Error caught in createEvent', error);
       if (error.message === 'PROCESSING_AMBIGUOUS') {
         throw error;
       }
       if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+        // Verify via DB if we timed out
+        const { data: existing, error: dbError } = await supabase
+          .from('events')
+          .select('id, slug')
+          .eq('id', operationId)
+          .single();
+
+        if (existing) {
+            return existing as Event;
+        }
+
         const timeoutError = new Error('TIMEOUT_AMBIGUOUS');
         (timeoutError as any).isTimeout = true;
         throw timeoutError;
@@ -342,54 +358,30 @@ class OrganizerService {
 
   async uploadImage(file: File, userId?: string, typeOverride?: string, customFileName?: string, role: string = 'producer'): Promise<{ url: string, objectKey?: string }> {
     try {
-      console.log(`[UPLOAD 2] chamando uploadImage para ${file.name}`);
       const isLogo = customFileName?.includes('logo') || typeOverride?.includes('logo');
       const type = typeOverride || (isLogo ? 'producer-logo' : 'producer-banner');
       
-      const { api } = await import('@/services/api');
+      const formData = new FormData();
+      formData.append('file', file);
 
-      // 1. Solicita URL pré-assinada do backend
-      console.log(`[UPLOAD] Solicitando URL pré-assinada para ${file.name}`);
-      const presignResponse = await api.post<{ presignedUrl: string, objectKey: string, publicUrl: string }>('/api/uploads/presign', {
-        type,
-        fileName: file.name,
-        contentType: file.type || 'image/jpeg',
-        fileSize: file.size
-      });
-      
-      const { presignedUrl, publicUrl, objectKey } = presignResponse;
-      console.log(`[UPLOAD 3] presign recebido. ObjectKey: ${objectKey}`);
-
-      // 2. Faz o upload diretamente para o MinIO usando a URL pré-assinada
-      console.log(`[UPLOAD 4] iniciando PUT para: ${presignedUrl.split('?')[0]}`);
-      
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos timeout
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 segundos timeout
 
-      let uploadResponse;
       try {
-        uploadResponse = await fetch(presignedUrl, {
-          method: 'PUT',
-          body: file,
-          headers: {
-            'Content-Type': file.type || 'image/jpeg'
-          },
+        const data = await api.post<{ success: boolean; url: string; key: string }>('/api/uploads/banner', formData, {
           signal: controller.signal
         });
 
-        console.log(`[UPLOAD 5] PUT finalizado status=${uploadResponse.status}`);
-
-        if (!uploadResponse.ok) {
-          const errorText = await uploadResponse.text();
-          console.error('[UPLOAD] PUT failed with body:', errorText);
-          throw new Error(`Upload failed with status ${uploadResponse.status}: ${errorText}`);
-        }
-      } finally {
         clearTimeout(timeoutId);
+
+        if (!data.success || !data.url) {
+          throw new Error('Upload response missing url');
+        }
+        return { url: data.url, objectKey: data.key };
+      } catch (err: any) {
+        clearTimeout(timeoutId);
+        throw err;
       }
-      
-      console.log(`[UPLOAD 6] publicUrl recebida: ${publicUrl}`);
-      return { url: publicUrl, objectKey };
     } catch (storageError: any) {
       console.error('❌ Falha no upload pelo MinIO:', storageError);
       if (storageError.name === 'AbortError') {

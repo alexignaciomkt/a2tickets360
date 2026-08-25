@@ -85,7 +85,7 @@ const transporter = nodemailer.createTransport({
 app.use('/*', cors({
     origin: '*',
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-    allowHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+    allowHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'X-Idempotency-Key'],
     exposeHeaders: ['Content-Length', 'X-Kuma-Revision'],
     maxAge: 600,
     credentials: true,
@@ -1017,6 +1017,60 @@ app.get('/api/service-credits', authMiddleware, async (c: Context) => {
     } catch (error: any) {
         console.error('[GET /api/service-credits]', error);
         return c.json({ error: 'Erro ao buscar créditos de serviço.' }, 500);
+    }
+});
+
+// --- Ativar Destaque (Pós-Publicação) ---
+app.post('/api/service-credits/activate-featured', authMiddleware, async (c: Context) => {
+    try {
+        const payload = c.get('jwtPayload');
+        if (!payload || !payload.id) return c.json({ error: 'Unauthorized' }, 401);
+
+        const { eventId } = await c.req.json();
+        if (!eventId) return c.json({ error: 'ID do evento é obrigatório.' }, 400);
+
+        const organizer = await db.query.organizers.findFirst({
+            where: eq(schema.organizers.userId, payload.id)
+        });
+
+        if (!organizer) {
+            return c.json({ error: 'Produtora não encontrada.' }, 403);
+        }
+
+        const { activateFeaturedCredit } = await import('./services/credits');
+        
+        try {
+            const result = await activateFeaturedCredit(eventId, organizer.id, payload.id, payload.id);
+            
+            // Buscar saldo atualizado para o frontend
+            const credits = await db.query.organizerServiceCredits.findMany({
+                where: eq(schema.organizerServiceCredits.organizerId, organizer.id)
+            });
+            let available = 0, reserved = 0, consumed = 0;
+            credits.forEach(credit => {
+                if (credit.status === 'AVAILABLE') available++;
+                else if (credit.status === 'RESERVED') reserved++;
+                else if (credit.status === 'CONSUMED') consumed++;
+            });
+
+            return c.json({
+                success: true,
+                eventId,
+                creditId: result.creditId || null,
+                featuredUntil: result.featuredUntil,
+                summary: { available, reserved, consumed }
+            });
+        } catch (bizErr: any) {
+            // Idempotency: se já estiver ativado, retorna sucesso
+            if (bizErr.message === 'Este evento já possui um destaque ativo.') {
+                return c.json({ success: true, alreadyFeatured: true, message: 'Destaque já estava ativo.' });
+            }
+            return c.json({ error: bizErr.message }, 400);
+        }
+
+    } catch (error: any) {
+        console.error('[POST /api/service-credits/activate-featured]', error);
+        return c.json({ error: 'Erro ao ativar destaque.' }, 500);
     }
 });
 

@@ -221,6 +221,10 @@ router.put('/events/:id/approve', async (c) => {
         const event = await db.query.events.findFirst({ where: eq(events.id, id) });
         if (!event) return c.json({ error: 'Evento não encontrado' }, 404);
 
+        if (event.status === 'published') {
+            return c.json({ message: 'Evento já aprovado', event, alreadyPublished: true });
+        }
+
         if (!['draft', 'pending'].includes(event.status as string)) {
             return c.json({ error: `Evento com status '${event.status}' não pode ser aprovado.` }, 400);
         }

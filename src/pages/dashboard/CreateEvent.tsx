@@ -12,14 +12,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { organizerService } from '@/services/organizerService';
-import { serviceCreditsService } from '@/services/serviceCreditsService';
-import { supabase } from '@/lib/supabase';
 import { getEventTemporalStatus } from '@/utils/eventDateTime';
 import EventWizardStepper from '@/components/events/EventWizardStepper';
 import CategoryCombobox from '@/components/events/CategoryCombobox';
 import TicketBuilder, { TicketTier } from '@/components/events/TicketBuilder';
 import EventPreviewCard from '@/components/events/EventPreviewCard';
-import { FeaturedCreditsPurchaseModal } from '@/components/modals/FeaturedCreditsPurchaseModal';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -56,29 +53,11 @@ const CreateEvent = () => {
   const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
   const [acceptsPromoters, setAcceptsPromoters] = useState(false);
   const [promoterCommissionRate, setPromoterCommissionRate] = useState(10);
   const [promoterDiscountRate, setPromoterDiscountRate] = useState(0);
 
-  // Featured Credits State
-  const [availableCredits, setAvailableCredits] = useState<number | null>(null);
-  const [useFeaturedCredit, setUseFeaturedCredit] = useState(false);
-  const reservationTokenRef = useRef(crypto.randomUUID());
   const operationIdRef = useRef(crypto.randomUUID());
-
-  useEffect(() => {
-    const fetchCredits = async () => {
-      if (user?.role !== 'organizer' && user?.role !== 'admin') return;
-      try {
-        const response = await serviceCreditsService.getServiceCredits();
-        setAvailableCredits(response?.summary?.available || 0);
-      } catch (error) {
-        console.error('Failed to fetch service credits', error);
-      }
-    };
-    fetchCredits();
-  }, [user]);
 
   // Renderização do Aviso de Perfil Incompleto (Não bloqueante)
   const renderProfileWarning = () => {
@@ -211,7 +190,6 @@ const CreateEvent = () => {
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      console.log(`[UPLOAD 1] arquivo selecionado: ${file.name}`);
       const token = Math.random();
       uploadTokenRef.current = token;
 
@@ -225,7 +203,6 @@ const CreateEvent = () => {
         // 2. Upload para o servidor
         const { url: remoteUrl } = await organizerService.uploadImage(file, user?.id, 'producer-banner');
         if (uploadTokenRef.current === token) {
-          console.log(`[UPLOAD 7] imageUrl setado: ${remoteUrl}`);
           setImageUrl(remoteUrl);
         }
       } catch (err) {
@@ -239,7 +216,6 @@ const CreateEvent = () => {
           });
         }
       } finally {
-        console.log(`[UPLOAD 8] finally executado. Token local: ${token}, Token atual: ${uploadTokenRef.current}`);
         if (uploadTokenRef.current === token) {
           setIsBannerUploading(false);
         }
@@ -287,51 +263,25 @@ const CreateEvent = () => {
     if (currentStep < 5 && canAdvance()) setCurrentStep(prev => prev + 1);
   };
 
-  const handleReserveCredit = async () => {
-    try {
-      const response = await serviceCreditsService.reserveSession(reservationTokenRef.current);
-      setUseFeaturedCredit(true);
-      if (response.summary) {
-        setAvailableCredits(response.summary.available);
-      }
-      toast({ title: 'Reserva Confirmada', description: 'O crédito foi reservado com sucesso.' });
-    } catch (err: any) {
-      toast({ variant: 'destructive', title: 'Erro', description: err.message || 'Não foi possível reservar o crédito.' });
-    }
-  };
-
-  const handleCancelReservation = async (isBackground = false) => {
-    try {
-      const response = await serviceCreditsService.cancelReservation(reservationTokenRef.current);
-      if (!isBackground) {
-        setUseFeaturedCredit(false);
-        if (response.summary) {
-          setAvailableCredits(response.summary.available);
-        }
-        toast({ title: 'Reserva Cancelada', description: 'A reserva de crédito foi desfeita.' });
-      }
-    } catch (err: any) {
-      if (!isBackground) {
-        toast({ variant: 'destructive', title: 'Erro', description: err.message || 'Não foi possível cancelar a reserva.' });
-      }
-    }
-  };
-
   const prevStep = () => {
     if (currentStep > 1) setCurrentStep(prev => prev - 1);
   };
 
   const handleSubmit = async (status: 'draft' | 'published') => {
+    console.log('[PUBLISH EXECUTE] handleSubmit entered', { status, isSubmitting, isBannerUploading });
     if (isBannerUploading) {
+      console.log('[PUBLISH EXECUTE] early return: isBannerUploading');
       toast({ variant: 'destructive', title: 'Aguarde', description: 'O envio do banner ainda está em andamento.' });
       return;
     }
     if (previewUrl && !imageUrl) {
+      console.log('[PUBLISH EXECUTE] early return: missing imageUrl');
       toast({ variant: 'destructive', title: 'Erro na imagem', description: 'A imagem ainda não foi enviada ou o upload falhou. Tente novamente.' });
       return;
     }
 
     if (!user?.id) {
+      console.log('[PUBLISH EXECUTE] early return: not logged in');
       toast({ variant: 'destructive', title: 'Erro', description: 'Você precisa estar logado.' });
       return;
     }
@@ -348,6 +298,10 @@ const CreateEvent = () => {
     }
 
     const executeSave = async (forceStatus: 'draft' | 'published') => {
+      console.log('[PUBLISH EXECUTE] executeSave entered', {
+        forceStatus,
+        isSubmitting
+      });
       setIsSubmitting(true);
       try {
         const slug = title
@@ -403,13 +357,20 @@ const CreateEvent = () => {
           
           let newEvent: any = null;
           try {
+            console.log('[PUBLISH EXECUTE] calling createEvent', {
+              operationId: operationIdRef.current,
+              ticketCount: eventData.tickets?.length,
+              hasBanner: !!eventData.imageUrl
+            });
             newEvent = await organizerService.createEvent(eventData, operationIdRef.current);
           } catch (createErr: any) {
             if (createErr.isTimeout) {
                // Timeout AMBIGUOUS recovery via endpoint
                try {
+                 console.log('[PUBLISH] operation recovery starting');
                  const { api } = await import('@/services/api');
                  const statusRes = await api.get(`/organizer/events/operations/${operationIdRef.current}`);
+                 console.log('[PUBLISH] operation recovery response', statusRes);
                  if (statusRes.data?.status === 'COMPLETED') {
                     newEvent = { id: statusRes.data.eventId };
                  } else if (statusRes.data?.status === 'PROCESSING') {
@@ -418,12 +379,10 @@ const CreateEvent = () => {
                     return;
                  } else {
                     // FAILED or NOT_FOUND
-                    if (useFeaturedCredit) {
-                       await handleCancelReservation(true).catch(() => {});
-                    }
                     throw new Error('Falha na criação ou o tempo se esgotou sem sucesso.');
                  }
                } catch (recoveryErr) {
+                 console.log('[PUBLISH] operation recovery error', recoveryErr);
                  toast({ variant: 'destructive', title: 'Aviso', description: 'Conexão lenta. Seu evento pode ter sido criado. Verifique antes de tentar novamente.' });
                  setIsSubmitting(false);
                  return;
@@ -433,50 +392,16 @@ const CreateEvent = () => {
                setIsSubmitting(false);
                return;
             } else {
-               // Erro definitivo (4xx, 5xx), liberar crédito se necessário e gerar novo operationId
-               if (useFeaturedCredit) {
-                  await handleCancelReservation(true).catch(() => {});
-               }
+               // Erro definitivo (4xx, 5xx), gerar novo operationId
                operationIdRef.current = crypto.randomUUID();
                throw createErr;
             }
           }
 
           if (forceStatus === 'draft') {
-            if (useFeaturedCredit) {
-                // Best-effort cancel
-                handleCancelReservation(true).catch(e => console.warn('Cancelamento de rascunho em background falhou:', e));
-            }
             toast({ title: '💾 Rascunho salvo!', description: 'Você pode continuar editando.' });
             navigate('/organizer/events');
             return;
-          }
-
-          if (useFeaturedCredit && newEvent?.id) {
-            try {
-              await serviceCreditsService.consumeReservation(reservationTokenRef.current, newEvent.id);
-            } catch (err) {
-              console.error('Erro ao ativar destaque:', err);
-              // Avançado: reconsultar estado
-              try {
-                const status = await serviceCreditsService.getFeaturedCreditStatus(newEvent.id);
-                if (status.activeHighlight) {
-                   // Tratado como sucesso
-                } else {
-                   toast({
-                     variant: 'destructive',
-                     title: 'Aviso',
-                     description: 'Seu evento foi publicado, mas o destaque ainda não foi concluído.'
-                   });
-                }
-              } catch (recheckErr) {
-                toast({
-                  variant: 'destructive',
-                  title: 'Aviso',
-                  description: 'Seu evento foi publicado, mas não foi possível confirmar a ativação do destaque. Consulte o evento antes de tentar novamente.'
-                });
-              }
-            }
           }
 
           operationIdRef.current = crypto.randomUUID(); // Renew for future creations if user stays
@@ -490,6 +415,7 @@ const CreateEvent = () => {
           navigate(`/organizer/event/${eventId}/manage`);
         }
       } catch (error: any) {
+        console.error('[P0.14] EXECUTE_ERROR', error);
         console.error('Erro detalhado ao salvar evento:', {
           message: error.message,
           details: error.details,
@@ -524,19 +450,20 @@ const CreateEvent = () => {
       const newTemporalStatus = getEventTemporalStatus(newStartISO, newEndISO);
       
       if (oldTemporalStatus === 'ENCERRADO' && newTemporalStatus === 'FUTURO') {
+        console.log('[PUBLISH EXECUTE] early return: RESURRECTION alert');
         setAlertReason('RESURRECTION');
         setIsAlertOpen(true);
         return;
       }
       
       if (initialHasSales && isCriticalChange) {
+        console.log('[PUBLISH EXECUTE] early return: SALES alert');
         setAlertReason('SALES');
         setIsAlertOpen(true);
         return;
       }
     }
-
-    executeSave(status);
+    await executeSave(status);
   };
 
   const confirmAlertAndSave = () => {
@@ -846,7 +773,7 @@ const CreateEvent = () => {
   const renderStep5 = () => (
     <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-1">Revisão Final</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-1">Revisão Final • DEBUG</h3>
         <p className="text-sm text-gray-500 mb-6">Confira tudo antes de publicar. Você poderá editar depois.</p>
       </div>
       <EventPreviewCard data={{
@@ -855,82 +782,55 @@ const CreateEvent = () => {
         date, time, duration, locationName, locationAddress, locationCity, locationState, capacity, tickets,
       }} />
 
-      {/* Seção de Promoção / Monetização - Nova UI de Créditos */}
-      <div className={`mt-8 p-6 rounded-[2.5rem] border-2 transition-all duration-500 overflow-hidden relative group border-indigo-500 bg-indigo-50/50 shadow-2xl shadow-indigo-100`}>
-
-        <div className="absolute top-0 right-0 p-4 bg-indigo-500 text-white rounded-bl-3xl animate-in zoom-in duration-300">
-          <Star className="w-6 h-6 fill-current" />
+      {/* Seção de Promoção / Monetização - Novo CTA Informativo */}
+      <div className="mt-8 p-6 rounded-[2.5rem] border-2 transition-all duration-500 overflow-hidden relative group border-indigo-200 bg-indigo-50/30">
+        <div className="absolute top-0 right-0 p-4 bg-indigo-100 text-indigo-500 rounded-bl-3xl">
+          <Star className="w-5 h-5 fill-current" />
         </div>
 
         <div className="flex flex-col md:flex-row items-center gap-8 relative z-10">
-          <div className={`w-20 h-20 rounded-[1.5rem] flex items-center justify-center shrink-0 transition-transform duration-500 group-hover:scale-110 bg-indigo-600 text-white drop-shadow-xl`}>
-            <Star className={`w-10 h-10 fill-current`} />
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 bg-indigo-100 text-indigo-600">
+            <Star className="w-8 h-8 fill-current" />
           </div>
 
           <div className="flex-1 text-center md:text-left">
-            <h4 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-2">
-              {useFeaturedCredit ? '⭐ Destaque Selecionado' : 'Créditos de Destaque'}
+            <h4 className="text-lg font-bold text-indigo-900 uppercase tracking-tight mb-2">
+              ⭐ DESTAQUE SEU EVENTO
             </h4>
-            <p className="text-sm text-gray-500 font-medium">
-              {useFeaturedCredit 
-                ? `Este evento será destacado após a publicação. 1 crédito será utilizado. Após a publicação você ficará com ${availableCredits || 0} crédito(s) disponível(is).`
-                : availableCredits && availableCredits > 0
-                  ? `Você possui ${availableCredits} crédito(s) disponível(is). Deseja usar 1 crédito para destacar este evento no carrossel principal da plataforma?`
-                  : 'Destaque seu evento no carrossel principal da plataforma.'
-              }
+            <p className="text-sm text-indigo-700/80 font-medium">
+              Quer dar mais visibilidade a este evento? Após publicar, você poderá destacá-lo nas principais áreas da A2Tickets360.
+              <br className="hidden md:block" />
+              Acesse <span className="font-bold">Configurações → Créditos e Serviços</span> para adquirir e gerenciar seus créditos de destaque.
             </p>
           </div>
 
-          <div className="shrink-0 flex flex-col items-center gap-2">
-            {useFeaturedCredit ? (
-              <Button
-                type="button"
-                onClick={() => handleCancelReservation(false)}
-                className={`rounded-full h-12 px-8 font-black uppercase text-xs tracking-widest transition-all bg-gray-200 hover:bg-gray-300 text-gray-800`}
-              >
-                Cancelar Destaque
-              </Button>
-            ) : availableCredits && availableCredits > 0 ? (
-              <div className="flex flex-col gap-2 w-full md:w-auto items-center">
-                <Button
-                  type="button"
-                  onClick={handleReserveCredit}
-                  className={`rounded-full h-12 px-8 font-black uppercase text-xs tracking-widest transition-all bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-200`}
-                >
-                  <Star className="w-4 h-4 mr-2 fill-current" />
-                  Usar 1 Crédito
-                </Button>
-                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                  Não, obrigado
-                </div>
-              </div>
-            ) : (
-              <>
-                <div className="text-2xl font-black text-indigo-600 tracking-tight">R$ 49,90</div>
-                <Button
-                  type="button"
-                  onClick={() => setIsPurchaseModalOpen(true)}
-                  className={`rounded-full h-12 px-8 font-black uppercase text-xs tracking-widest transition-all bg-indigo-600 hover:bg-indigo-700 text-white`}
-                >
-                  Comprar Créditos
-                </Button>
-              </>
-            )}
+          <div className="shrink-0 flex flex-col items-center">
+            <Button
+              type="button"
+              onClick={() => navigate('/organizer/settings/credits')}
+              className="rounded-full h-10 px-6 font-bold uppercase text-[10px] tracking-widest bg-white border-2 border-indigo-200 text-indigo-600 hover:bg-indigo-50"
+            >
+              Ver Créditos e Serviços
+            </Button>
           </div>
         </div>
       </div>
-      <FeaturedCreditsPurchaseModal 
-        isOpen={isPurchaseModalOpen}
-        onClose={() => setIsPurchaseModalOpen(false)}
-        onSuccess={() => {}}
-      />
       <div className="flex flex-col sm:flex-row gap-3 pt-4">
         <Button type="button" onClick={() => handleSubmit('draft')} disabled={isSubmitting || isBannerUploading}
           variant="outline" className="flex-1 border-gray-300 text-gray-600 hover:bg-gray-50 gap-2 h-12">
           <Save className="h-4 w-4" />
           {isBannerUploading ? 'Enviando banner...' : isSubmitting ? 'Salvando...' : 'Salvar como Rascunho'}
         </Button>
-        <Button type="button" onClick={() => handleSubmit('published')} disabled={isSubmitting || isBannerUploading}
+        <Button type="button" onClick={async () => {
+            console.log('[PUBLISH RAW] button clicked');
+            console.log('[PUBLISH RAW] isSubmitting before', isSubmitting);
+            try {
+              await handleSubmit('published');
+            } catch (error) {
+              console.error('[TRACE] BUTTON ERROR', error);
+            }
+          }} 
+          disabled={isSubmitting || isBannerUploading}
           className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white gap-2 h-12 shadow-lg shadow-indigo-200">
           <Send className="h-4 w-4" />
           {isBannerUploading 

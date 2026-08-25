@@ -48,6 +48,21 @@ class IdempotencyService {
         return `idempotency:organizer-event:${userId}:${operationId}`;
     }
 
+    private async withTimeout<T>(promise: Promise<T>, ms: number = 3000): Promise<T> {
+        let timeoutId: NodeJS.Timeout;
+        const timeoutPromise = new Promise<never>((_, reject) => {
+            timeoutId = setTimeout(() => {
+                reject(new Error(`Redis operation timed out after ${ms}ms`));
+            }, ms);
+        });
+
+        try {
+            return await Promise.race([promise, timeoutPromise]);
+        } finally {
+            clearTimeout(timeoutId!);
+        }
+    }
+
     /**
      * Tenta registrar a operação como PROCESSING.
      * Retorna true se adquiriu o lock (operação nova).
@@ -58,8 +73,13 @@ class IdempotencyService {
         const data: OperationStatus = { status: 'PROCESSING', startedAt: Date.now() };
 
         if (this.isRedisConnected && this.redis) {
-            const result = await this.redis.set(key, JSON.stringify(data), 'EX', ttlSeconds, 'NX');
-            return result === 'OK';
+            try {
+                const result = await this.withTimeout(this.redis.set(key, JSON.stringify(data), 'EX', ttlSeconds, 'NX'));
+                return result === 'OK';
+            } catch (err) {
+                console.warn('[IDEMPOTENCY] Redis acquireLock failed/timeout:', err);
+                // Fallback to memory
+            }
         }
 
         // Fallback para dev (ou produção sem Redis, assumindo risco)
@@ -75,15 +95,20 @@ class IdempotencyService {
         const key = this.getKey(userId, operationId);
         
         if (this.isRedisConnected && this.redis) {
-            const dataStr = await this.redis.get(key);
-            if (dataStr) {
-                try {
-                    return JSON.parse(dataStr) as OperationStatus;
-                } catch {
-                    return null;
+            try {
+                const dataStr = await this.withTimeout(this.redis.get(key));
+                if (dataStr) {
+                    try {
+                        return JSON.parse(dataStr) as OperationStatus;
+                    } catch {
+                        return null;
+                    }
                 }
+                return null;
+            } catch (err) {
+                console.warn('[IDEMPOTENCY] Redis getStatus failed/timeout:', err);
+                // Fallback to memory
             }
-            return null;
         }
 
         return this.memoryFallback.get(key) || null;
@@ -94,8 +119,12 @@ class IdempotencyService {
         const data: OperationStatus = { status: 'COMPLETED', eventId, completedAt: Date.now() };
 
         if (this.isRedisConnected && this.redis) {
-            await this.redis.set(key, JSON.stringify(data), 'EX', ttlSeconds);
-            return;
+            try {
+                await this.withTimeout(this.redis.set(key, JSON.stringify(data), 'EX', ttlSeconds));
+                return;
+            } catch (err) {
+                console.warn('[IDEMPOTENCY] Redis setCompleted failed/timeout:', err);
+            }
         }
 
         this.memoryFallback.set(key, data);
@@ -107,8 +136,12 @@ class IdempotencyService {
         const data: OperationStatus = { status: 'FAILED', errorCode, completedAt: Date.now() };
 
         if (this.isRedisConnected && this.redis) {
-            await this.redis.set(key, JSON.stringify(data), 'EX', ttlSeconds);
-            return;
+            try {
+                await this.withTimeout(this.redis.set(key, JSON.stringify(data), 'EX', ttlSeconds));
+                return;
+            } catch (err) {
+                console.warn('[IDEMPOTENCY] Redis setFailed failed/timeout:', err);
+            }
         }
 
         this.memoryFallback.set(key, data);
