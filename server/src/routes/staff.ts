@@ -1,19 +1,23 @@
 import { Hono, Context } from 'hono';
 import { authMiddleware } from '../middlewares/auth';
 import { db } from '../db';
-import { 
+import {
     eventStaff, 
     staffProfiles, 
     staffFunctions,
     eventStaffRoles,
     roles,
     profiles,
-    events
+    events,
+    staffApplications,
+    staffProfessionalFunctions,
+    staffProfileFunctions
 } from '../db/schema';
-import { eq, and, or, sql, lt, gt, inArray } from 'drizzle-orm';
+import { eq, and, or, sql, lt, gt, inArray, isNull } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import { supabaseAdmin } from '../lib/supabaseAdmin';
 import { supabaseAuthClient } from '../lib/supabaseAuthClient';
+import { StaffAssignmentService } from '../services/staffAssignmentService';
 
 const router = new Hono();
 router.use('/*', authMiddleware);
@@ -41,6 +45,7 @@ router.get('/event-staff', async (c: Context) => {
             funcao: staffFunctions.name,
             // Detalhes do Staff (Identidade)
             email: profiles.email,
+            avatarUrl: profiles.avatarUrl,
             // Detalhes do Staff (Perfil de Contratação)
             nome: staffProfiles.fullName,
             telefone: staffProfiles.phone
@@ -68,6 +73,8 @@ router.get('/event-staff', async (c: Context) => {
             const systemRoleIds = rolesData.filter(r => r.eventStaffId === s.eventStaffId).map(r => r.roleId);
             return {
                 ...s,
+                shiftStart: s.shiftStart ? s.shiftStart.toISOString().replace('Z', '') : null,
+                shiftEnd: s.shiftEnd ? s.shiftEnd.toISOString().replace('Z', '') : null,
                 systemRoleIds
             };
         });
@@ -110,7 +117,12 @@ router.get('/my-invites', async (c: Context) => {
         .orderBy(eventStaff.createdAt);
 
         const data = await query;
-        return c.json(data);
+        const mappedData = data.map(s => ({
+            ...s,
+            shiftStart: s.shiftStart ? s.shiftStart.toISOString().replace('Z', '') : null,
+            shiftEnd: s.shiftEnd ? s.shiftEnd.toISOString().replace('Z', '') : null,
+        }));
+        return c.json(mappedData);
     } catch (err: any) {
         console.error('[GET /my-invites]', err);
         return c.json({ error: err.message }, 500);
@@ -514,48 +526,9 @@ router.post('/accept/:id', async (c: Context) => {
             return c.json({ error: 'Invalid state for acceptance' }, 400);
         }
 
-        // Ideally, use a transaction here, but Postgres constraints/advisory locks are better for true concurrency.
-        // We will use an advisory lock on the userId to serialize any acceptance for this specific user.
-        // This guarantees no two concurrent acceptances can bypass the conflict check.
-        await db.transaction(async (tx) => {
-            // Get a unique 64-bit integer based on the user's UUID for the lock
-            // We use the first 16 chars of the UUID (without dashes) to create a hash.
-            const userHash = userId.replace(/-/g, '').substring(0, 15);
-            const lockId = parseInt(userHash, 16) % 2147483647; // keep within postgres int limits
-            
-            // Acquire transaction-level advisory lock
-            await tx.execute(sql`SELECT pg_advisory_xact_lock(${lockId})`);
+        const result = await StaffAssignmentService.acceptAssignmentAndIssueCredential(userId, assignment);
 
-            if (assignment.shiftStart && assignment.shiftEnd) {
-                const start = new Date(assignment.shiftStart);
-                const end = new Date(assignment.shiftEnd);
-    
-                const conflicting = await tx.select().from(eventStaff)
-                    .where(and(
-                        eq(eventStaff.userId, userId),
-                        eq(eventStaff.status, 'ACTIVE'),
-                        or(
-                            and(
-                                lt(eventStaff.shiftStart, end),
-                                gt(eventStaff.shiftEnd, start)
-                            )
-                        )
-                    ));
-    
-                if (conflicting.length > 0) {
-                    throw new Error('Shift conflict detected with an existing ACTIVE assignment');
-                }
-            }
-    
-            await tx.update(eventStaff)
-                .set({ 
-                    status: 'ACTIVE', 
-                    acceptedAt: new Date() 
-                })
-                .where(eq(eventStaff.id, assignmentId));
-        });
-
-        return c.json({ message: 'Accepted successfully' });
+        return c.json(result);
     } catch (err: any) {
         if (err.message === 'Shift conflict detected with an existing ACTIVE assignment') {
             return c.json({ error: err.message }, 409);
@@ -598,6 +571,252 @@ router.post('/decline/:id', async (c: Context) => {
         return c.json({ message: 'Declined successfully' });
     } catch (err: any) {
         return c.json({ error: err.message }, 500);
+    }
+});
+
+// ============================================================================
+// STAFF APPLICATIONS (CANDIDATURAS)
+// ============================================================================
+
+/**
+ * GET /api/staff/events
+ * Lista eventos elegíveis para candidatura
+ */
+router.get('/events', async (c: Context) => {
+    try {
+        const payload = c.get('jwtPayload');
+        const userId = payload.id;
+
+        // Eventos published, endDate >= now() or (endDate is null and startDate >= now())
+        const eligibleEvents = await db.select({
+            id: events.id,
+            title: events.title,
+            bannerUrl: events.bannerUrl,
+            startDate: events.startDate,
+            endDate: events.endDate,
+            locationName: events.locationName,
+            city: events.city,
+            state: events.state,
+            organizerName: profiles.name,
+            organizerAvatarUrl: profiles.avatarUrl
+        })
+        .from(events)
+        .leftJoin(profiles, eq(events.organizerId, profiles.userId))
+        .where(
+            and(
+                eq(events.status, 'published'),
+                or(
+                    gt(events.endDate, new Date()),
+                    and(
+                        isNull(events.endDate),
+                        gt(events.startDate, new Date())
+                    )
+                )
+            )
+        );
+
+        // Obter candidaturas atuais do staff para preencher applicationStatus
+        const myApplications = await db.select({
+            eventId: staffApplications.eventId,
+            status: staffApplications.status
+        }).from(staffApplications).where(eq(staffApplications.userId, userId));
+
+        const result = eligibleEvents.map(evt => {
+            const app = myApplications.find(a => a.eventId === evt.id);
+            return {
+                ...evt,
+                applicationStatus: app ? app.status : null
+            };
+        });
+
+        return c.json(result);
+    } catch (err: any) {
+        console.error('[GET /staff/events]', err);
+        return c.json({ error: err.message }, 500);
+    }
+});
+
+/**
+ * POST /api/staff/events/:eventId/apply
+ * Envia uma candidatura
+ */
+router.post('/events/:eventId/apply', async (c: Context) => {
+    try {
+        const payload = c.get('jwtPayload');
+        const userId = payload.id;
+        const { eventId } = c.req.param();
+        const { professionalFunctionIds } = await c.req.json();
+
+        if (!professionalFunctionIds || !Array.isArray(professionalFunctionIds) || professionalFunctionIds.length === 0) {
+            return c.json({ error: 'É necessário selecionar pelo menos uma função.' }, 400);
+        }
+
+        // 1. Validar se o evento é elegível
+        const evt = await db.select().from(events).where(eq(events.id, eventId));
+        if (evt.length === 0 || evt[0].status !== 'published') {
+            return c.json({ error: 'Evento não elegível para candidatura.' }, 400);
+        }
+
+        // 2. Validar perfil completo e se as funções pertencem ao perfil global do Staff
+        const myProfileFunctions = await db.select().from(staffProfileFunctions).where(eq(staffProfileFunctions.staffUserId, userId));
+        const myFuncIds = myProfileFunctions.map(f => f.professionalFunctionId);
+        
+        for (const funcId of professionalFunctionIds) {
+            if (!myFuncIds.includes(funcId)) {
+                return c.json({ error: 'Uma das funções selecionadas não pertence ao seu perfil profissional.' }, 400);
+            }
+        }
+
+        // 3. Checar unique/existência de candidatura ativa
+        const existingApp = await db.select().from(staffApplications)
+            .where(and(eq(staffApplications.eventId, eventId), eq(staffApplications.userId, userId), inArray(staffApplications.status, ['PENDING', 'APPROVED', 'REJECTED'])));
+        if (existingApp.length > 0) {
+            return c.json({ error: 'Você já possui uma candidatura ativa ou recusada para este evento.' }, 409);
+        }
+
+        // 4. Inserir Candidatura
+        await db.transaction(async (tx) => {
+            const [newApp] = await tx.insert(staffApplications).values({
+                eventId,
+                userId,
+                status: 'PENDING'
+            }).returning();
+
+            const appFunctions = professionalFunctionIds.map(fid => ({
+                staffApplicationId: newApp.id,
+                professionalFunctionId: fid
+            }));
+            
+            await tx.insert(staffApplicationFunctions).values(appFunctions);
+        });
+
+        return c.json({ message: 'Candidatura enviada com sucesso.' });
+    } catch (err: any) {
+        console.error('[POST /apply]', err);
+        return c.json({ error: err.message }, 500);
+    }
+});
+
+/**
+ * GET /api/staff/applications
+ * Retorna as candidaturas do Staff
+ */
+router.get('/applications', async (c: Context) => {
+    try {
+        const payload = c.get('jwtPayload');
+        const userId = payload.id;
+
+        const apps = await db.select({
+            id: staffApplications.id,
+            eventId: staffApplications.eventId,
+            status: staffApplications.status,
+            createdAt: staffApplications.createdAt,
+            eventTitle: events.title,
+            eventBanner: events.bannerUrl,
+            eventStartDate: events.startDate
+        })
+        .from(staffApplications)
+        .leftJoin(events, eq(staffApplications.eventId, events.id))
+        .where(eq(staffApplications.userId, userId))
+        .orderBy(staffApplications.createdAt);
+
+        return c.json(apps);
+    } catch (err: any) {
+        return c.json({ error: err.message }, 500);
+    }
+});
+
+/**
+ * POST /api/staff/applications/:id/cancel
+ * Cancela uma candidatura
+ */
+router.post('/applications/:id/cancel', async (c: Context) => {
+    try {
+        const payload = c.get('jwtPayload');
+        const userId = payload.id;
+        const appId = c.req.param('id');
+
+        const app = await db.select().from(staffApplications).where(eq(staffApplications.id, appId));
+        if (app.length === 0) return c.json({ error: 'Não encontrado' }, 404);
+
+        if (app[0].userId !== userId) return c.json({ error: 'Proibido' }, 403);
+        if (app[0].status !== 'PENDING') return c.json({ error: 'Apenas candidaturas PENDING podem ser canceladas' }, 400);
+
+        await db.update(staffApplications).set({ status: 'CANCELLED' }).where(eq(staffApplications.id, appId));
+
+        return c.json({ message: 'Cancelado com sucesso.' });
+    } catch (err: any) {
+        return c.json({ error: err.message }, 500);
+    }
+});
+
+/**
+ * PATCH /api/staff/event-staff/:id
+ * Atualiza um membro do staff (Gestão de Staff)
+ */
+router.patch('/event-staff/:id', async (c: Context) => {
+    try {
+        const payload = c.get('jwtPayload');
+        const organizerId = payload.id;
+        const id = c.req.param('id');
+        const body = await c.req.json();
+
+        // Transaction for atomic update
+        await db.transaction(async (tx) => {
+            // 1. Validar ownership with lock
+            const assignment = await tx.select().from(eventStaff).where(eq(eventStaff.id, id)).for('update');
+            if (assignment.length === 0) {
+                throw new Error('Vínculo não encontrado');
+            }
+            if (assignment[0].organizerId !== organizerId) {
+                throw new Error('Proibido');
+            }
+
+            // 2. Atualizar eventStaff ONLY with valid schema fields
+            const updateData: any = {};
+            if (body.staffFunctionId !== undefined) updateData.staffFunctionId = body.staffFunctionId;
+            
+            // Se a data for passada, injetar o 'Z'
+            if (body.shiftStart) updateData.shiftStart = new Date(body.shiftStart);
+            if (body.shiftEnd) updateData.shiftEnd = new Date(body.shiftEnd);
+            
+            // Explicitly clear if null passed
+            if (body.shiftStart === null) updateData.shiftStart = null;
+            if (body.shiftEnd === null) updateData.shiftEnd = null;
+
+            if (Object.keys(updateData).length > 0) {
+                updateData.updatedAt = new Date();
+                await tx.update(eventStaff).set(updateData).where(eq(eventStaff.id, id));
+            }
+
+            // 3. Sync Roles
+            if (body.systemRoleIds && Array.isArray(body.systemRoleIds)) {
+                if (body.systemRoleIds.length > 0) {
+                    // Validar se as roles existem no catálogo
+                    const validRoles = await tx.select({ id: roles.id }).from(roles).where(inArray(roles.id, body.systemRoleIds));
+                    if (validRoles.length !== body.systemRoleIds.length) {
+                        throw new Error('Uma ou mais permissões informadas são inválidas');
+                    }
+                }
+
+                // Delete existing
+                await tx.delete(eventStaffRoles).where(eq(eventStaffRoles.eventStaffId, id));
+
+                // Insert new roles
+                if (body.systemRoleIds.length > 0) {
+                    const rolesToInsert = body.systemRoleIds.map((roleId: string) => ({
+                        eventStaffId: id,
+                        roleId: roleId
+                    }));
+                    await tx.insert(eventStaffRoles).values(rolesToInsert);
+                }
+            }
+        });
+
+        return c.json({ message: 'Staff atualizado com sucesso' });
+    } catch (err: any) {
+        const status = err.message === 'Vínculo não encontrado' ? 404 : (err.message === 'Proibido' ? 403 : (err.message === 'Uma ou mais permissões informadas são inválidas' ? 400 : 500));
+        return c.json({ error: err.message }, status as any);
     }
 });
 

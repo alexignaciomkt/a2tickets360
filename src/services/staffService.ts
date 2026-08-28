@@ -128,9 +128,10 @@ class StaffService {
         isActive: s.status === 'ACTIVE',
         status: s.status,
         phone: s.telefone,
+        photoUrl: s.avatarUrl,
         createdAt: s.createdAt,
-        shiftStart: s.shiftStart,
-        shiftEnd: s.shiftEnd,
+        shiftStart: s.shiftStart ? s.shiftStart.replace('Z', '') : null,
+        shiftEnd: s.shiftEnd ? s.shiftEnd.replace('Z', '') : null,
       } as any));
     } catch (e) {
       console.error('[STAFF_SERVICE] Erro ao buscar equipe:', e);
@@ -220,17 +221,18 @@ class StaffService {
    * Atualiza um membro da equipe
    */
   async updateStaffMember(id: string, data: any): Promise<void> {
-    const { error } = await supabase.from('staff').update({
-       event_id: data.eventId === 'all' || data.eventId === '' ? null : data.eventId,
-       name: data.name,
-       email: data.email,
-       role_id: data.roleId,
-       event_function: data.eventFunction,
-       is_active: data.isActive,
-       photo_url: data.photoUrl
-    }).eq('id', id);
-
-    if (error) throw error;
+    try {
+      const { api } = await import('@/services/api');
+      await api.patch(`/api/staff/event-staff/${id}`, {
+        staffFunctionId: data.staffFunctionId,
+        shiftStart: data.shiftStart,
+        shiftEnd: data.shiftEnd,
+        systemRoleIds: data.systemRoleIds
+      });
+    } catch (e) {
+      console.error('[STAFF_SERVICE] Erro ao atualizar staff:', e);
+      throw e;
+    }
   }
 
   /**
@@ -431,6 +433,108 @@ class StaffService {
     }
 
     return syncedCount;
+  }
+
+  // ==========================================
+  // STAFF APPLICATIONS
+  // ==========================================
+  
+  async getAvailableEvents(): Promise<any[]> {
+    try {
+      const { api } = await import('@/services/api');
+      return await api.get('/api/staff/events');
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
+  }
+
+  async applyForEvent(eventId: string, professionalFunctionIds: string[]): Promise<any> {
+    try {
+      const { api } = await import('@/services/api');
+      return await api.post(`/api/staff/events/${eventId}/apply`, { professionalFunctionIds });
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
+  }
+
+  async getMyApplications(): Promise<any[]> {
+    try {
+      const { api } = await import('@/services/api');
+      return await api.get('/api/staff/applications');
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
+  }
+
+  async cancelApplication(applicationId: string): Promise<any> {
+    try {
+      const { api } = await import('@/services/api');
+      return await api.post(`/api/staff/applications/${applicationId}/cancel`);
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
+  }
+
+  async getEventApplications(eventId: string): Promise<any[]> {
+    try {
+      const { api } = await import('@/services/api');
+      return await api.get(`/api/organizer/events/${eventId}/staff-applications`);
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
+  }
+
+  async getCandidateProfile(eventId: string, applicationId: string): Promise<any> {
+    try {
+      const { api } = await import('@/services/api');
+      return await api.get(`/api/organizer/events/${eventId}/staff-applications/${applicationId}/profile`);
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
+  }
+
+  async rejectApplication(eventId: string, applicationId: string): Promise<any> {
+    try {
+      const { api } = await import('@/services/api');
+      return await api.post(`/api/organizer/events/${eventId}/staff-applications/${applicationId}/reject`);
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
+  }
+
+  async approveApplication(eventId: string, applicationId: string, data: { staffFunctionId: string, shiftDate: string, shiftStart: string | null, shiftEnd: string | null }): Promise<any> {
+    try {
+      const { api } = await import('@/services/api');
+      return await api.post(`/api/organizer/events/${eventId}/staff-applications/${applicationId}/approve`, data);
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
+  }
+
+  async updateApplicationProposal(eventId: string, applicationId: string, data: { staffFunctionId: string, shiftDate: string, shiftStart: string | null, shiftEnd: string | null }): Promise<any> {
+    try {
+      console.log('[PROPOSAL SERVICE] START', {
+        eventId,
+        applicationId,
+        data
+      });
+      const { api } = await import('@/services/api');
+      console.log('[PROPOSAL SERVICE] BEFORE API');
+      const response = await api.patch(`/api/organizer/events/${eventId}/staff-applications/${applicationId}/proposal`, data);
+      console.log('[PROPOSAL SERVICE] API OK');
+      return response;
+    } catch (e) {
+      console.error('[PROPOSAL SERVICE] ERROR', e);
+      throw e;
+    }
   }
 }
 
