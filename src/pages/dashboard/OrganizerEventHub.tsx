@@ -28,6 +28,7 @@ import OrganizerCouponsTab from './OrganizerCouponsTab';
 import OrganizerRulesTab from './OrganizerRulesTab';
 import OrganizerTicketDesignerTab from './OrganizerTicketDesignerTab';
 import OrganizerEventInfoTab from './OrganizerEventInfoTab';
+import OrganizerEventStaffApplicationsTab from './OrganizerEventStaffApplicationsTab';
 import { OrganizerEventHighlightBox } from '@/components/dashboard/OrganizerEventHighlightBox';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
@@ -35,7 +36,7 @@ import { api } from '@/services/api';
 import { useToast } from '@/components/ui/use-toast';
 import { getEventTemporalStatus } from '@/utils/eventDateTime';
 
-type TabType = 'overview' | 'visitors' | 'promoters' | 'coupons' | 'settings' | 'design' | 'info';
+type TabType = 'overview' | 'visitors' | 'promoters' | 'coupons' | 'settings' | 'design' | 'info' | 'staff_applications';
 
 const OrganizerEventHub = () => {
   const { eventId } = useParams<{ eventId: string }>();
@@ -145,6 +146,28 @@ const OrganizerEventHub = () => {
     }
   };
 
+  const [isTogglingOperation, setIsTogglingOperation] = useState(false);
+  const handleToggleOperationStatus = async (newStatus: 'open' | 'closed') => {
+    if (!eventId) return;
+    setIsTogglingOperation(true);
+    try {
+      await api.patch(`/api/organizer/events/${eventId}/access-operation`, { operationStatus: newStatus });
+      toast({
+        title: newStatus === 'open' ? 'Operação Liberada' : 'Operação Fechada',
+        description: newStatus === 'open' ? 'O Scanner de ingressos agora está disponível para a equipe.' : 'O acesso ao Scanner de ingressos foi bloqueado.'
+      });
+      await fetchEventData();
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao alterar status da operação',
+        description: err.message || 'Tente novamente mais tarde.'
+      });
+    } finally {
+      setIsTogglingOperation(false);
+    }
+  };
+
   const handleSyncRegistrations = async () => {
     if (!eventId) return;
     setIsSyncingRegistrations(true);
@@ -197,6 +220,7 @@ const OrganizerEventHub = () => {
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+    { id: 'staff_applications', label: 'Candidaturas Staff', icon: Users },
     { id: 'visitors', label: 'Mailing / Visitantes', icon: Users },
     { id: 'promoters', label: 'Promoters', icon: CircleDollarSign },
     { id: 'coupons', label: 'Cupons & Cortesias', icon: Tag },
@@ -268,6 +292,45 @@ const OrganizerEventHub = () => {
               </Link>
             </div>
           </div>
+        </div>
+
+        {/* ── Access Control Operation Block ──────────────── */}
+        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 flex flex-col md:flex-row items-center justify-between gap-4">
+          <div>
+            <h2 className="text-sm font-black text-gray-900 tracking-widest uppercase mb-1 flex items-center gap-2">
+              Controle de Acesso
+              {event?.operation_status === 'open' ? (
+                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+              ) : (
+                <span className="w-2 h-2 rounded-full bg-red-500" />
+              )}
+            </h2>
+            <p className="text-xs text-gray-500 font-medium">
+              Status atual: {event?.operation_status === 'open' ? (
+                <span className="text-green-600 font-bold uppercase tracking-wider">Operação Liberada</span>
+              ) : (
+                <span className="text-red-600 font-bold uppercase tracking-wider">Operação Fechada</span>
+              )}
+            </p>
+            <p className="text-[11px] text-gray-400 mt-1 max-w-lg">
+              {event?.operation_status === 'open' 
+                ? 'O Scanner está ativo. O acesso do Staff depende de suas escalas individuais (shift_start / shift_end).'
+                : 'O Scanner está inativo. Nenhum Staff conseguirá acessar a portaria do evento até que a operação seja liberada.'}
+            </p>
+          </div>
+          <button
+            onClick={() => handleToggleOperationStatus(event?.operation_status === 'open' ? 'closed' : 'open')}
+            disabled={isTogglingOperation}
+            className={`
+              px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all shrink-0
+              ${isTogglingOperation ? 'opacity-50 cursor-not-allowed' : 'hover:scale-[1.02] active:scale-[0.98]'}
+              ${event?.operation_status === 'open' 
+                ? 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100'
+                : 'bg-green-500 text-white shadow-lg shadow-green-500/20 hover:bg-green-600'}
+            `}
+          >
+            {isTogglingOperation ? 'Aguarde...' : event?.operation_status === 'open' ? 'Encerrar Controle de Acesso' : 'Liberar Controle de Acesso'}
+          </button>
         </div>
 
         {/* ── Tab Navigation ────────────────────────────── */}
@@ -433,6 +496,10 @@ const OrganizerEventHub = () => {
 
           {activeTab === 'design' && (
              <OrganizerTicketDesignerTab eventId={eventId || ''} />
+          )}
+
+          {activeTab === 'staff_applications' && (
+            <OrganizerEventStaffApplicationsTab eventId={eventId || ''} eventStartDate={event?.startDate || event?.start_date} />
           )}
 
           {activeTab === 'info' && (

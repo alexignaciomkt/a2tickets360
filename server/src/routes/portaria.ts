@@ -30,13 +30,13 @@ router.get('/current-operation', async (c: Context) => {
 
         if (isMaster) {
             // Master tem acesso a todos os eventos não cancelados
-            const all = await db.select({ id: events.id }).from(events).where(ne(events.status, 'cancelled'));
+            const all = await db.select({ id: events.id }).from(events).where(and(ne(events.status, 'cancelled'), eq(events.operationStatus, 'open')));
             all.forEach(e => candidateEventIds.add(e.id));
         } else {
             // Owner: events.organizerId stores auth.uid(), so match directly
             const ownerOrgs = await db.select({ userId: organizers.userId }).from(organizers).where(eq(organizers.userId, userId));
             for (const org of ownerOrgs) {
-                const orgEvents = await db.select({ id: events.id }).from(events).where(and(eq(events.organizerId, org.userId), ne(events.status, 'cancelled')));
+                const orgEvents = await db.select({ id: events.id }).from(events).where(and(eq(events.organizerId, org.userId), ne(events.status, 'cancelled'), eq(events.operationStatus, 'open')));
                 orgEvents.forEach(e => candidateEventIds.add(e.id));
             }
 
@@ -44,17 +44,33 @@ router.get('/current-operation', async (c: Context) => {
             const empRecords = await db.select().from(employees).where(and(eq(employees.userId, userId), eq(employees.status, 'active')));
             for (const emp of empRecords) {
                 if (emp.accessScope === 'ALL_EVENTS') {
-                    const orgEvents = await db.select({ id: events.id }).from(events).where(and(eq(events.organizerId, emp.organizerId), ne(events.status, 'cancelled')));
+                    const orgEvents = await db.select({ id: events.id }).from(events).where(and(eq(events.organizerId, emp.organizerId), ne(events.status, 'cancelled'), eq(events.operationStatus, 'open')));
                     orgEvents.forEach(e => candidateEventIds.add(e.id));
                 } else if (emp.accessScope === 'SELECTED_EVENTS') {
+                    // Filter event properties later for SELECTED_EVENTS
                     const access = await db.select({ eventId: employeeEventAccess.eventId }).from(employeeEventAccess).where(eq(employeeEventAccess.employeeId, emp.id));
                     access.forEach(a => candidateEventIds.add(a.eventId));
                 }
             }
 
             // Event Staff
-            const staffRecords = await db.select({ eventId: eventStaff.eventId }).from(eventStaff).where(and(eq(eventStaff.userId, userId), eq(eventStaff.status, 'ACTIVE')));
-            staffRecords.forEach(s => candidateEventIds.add(s.eventId));
+            const now = new Date();
+            const staffRecords = await db.select({ eventId: eventStaff.eventId }).from(eventStaff).where(
+                and(
+                    eq(eventStaff.userId, userId), 
+                    eq(eventStaff.status, 'ACTIVE')
+                )
+            );
+            
+            // Re-check shift logic inside JS to handle nulls correctly or use sql
+            for (const s of staffRecords) {
+                const es = (await db.select().from(eventStaff).where(and(eq(eventStaff.eventId, s.eventId), eq(eventStaff.userId, userId))))[0];
+                if (es && es.shiftStart && es.shiftEnd) {
+                    if (now >= es.shiftStart && now <= es.shiftEnd) {
+                        candidateEventIds.add(s.eventId);
+                    }
+                }
+            }
         }
 
         if (candidateEventIds.size === 0) {
@@ -73,6 +89,9 @@ router.get('/current-operation', async (c: Context) => {
             const ev = await db.select().from(events).where(eq(events.id, eventId));
             if (ev.length === 0) continue;
             const eventInfo = ev[0];
+            
+            // Segurança adicional caso alguma query adicione evento fechado
+            if (eventInfo.operationStatus !== 'open') continue;
 
             // Verifica se tem 'checkin.scan' para este evento específico
             const hasPerm = await AuthorizationEngine.hasPermission({
