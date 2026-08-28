@@ -64,6 +64,7 @@ export const StaffModal = ({
     contractType: 'daily' as 'daily' | 'clt' | 'freelance' | 'volunteer',
     paymentValue: 0,
     paymentType: 'fixed' as 'fixed' | 'hourly',
+    shiftDate: '',
     shiftStart: '',
     shiftEnd: '',
     breakDuration: 60,
@@ -107,6 +108,20 @@ export const StaffModal = ({
 
   useEffect(() => {
     if (staff) {
+      let dateStr = '';
+      let startStr = staff.shiftStart || '';
+      let endStr = staff.shiftEnd || '';
+
+      if (staff.shiftStart && staff.shiftStart.includes('T')) {
+         dateStr = staff.shiftStart.split('T')[0];
+         startStr = staff.shiftStart.split('T')[1].substring(0, 5);
+      }
+      if (staff.shiftEnd && staff.shiftEnd.includes('T')) {
+         endStr = staff.shiftEnd.split('T')[1].substring(0, 5);
+      } else if (staff.shiftEnd && !staff.shiftEnd.includes('T')) {
+         endStr = staff.shiftEnd;
+      }
+
       setFormData({
         name: staff.name,
         email: staff.email,
@@ -118,8 +133,9 @@ export const StaffModal = ({
         contractType: staff.contractType || 'daily',
         paymentValue: staff.paymentValue || 0,
         paymentType: staff.paymentType || 'fixed',
-        shiftStart: staff.shiftStart || '',
-        shiftEnd: staff.shiftEnd || '',
+        shiftDate: dateStr,
+        shiftStart: startStr,
+        shiftEnd: endStr,
         breakDuration: staff.breakDuration || 60,
         photoUrl: staff.photoUrl || ''
       });
@@ -137,6 +153,7 @@ export const StaffModal = ({
         contractType: 'daily',
         paymentValue: 0,
         paymentType: 'fixed',
+        shiftDate: '',
         shiftStart: '',
         shiftEnd: '',
         breakDuration: 60,
@@ -178,9 +195,30 @@ export const StaffModal = ({
         return;
       }
 
+      let finalStartDate = null;
+      let finalEndDate = null;
+
+      if (formData.shiftDate && formData.shiftStart && formData.shiftEnd) {
+        let startStr = `${formData.shiftDate}T${formData.shiftStart}:00`;
+        let endStr = `${formData.shiftDate}T${formData.shiftEnd}:00`;
+
+        if (formData.shiftEnd < formData.shiftStart) {
+          const [year, month, day] = formData.shiftDate.split('-').map(Number);
+          const d = new Date(Date.UTC(year, month - 1, day));
+          d.setUTCDate(d.getUTCDate() + 1);
+          const nextDay = d.toISOString().split('T')[0];
+          endStr = `${nextDay}T${formData.shiftEnd}:00`;
+        }
+
+        finalStartDate = startStr + 'Z';
+        finalEndDate = endStr + 'Z';
+      }
+
       const dataToSave = {
         ...formData,
-        staffFunctionId: functionIdToUse
+        staffFunctionId: functionIdToUse,
+        shiftStart: finalStartDate,
+        shiftEnd: finalEndDate
       } as any;
 
       if (staff) {
@@ -233,36 +271,21 @@ export const StaffModal = ({
             </TabsList>
 
             <TabsContent value="general" className="space-y-4">
-              <div className="flex flex-col items-center justify-center py-4 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 mb-4 transition-all hover:bg-gray-100 group relative overflow-hidden">
+              <div className="flex flex-col items-center justify-center py-4 bg-gray-50 rounded-xl border border-gray-200 mb-4 transition-all">
                 {previews.photo ? (
-                  <div className="relative w-24 h-24">
-                    <img src={previews.photo} alt="Preview" className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-md" />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPreviews({ photo: '' });
-                        setFormData({ ...formData, photoUrl: '' });
-                      }}
-                      className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-1 shadow-sm hover:bg-red-600 transition-colors"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
+                  <div className="w-24 h-24">
+                    <img src={previews.photo} alt="Foto do Membro" className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-md" />
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center gap-2 cursor-pointer" onClick={() => document.getElementById('staff-photo')?.click()}>
-                    <div className="w-20 h-20 rounded-full bg-indigo-50 flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
-                      <Users className="w-8 h-8 text-indigo-400 group-hover:text-indigo-600" />
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="w-20 h-20 rounded-full bg-indigo-50 flex items-center justify-center">
+                      <span className="text-2xl font-bold text-indigo-300">
+                        {formData.name ? formData.name.charAt(0).toUpperCase() : '?'}
+                      </span>
                     </div>
-                    <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Adicionar Foto</span>
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Sem Foto</span>
                   </div>
                 )}
-                <input
-                  id="staff-photo"
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleFileUpload}
-                />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -484,7 +507,16 @@ export const StaffModal = ({
 
               <div className="space-y-2 pt-2">
                 <h4 className="font-medium text-sm text-gray-900">Escala de Trabalho</h4>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-4 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="shiftDate" className="text-xs">Data do Turno</Label>
+                    <Input
+                      id="shiftDate"
+                      type="date"
+                      value={formData.shiftDate}
+                      onChange={(e) => setFormData({ ...formData, shiftDate: e.target.value })}
+                    />
+                  </div>
                   <div className="space-y-1">
                     <Label htmlFor="shiftStart" className="text-xs">Início</Label>
                     <Input
@@ -520,9 +552,11 @@ export const StaffModal = ({
                 <h4 className="font-bold text-blue-900 text-sm mb-2">Resumo da Contratação</h4>
                 <div className="text-sm text-blue-800 space-y-1">
                   <p>• {formData.contractType === 'volunteer' ? 'Voluntário (Sem remuneração)' : `Receberá R$ ${formData.paymentValue} ${formData.paymentType === 'hourly' ? 'por hora' : 'fixo'}`}</p>
+                  {formData.shiftDate && <p>• Data: {formData.shiftDate.split('-').reverse().join('/')}</p>}
                   {formData.shiftStart && formData.shiftEnd && (
-                    <p>• Horário: das {formData.shiftStart} às {formData.shiftEnd}</p>
+                    <p>• Horário: {formData.shiftStart} às {formData.shiftEnd}</p>
                   )}
+                  {formData.breakDuration > 0 && <p>• Pausa: {formData.breakDuration} minutos</p>}
                 </div>
               </div>
             </TabsContent>

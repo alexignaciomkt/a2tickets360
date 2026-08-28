@@ -12,17 +12,18 @@ import {
 } from '../db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { AuthorizationEngine } from '../services/authorizationEngine';
+import { StaffAssignmentService } from '../services/staffAssignmentService';
 import { v4 as uuidv4 } from 'uuid';
-import crypto from 'crypto';
 
 const router = new Hono();
 router.use('/*', authMiddleware);
 
 /**
  * Helper to generate a secure random token for QR codes
+ * Now delegated to StaffAssignmentService for DRYness
  */
 function generateCredentialToken(): string {
-    return 'CRED-' + crypto.randomBytes(16).toString('hex');
+    return StaffAssignmentService.generateCredentialToken();
 }
 
 /**
