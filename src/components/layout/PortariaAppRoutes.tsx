@@ -4,7 +4,7 @@ import PortariaLoginPage from '@/pages/portaria/PortariaLoginPage';
 import PortariaResetPasswordPage from '@/pages/portaria/PortariaResetPasswordPage';
 import PortariaGuardPage from '@/pages/portaria/PortariaGuardPage';
 import TicketScannerPage from '@/pages/dashboard/TicketScannerPage';
-import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 
 class PortariaErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean, error: any }> {
     constructor(props: any) {
@@ -29,17 +29,10 @@ class PortariaErrorBoundary extends React.Component<{ children: React.ReactNode 
 }
 
 const PortariaAuthWrapper = ({ children }: { children: React.ReactNode }) => {
-    const [auth, setAuth] = React.useState<boolean | null>(null);
-    React.useEffect(() => {
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setAuth(!!session);
-        });
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => setAuth(!!session));
-        return () => subscription.unsubscribe();
-    }, []);
+    const { loading, isAuthenticated } = useAuth();
 
-    if (auth === null) return <div className="min-h-screen bg-zinc-950" />;
-    if (!auth) return <Navigate to="/login" replace />;
+    if (loading) return <div className="min-h-screen bg-zinc-950" />;
+    if (!isAuthenticated) return <Navigate to="/login" replace />;
     return <>{children}</>;
 };
 

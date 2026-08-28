@@ -9,10 +9,7 @@ export interface PortariaOperation {
 }
 
 export const portariaService = {
-    getCurrentOperations: async (): Promise<PortariaOperation[]> => {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) throw new Error('Não autenticado');
-
+    getCurrentOperations: async (accessToken: string): Promise<PortariaOperation[]> => {
         const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3002';
         
         console.log('[PORTARIA SERVICE] BEFORE REQUEST', apiUrl);
@@ -20,7 +17,7 @@ export const portariaService = {
             const response = await fetch(`${apiUrl}/api/portaria/current-operation`, {
                 method: 'GET',
                 headers: {
-                    'Authorization': `Bearer ${session.access_token}`
+                    'Authorization': `Bearer ${accessToken}`
                 }
             });
             console.log('[PORTARIA SERVICE] AFTER REQUEST', { status: response.status });
@@ -38,16 +35,13 @@ export const portariaService = {
         }
     },
 
-    sendRecoveryForStaff: async (eventStaffId: string): Promise<void> => {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) throw new Error('Não autenticado');
-
+    sendRecoveryForStaff: async (eventStaffId: string, accessToken: string): Promise<void> => {
         const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3002';
         
         const response = await fetch(`${apiUrl}/api/staff/${eventStaffId}/send-access-recovery`, {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${session.access_token}`,
+                'Authorization': `Bearer ${accessToken}`,
                 'Content-Type': 'application/json'
             }
         });

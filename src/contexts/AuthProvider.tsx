@@ -116,14 +116,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return profilePromiseRef.current;
   }, []);
 
-  const refreshCapabilities = useCallback(async () => {
+  const refreshCapabilities = useCallback(async (accessToken?: string) => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
+      // Use provided token or fallback to localStorage — NEVER call getSession() here
+      const token = accessToken || localStorage.getItem('A2Tickets_token');
+      if (!token) return;
       
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3002';
       const response = await fetch(`${apiUrl}/api/me/contexts`, {
-          headers: { 'Authorization': `Bearer ${session.access_token}` }
+          headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
       
@@ -183,7 +184,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
           
           console.log('[AUTH BOOT] BEFORE CONTEXTS');
-          await refreshCapabilities();
+          await refreshCapabilities(session.access_token);
           console.log('[AUTH BOOT] AFTER CONTEXTS');
         }
       } catch (error: any) {
@@ -196,7 +197,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     checkSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log('🔔 [AuthProvider] Evento:', event, 'RegistroEmAndamento:', registrationInProgressRef.current);
       
       // Block SIGNED_OUT during registration to prevent premature redirect
@@ -207,13 +208,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') && session?.user) {
         localStorage.setItem('A2Tickets_token', session.access_token);
-        const profile = await fetchUserProfile(session.user.id, session.user.email!);
-        if (profile) {
-          console.log('✅ [AuthProvider] Perfil Carregado:', profile.role);
-          setUser(profile);
-          localStorage.setItem('A2Tickets_user', JSON.stringify(profile));
-        }
-        await refreshCapabilities();
+        // Defer heavy async work OUTSIDE the callback to avoid SDK lock reentrancy
+        const userId = session.user.id;
+        const userEmail = session.user.email!;
+        const token = session.access_token;
+        setTimeout(async () => {
+          const profile = await fetchUserProfile(userId, userEmail);
+          if (profile) {
+            console.log('✅ [AuthProvider] Perfil Carregado:', profile.role);
+            setUser(profile);
+            localStorage.setItem('A2Tickets_user', JSON.stringify(profile));
+          }
+          await refreshCapabilities(token);
+        }, 0);
       } else if (event === 'SIGNED_OUT') {
         console.warn('⚠️ [AuthProvider] Supabase disparou SIGNED_OUT.');
         localStorage.removeItem('A2Tickets_token');
@@ -496,11 +503,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const refreshUser = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.user) {
-      const profile = await fetchUserProfile(session.user.id, session.user.email!);
-      setUser(profile);
-    }
+    // Use existing user state + localStorage token — never call getSession() here
+    const token = localStorage.getItem('A2Tickets_token');
+    if (!user || !token) return;
+    const profile = await fetchUserProfile(user.id, user.email);
+    setUser(profile);
   };
 
   const sendPasswordRecovery = async (email: string) => {

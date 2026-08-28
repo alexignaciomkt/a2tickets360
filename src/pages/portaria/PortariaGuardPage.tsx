@@ -8,27 +8,33 @@ import { LogOut } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function PortariaGuardPage() {
-    const { user } = useAuth();
+    const { user, loading: authLoading, isAuthenticated } = useAuth();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const [operations, setOperations] = useState<PortariaOperation[]>([]);
     const [error, setError] = useState('');
 
     useEffect(() => {
+        // Wait for AuthProvider to finish loading
+        if (authLoading) return;
+
+        if (!isAuthenticated) {
+            navigate('/login');
+            return;
+        }
+
         const checkOperations = async () => {
             console.log('[PORTARIA] START');
             try {
-                // Confirmar sessão
-                console.log('[PORTARIA] BEFORE AUTH');
-                const { data: { session } } = await supabase.auth.getSession();
-                console.log('[PORTARIA] AFTER AUTH', { hasSession: !!session });
-                if (!session) {
+                const accessToken = localStorage.getItem('A2Tickets_token');
+                if (!accessToken) {
+                    console.error('[PORTARIA] ERROR', 'No access token in localStorage');
                     navigate('/login');
                     return;
                 }
 
                 console.log('[PORTARIA] BEFORE CURRENT OPERATION');
-                const ops = await portariaService.getCurrentOperations();
+                const ops = await portariaService.getCurrentOperations(accessToken);
                 console.log('[PORTARIA] AFTER CURRENT OPERATION', { count: ops.length });
                 setOperations(ops);
 
@@ -45,7 +51,7 @@ export default function PortariaGuardPage() {
             }
         };
         checkOperations();
-    }, [navigate]);
+    }, [navigate, authLoading, isAuthenticated]);
 
     const handleLogout = async () => {
         await supabase.auth.signOut();

@@ -18,7 +18,7 @@ export interface AuthContextType {
   logout: (silent?: boolean) => Promise<void>;
   isAuthenticated: boolean;
   refreshUser: () => Promise<void>;
-  refreshCapabilities: () => Promise<any>;
+  refreshCapabilities: (accessToken?: string) => Promise<any>;
   sendPasswordRecovery: (email: string) => Promise<boolean>;
 }
 
