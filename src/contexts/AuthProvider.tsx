@@ -6,6 +6,7 @@ import { User, RegisterData } from '@/types/auth';
 import { AuthContext } from './AuthContext';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const [session, setSession] = useState<any | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [personalModules, setPersonalModules] = useState<{tickets: boolean, promoter: boolean, staff: boolean} | undefined>(undefined);
   const [staffPendingInvites, setStaffPendingInvites] = useState<number | undefined>(undefined);
@@ -162,6 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.log('[AUTH BOOT] BEFORE GET SESSION');
         const { data: { session }, error } = await supabase.auth.getSession();
         console.log('[AUTH BOOT] AFTER GET SESSION');
+        if (session) setSession(session);
         
         console.log('[AUTH BOOT] SESSION RESULT', { hasSession: !!session?.user, error: !!error });
         
@@ -207,6 +209,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') && session?.user) {
+        setSession(session);
         localStorage.setItem('A2Tickets_token', session.access_token);
         // Defer heavy async work OUTSIDE the callback to avoid SDK lock reentrancy
         const userId = session.user.id;
@@ -223,6 +226,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }, 0);
       } else if (event === 'SIGNED_OUT') {
         console.warn('⚠️ [AuthProvider] Supabase disparou SIGNED_OUT.');
+        setSession(null);
         localStorage.removeItem('A2Tickets_token');
         const savedUser = localStorage.getItem('A2Tickets_user');
         if (!savedUser) {
@@ -520,6 +524,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider
       value={{
+        session,
         user,
         personalModules,
         staffPendingInvites,

@@ -10,8 +10,10 @@ import { portariaService } from '@/services/portariaService';
 import { supabase } from '@/lib/supabase';
 import { Camera, CheckCircle, AlertTriangle, XCircle, RotateCcw, Keyboard, Users, LogOut } from 'lucide-react';
 import { format } from 'date-fns';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function TicketScannerPage() {
+    const { session, loading: authLoading, isAuthenticated } = useAuth();
     const { slug } = useParams<{ slug: string }>();
     const navigate = useNavigate();
     const { toast } = useToast();
@@ -30,9 +32,19 @@ export default function TicketScannerPage() {
     // Load Event ID from slug
     useEffect(() => {
         const loadEvent = async () => {
+            if (authLoading) return;
+            
+            if (!isAuthenticated || !session?.access_token) {
+                navigate('/login');
+                return;
+            }
+
             try {
                 if (!slug) return;
-                const events = await portariaService.getCurrentOperations();
+                console.log('[SCANNER] AUTH READY');
+                console.log('[SCANNER] BEFORE EVENT FETCH');
+                const events = await portariaService.getCurrentOperations(session.access_token);
+                console.log('[SCANNER] AFTER EVENT FETCH', { count: events.length });
                 const event = events.find(e => e.slug === slug || e.id === slug);
                 if (event) {
                     setEventId(event.id);
@@ -41,12 +53,12 @@ export default function TicketScannerPage() {
                     toast({ title: "Evento não encontrado na sua operação", variant: "destructive" });
                 }
             } catch (err) {
-                console.error(err);
+                console.error('[SCANNER] ERROR', err);
                 toast({ title: "Erro ao carregar evento", variant: "destructive" });
             }
         };
         loadEvent();
-    }, [slug]);
+    }, [slug, authLoading, isAuthenticated, session]);
 
     useEffect(() => {
         console.log("[LIFECYCLE] MOUNT / EFFECT RUN (scanning:", scanning, ")");

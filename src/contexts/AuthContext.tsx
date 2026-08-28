@@ -2,6 +2,7 @@ import { createContext, useContext } from 'react';
 import { User, RegisterData } from '@/types/auth';
 
 export interface AuthContextType {
+  session: any | null;
   user: User | null;
   personalModules?: {
     tickets: boolean;
