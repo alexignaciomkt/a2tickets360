@@ -21,14 +21,15 @@ interface Promoter {
 
 interface Affiliation {
   id: string;
-  event_id: string;
-  promoter_id: string;
-  coupon_code: string;
-  commission_rate: number;
+  eventId: string;
+  promoterId: string;
+  referralCode: string;
+  commissionRate: string;
   status: string;
-  application_data: any;
-  created_at: string;
-  promoters: Promoter;
+  settlementMode: string;
+  createdAt: string;
+  promoterName: string;
+  promoterEmail: string;
 }
 
 interface Withdrawal {
@@ -43,6 +44,8 @@ const OrganizerPromotersTab = ({ eventId }: { eventId: string }) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [activeSubTab, setActiveSubTab] = useState<'promoters' | 'applications' | 'withdrawals'>('promoters');
+  const [mainTab, setMainTab] = useState<'operacional' | 'vendas'>('operacional');
+  const [salesSummary, setSalesSummary] = useState<any>(null);
   const [affiliations, setAffiliations] = useState<Affiliation[]>([]);
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
   const [loading, setLoading] = useState(true);
@@ -69,43 +72,53 @@ const OrganizerPromotersTab = ({ eventId }: { eventId: string }) => {
 
   const fetchData = async () => {
     setLoading(true);
-    // Fetch Affiliations
-    const { data: affData, error: affError } = await supabase
-      .from('promoter_affiliations')
-      .select('*, promoters(*, profiles(*))')
-      .eq('event_id', eventId);
-      
-    if (affData) {
-      console.log('Fetched affiliations:', affData);
-      setAffiliations(affData);
-    }
-    if (affError) console.error("Error fetching affiliations:", affError);
+    try {
+      // Fetch Affiliations from canonical backend
+      const affRes = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/organizer/events/${eventId}/promoters`, {
+        headers: {
+          'Authorization': `Bearer ${user?.id ? (await supabase.auth.getSession()).data.session?.access_token : ''}`
+        }
+      });
+      if (affRes.ok) {
+        const affData = await affRes.json();
+        console.log('Fetched affiliations:', affData);
+        if (affData.promoters && affData.summary) {
+          setAffiliations(affData.promoters);
+          setSalesSummary(affData.summary);
+        } else {
+          setAffiliations(affData);
+        }
+      } else {
+        console.error("Error fetching affiliations:", await affRes.text());
+      }
 
-    // Fetch Event Settings
-    const { data: eventData } = await supabase
-      .from('events')
-      .select('accepts_promoters, promoter_commission_rate, promoter_discount_rate')
-      .eq('id', eventId)
-      .single();
+      // Fetch Event Settings
+      const { data: eventData } = await supabase
+        .from('events')
+        .select('accepts_promoters, promoter_commission_rate, promoter_discount_rate')
+        .eq('id', eventId)
+        .single();
 
-    if (eventData) {
-      setAcceptsPromoters(eventData.accepts_promoters || false);
-      setPromoterCommissionRate(eventData.promoter_commission_rate || 10);
-      setPromoterDiscountRate(eventData.promoter_discount_rate || 0);
-    }
+      if (eventData) {
+        setAcceptsPromoters(eventData.accepts_promoters || false);
+        setPromoterCommissionRate(eventData.promoter_commission_rate || 10);
+        setPromoterDiscountRate(eventData.promoter_discount_rate || 0);
+      }
 
-    // Fetch Withdrawals for this organizer
-    if (user?.id) {
-      const { data: withData, error: withError } = await supabase
-        .from('promoter_payout_requests')
-        .select('*, promoters(*, profiles(*))')
-        .eq('organizer_id', user.id)
-        .order('requested_at', { ascending: false });
-        
-      if (withData) setWithdrawals(withData);
-      if (withError) console.error("Error fetching withdrawals:", withError);
+      // Fetch Withdrawals for this organizer
+      if (user?.id) {
+        const { data: withData, error: withError } = await supabase
+          .from('promoter_payout_requests')
+          .select('*, promoters(*, profiles(*))')
+          .eq('organizer_id', user.id)
+          .order('requested_at', { ascending: false });
+          
+        if (withData) setWithdrawals(withData);
+        if (withError) console.error("Error fetching withdrawals:", withError);
+      }
+    } catch (err) {
+      console.error('Error in fetchData:', err);
     }
-    
     setLoading(false);
   };
 
@@ -162,8 +175,8 @@ const OrganizerPromotersTab = ({ eventId }: { eventId: string }) => {
     setLoading(false);
   };
 
-  const activePromoters = affiliations.filter(a => a.status === 'approved');
-  const pendingApplications = affiliations.filter(a => a.status === 'pending');
+  const activePromoters = affiliations.filter(a => a.status === 'APPROVED');
+  const pendingApplications = affiliations.filter(a => a.status === 'PENDING');
 
   const handleSaveSettings = async () => {
     setSavingSettings(true);
@@ -261,9 +274,27 @@ const OrganizerPromotersTab = ({ eventId }: { eventId: string }) => {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <h3 className="text-xl font-black uppercase tracking-tight text-gray-900">Gestão de Promoters</h3>
-      </div>
+        </div>
 
-      <div className="flex gap-4 border-b border-gray-100 pb-2">
+        {/* MAIN TABS */}
+        <div className="flex gap-4 border-b border-gray-200">
+          <button 
+            onClick={() => setMainTab('operacional')}
+            className={`pb-3 px-2 text-sm font-black uppercase tracking-widest transition-colors ${mainTab === 'operacional' ? 'border-b-2 border-indigo-600 text-indigo-700' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            Promoters
+          </button>
+          <button 
+            onClick={() => setMainTab('vendas')}
+            className={`pb-3 px-2 text-sm font-black uppercase tracking-widest transition-colors ${mainTab === 'vendas' ? 'border-b-2 border-indigo-600 text-indigo-700' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            Vendas
+          </button>
+        </div>
+
+        {mainTab === 'operacional' ? (
+          <>
+            <div className="flex gap-4 border-b border-gray-100 pb-2">
         <button 
           onClick={() => setActiveSubTab('promoters')}
           className={`pb-2 px-1 text-sm font-black uppercase tracking-widest transition-colors ${activeSubTab === 'promoters' ? 'border-b-2 border-indigo-500 text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}
@@ -285,112 +316,143 @@ const OrganizerPromotersTab = ({ eventId }: { eventId: string }) => {
       </div>
 
       {activeSubTab === 'promoters' && (
-      <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-gray-50/50 border-b border-gray-100">
-            <tr>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Promoter</th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Comissão (%)</th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Cupom</th>
-              <th className="px-6 py-4 text-right text-[10px] font-black uppercase tracking-widest text-gray-400">Ações</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {loading ? (
-               <tr><td colSpan={4} className="py-20 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" /></td></tr>
-            ) : activePromoters.length === 0 ? (
-               <tr><td colSpan={4} className="py-20 text-center text-gray-400 font-medium">Nenhum promoter ativo ainda.</td></tr>
-            ) : activePromoters.map(p => (
-              <tr key={p.id} className="hover:bg-gray-50/50 transition-colors">
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-black uppercase">
-                      {p.promoters?.profiles?.name?.charAt(0) || '?'}
-                    </div>
-                    <div>
-                      <p className="font-black text-gray-900 leading-none">{p.promoters?.profiles?.name || 'Desconhecido'}</p>
-                      <p className="text-[10px] text-gray-400 mt-1 uppercase font-bold">{p.promoters?.profiles?.email || 'N/A'} • {p.promoters?.profiles?.phone || 'Sem celular'}</p>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4">
-                   <span className="font-black text-gray-900">{p.commission_rate}%</span>
-                </td>
-                <td className="px-6 py-4">
-                   <span className="bg-gray-100 text-gray-700 text-[10px] font-black tracking-widest px-2.5 py-1 rounded-md w-fit">
-                      {p.coupon_code}
-                   </span>
-                </td>
-                <td className="px-6 py-4 text-right">
-                   <button 
-                     onClick={() => {
-                        const link = `${window.location.origin}/e/${eventId}?ref=${p.coupon_code}`;
-                        navigator.clipboard.writeText(link);
-                        toast({ title: 'Link de venda copiado!' });
-                     }}
-                     className="flex items-center justify-end w-full gap-2 text-primary hover:underline text-[10px] font-black uppercase tracking-widest"
-                   >
-                     <ExternalLink className="w-3 h-3" /> Copiar Link
-                   </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+          <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-slate-50 border-b border-slate-100">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Promoter</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Comissão</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Pagamento</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Código (Link)</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Performance</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {affiliations.length > 0 ? (
+                    affiliations.map((aff) => (
+                      <tr key={aff.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-6 py-4">
+                          <div className="font-medium text-slate-900">{aff.promoterName}</div>
+                          <div className="text-sm text-slate-500">{aff.promoterEmail}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            aff.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' :
+                            aff.status === 'REJECTED' ? 'bg-rose-100 text-rose-800' :
+                            'bg-amber-100 text-amber-800'
+                          }`}>
+                            {aff.status === 'APPROVED' ? 'Ativo' : aff.status === 'REJECTED' ? 'Rejeitado' : 'Pendente'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm font-medium text-slate-900">{aff.commissionRate}%</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-slate-600">{aff.settlementMode}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          {aff.status === 'APPROVED' && aff.referralCode ? (
+                            <div className="flex items-center space-x-2">
+                              <span className="text-sm font-medium text-indigo-600 bg-indigo-50 px-2 py-1 rounded">
+                                {aff.referralCode}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-sm text-slate-400">-</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4">
+                          {aff.performance ? (
+                            <div className="flex flex-col space-y-1 text-xs">
+                              <div className="flex justify-between">
+                                <span className="text-slate-500">Vendas:</span>
+                                <span className="font-medium text-slate-900">{aff.performance.sales} (Cred: {aff.performance.credentials})</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-slate-500">Receita:</span>
+                                <span className="font-medium text-emerald-600">
+                                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(aff.performance.grossRevenue)}
+                                </span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-slate-500">Comissão:</span>
+                                <span className="font-medium text-indigo-600">
+                                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(aff.performance.commissionGenerated)}
+                                </span>
+                              </div>
+                              <div className="flex justify-between border-t border-slate-100 pt-1 mt-1">
+                                <span className="text-slate-500 font-medium">A Pagar:</span>
+                                <span className="font-bold text-orange-600">
+                                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(aff.performance.commissionPayable)}
+                                </span>
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-sm text-slate-400">-</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
+                        Nenhum promoter encontrado.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
       )}
 
       {activeSubTab === 'applications' && (
-      <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-gray-50/50 border-b border-gray-100">
-            <tr>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Candidato</th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Data</th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Detalhes</th>
-              <th className="px-6 py-4 text-right text-[10px] font-black uppercase tracking-widest text-gray-400">Ações</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {loading ? (
-               <tr><td colSpan={4} className="py-20 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" /></td></tr>
-            ) : pendingApplications.length === 0 ? (
-               <tr><td colSpan={4} className="py-20 text-center text-gray-400 font-medium">Nenhuma candidatura pendente.</td></tr>
-            ) : pendingApplications.map(a => (
-              <tr key={a.id} className="hover:bg-gray-50/50 transition-colors">
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center text-orange-600 font-black uppercase">
-                      {a.promoters?.profiles?.name?.charAt(0) || '?'}
-                    </div>
-                    <div>
-                      <p className="font-black text-gray-900 leading-none">{a.promoters?.profiles?.name}</p>
-                      <p className="text-[10px] text-gray-400 mt-1 uppercase font-bold">{a.promoters?.profiles?.email}</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {affiliations.filter(a => a.status === 'PENDING').length > 0 ? (
+              affiliations.filter(a => a.status === 'PENDING').map((app) => (
+                <div key={app.id} className="bg-white rounded-xl border border-slate-200 p-6 flex flex-col hover:border-indigo-200 hover:shadow-md transition-all">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center">
+                        <Users className="w-5 h-5 text-indigo-600" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-slate-900">{app.promoterName}</h4>
+                        <p className="text-sm text-slate-500">{new Date(app.createdAt).toLocaleDateString()}</p>
+                      </div>
                     </div>
                   </div>
-                </td>
-                <td className="px-6 py-4 text-xs font-bold text-gray-600">
-                   {new Date(a.created_at).toLocaleDateString()}
-                </td>
-                <td className="px-6 py-4">
-                   <button 
-                     onClick={() => setShowApplicationModal(a)}
-                     className="text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
-                   >
-                      <FileText className="w-3 h-3" /> Ver Questionário
-                   </button>
-                </td>
-                <td className="px-6 py-4 text-right">
-                  <div className="flex justify-end gap-2">
-                     <button onClick={() => handleApproveApplication(a.id)} className="text-green-500 hover:text-green-600 bg-green-50 hover:bg-green-100 p-2 rounded-lg transition-colors" title="Aprovar"><CheckCircle className="w-4 h-4" /></button>
-                     <button onClick={() => handleRejectApplication(a.id)} className="text-red-500 hover:text-red-600 bg-red-50 hover:bg-red-100 p-2 rounded-lg transition-colors" title="Recusar"><XCircle className="w-4 h-4" /></button>
+                  
+                  <div className="mt-auto pt-4 flex items-center justify-between border-t border-slate-100">
+                    <button 
+                      onClick={() => handleApplicationStatus(app.id, 'APPROVED')}
+                      className="text-sm font-medium text-emerald-600 hover:text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg transition-colors flex items-center space-x-1"
+                    >
+                      <CheckCircle className="w-4 h-4" />
+                      <span>Aprovar</span>
+                    </button>
+                    <button 
+                      onClick={() => handleApplicationStatus(app.id, 'REJECTED')}
+                      className="text-sm font-medium text-rose-600 hover:text-rose-700 bg-rose-50 px-3 py-1.5 rounded-lg transition-colors flex items-center space-x-1"
+                    >
+                      <XCircle className="w-4 h-4" />
+                      <span>Recusar</span>
+                    </button>
                   </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                </div>
+              ))
+            ) : (
+              <div className="col-span-full py-12 text-center bg-slate-50 rounded-xl border border-slate-200 border-dashed">
+                <Users className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                <h3 className="text-lg font-medium text-slate-900">Nenhuma solicitação pendente</h3>
+                <p className="text-slate-500 max-w-sm mx-auto mt-1">
+                  Quando os promoters solicitarem afiliação ao seu evento, elas aparecerão aqui.
+                </p>
+              </div>
+            )}
+          </div>
       )}
 
       {activeSubTab === 'withdrawals' && (
@@ -446,74 +508,98 @@ const OrganizerPromotersTab = ({ eventId }: { eventId: string }) => {
         </table>
       </div>
       )}
-
-      {/* Modal do Questionário de Candidatura */}
-      {showApplicationModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-8 max-w-lg w-full shadow-2xl animate-in zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-2xl font-black uppercase tracking-tight text-gray-900 mb-6 border-b border-gray-100 pb-4">
-              Análise de Perfil
-            </h3>
-            
-            <div className="space-y-6">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Candidato</p>
-                <p className="text-lg font-bold text-gray-900">{showApplicationModal.promoters?.profiles?.name}</p>
-                <p className="text-sm text-gray-500 font-medium">{showApplicationModal.promoters?.profiles?.email}</p>
-              </div>
-
-              {/* Exibir o JSON de application_data se existir */}
-              {showApplicationModal.application_data ? (
-                 <div className="space-y-4">
-                   {Object.entries(showApplicationModal.application_data).map(([key, value]) => (
-                     <div key={key} className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                       <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500 mb-1">
-                         {fieldTranslations[key] || key.replace(/_/g, ' ')}
-                       </p>
-                       {typeof value === 'object' && value !== null ? (
-                          <div className="space-y-1 mt-2">
-                             {Object.entries(value).map(([k, v]) => (
-                                <p key={k} className="text-sm font-medium text-gray-700">
-                                  <span className="font-bold capitalize text-gray-500">{k.replace('_', ' ')}:</span> {String(v)}
-                                </p>
-                             ))}
-                          </div>
-                       ) : (
-                          <p className="text-sm text-gray-900 font-bold whitespace-pre-wrap">{String(value)}</p>
-                       )}
-                     </div>
-                   ))}
-                 </div>
-              ) : (
-                 <div className="bg-gray-50 p-4 rounded-xl text-center border border-gray-100">
-                    <p className="text-sm text-gray-500 font-medium">Nenhum questionário preenchido por este candidato.</p>
-                 </div>
-              )}
+          </>
+        ) : (
+          /* ABA VENDAS */
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div>
+              <h4 className="text-lg font-black uppercase tracking-widest text-gray-900">Vendas por Promoter</h4>
+              <p className="text-sm text-gray-500 font-medium">Acompanhe o desempenho dos promoters deste evento.</p>
             </div>
 
-            <div className="flex gap-3 mt-8 pt-6 border-t border-gray-100">
-              <button 
-                onClick={() => setShowApplicationModal(null)}
-                className="flex-1 px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest text-gray-500 hover:bg-gray-100 transition-all"
-              >
-                Fechar
-              </button>
-              <button 
-                onClick={() => handleRejectApplication(showApplicationModal.id)}
-                className="flex-1 bg-red-50 text-red-600 px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-red-100 transition-all"
-              >
-                Recusar
-              </button>
-              <button 
-                onClick={() => handleApproveApplication(showApplicationModal.id)}
-                className="flex-[2] bg-green-500 text-white px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-green-600 transition-all shadow-lg shadow-green-500/20"
-              >
-                Aprovar Promoter
-              </button>
+            {/* KPIs */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm">
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Vendas via Promoters</p>
+                <p className="text-2xl font-black text-gray-900">{salesSummary?.promoterPaidSales || 0}</p>
+              </div>
+              <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm">
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Credenciais Vendidas</p>
+                <p className="text-2xl font-black text-gray-900">{salesSummary?.promoterCredentials || 0}</p>
+              </div>
+              <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm">
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Receita Gerada</p>
+                <p className="text-2xl font-black text-emerald-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(salesSummary?.promoterGrossRevenue || 0)}</p>
+              </div>
+              <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm">
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Comissões Geradas</p>
+                <p className="text-2xl font-black text-indigo-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(salesSummary?.promoterCommissionGenerated || 0)}</p>
+              </div>
+            </div>
+
+            {/* Participação */}
+            <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-6 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-widest text-indigo-400 mb-1">Participação nas Vendas</p>
+                <p className="text-sm text-indigo-900 font-medium"><span className="text-2xl font-black mr-2">{Number(salesSummary?.promoterSalesShare || 0).toFixed(1).replace('.', ',')}%</span> das vendas deste evento vieram de promoters.</p>
+              </div>
+            </div>
+
+            {/* Ranking */}
+            <div>
+              <h4 className="text-sm font-black uppercase tracking-widest text-gray-900 mb-4">Ranking de Promoters</h4>
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                {activePromoters.length === 0 ? (
+                  <div className="p-8 text-center text-gray-500 font-medium">Este evento ainda não possui promoters ativos.</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                      <thead className="bg-gray-50/50 border-b border-gray-100">
+                        <tr>
+                          <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 w-16">#</th>
+                          <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Promoter</th>
+                          <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">Vendas</th>
+                          <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">Credenciais</th>
+                          <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-right">Receita</th>
+                          <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-right">Comissão</th>
+                          <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-right">A Pagar</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {salesSummary?.promoterPaidSales === 0 ? (
+                          <tr><td colSpan={7} className="p-8 text-center text-gray-500 font-medium">Nenhuma venda realizada por promoters neste evento ainda.</td></tr>
+                        ) : (
+                          [...activePromoters]
+                            .sort((a, b) => {
+                              const salesA = a.performance?.sales || 0;
+                              const salesB = b.performance?.sales || 0;
+                              if (salesB !== salesA) return salesB - salesA;
+                              const revA = a.performance?.grossRevenue || 0;
+                              const revB = b.performance?.grossRevenue || 0;
+                              return revB - revA;
+                            })
+                            .map((aff, index) => (
+                              <tr key={aff.id} className="hover:bg-gray-50/50 transition-colors group">
+                                <td className="px-6 py-4 font-black text-gray-400">
+                                  {index === 0 ? <span className="text-2xl">🥇 1</span> : index + 1}
+                                </td>
+                                <td className="px-6 py-4 font-black text-gray-900">{aff.promoterName}</td>
+                                <td className="px-6 py-4 text-center font-bold text-gray-600">{aff.performance?.sales || 0}</td>
+                                <td className="px-6 py-4 text-center font-medium text-gray-500">{aff.performance?.credentials || 0}</td>
+                                <td className="px-6 py-4 text-right font-black text-emerald-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(aff.performance?.grossRevenue || 0)}</td>
+                                <td className="px-6 py-4 text-right font-black text-indigo-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(aff.performance?.commissionGenerated || 0)}</td>
+                                <td className="px-6 py-4 text-right font-black text-orange-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(aff.performance?.commissionPayable || 0)}</td>
+                              </tr>
+                            ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
       </div>
     </div>
   );

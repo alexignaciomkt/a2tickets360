@@ -17,7 +17,7 @@ export interface TicketTier {
     category: 'standard' | 'vip' | 'early-bird' | 'student' | 'group';
     registrationType: 'INDIVIDUAL' | 'DOUBLE' | 'TEAM';
     participantsPerRegistration: number;
-    ticketPurpose: 'REGISTRATION' | 'REPECHAGE';
+    ticketPurpose: 'ADMISSION' | 'REGISTRATION' | 'REPECHAGE';
 }
 
 interface TicketBuilderProps {
@@ -43,7 +43,8 @@ const REGISTRATION_TYPE_LABELS: Record<string, string> = {
 };
 
 const TICKET_PURPOSE_LABELS: Record<string, string> = {
-    'REGISTRATION': 'Inscrição',
+    'ADMISSION': 'Ingresso / Acesso',
+    'REGISTRATION': 'Inscrição Esportiva',
     'REPECHAGE': 'Repescagem',
 };
 
@@ -57,7 +58,7 @@ const TicketBuilder = ({ tickets, onChange, eventType, capacity, categoryCode }:
             category: 'standard',
             registrationType: 'INDIVIDUAL',
             participantsPerRegistration: 1,
-            ticketPurpose: 'REGISTRATION',
+            ticketPurpose: 'ADMISSION',
         };
         onChange([...tickets, newTicket]);
     };
@@ -78,6 +79,12 @@ const TicketBuilder = ({ tickets, onChange, eventType, capacity, categoryCode }:
             // Enforce minimum participants for TEAM
             if (field === 'participantsPerRegistration' && updated.registrationType === 'TEAM') {
                 if (value < 3) updated.participantsPerRegistration = 3;
+            }
+            
+            // Força defaults neutros para ADMISSION
+            if (field === 'ticketPurpose' && value === 'ADMISSION') {
+                updated.registrationType = 'INDIVIDUAL';
+                updated.participantsPerRegistration = 1;
             }
 
             return updated;
@@ -245,8 +252,9 @@ const TicketBuilder = ({ tickets, onChange, eventType, capacity, categoryCode }:
                                 <Select
                                     value={ticket.registrationType}
                                     onValueChange={(val) => updateTicket(ticket.id, 'registrationType', val)}
+                                    disabled={ticket.ticketPurpose === 'ADMISSION'}
                                 >
-                                    <SelectTrigger className="bg-white border-gray-200 text-gray-900 focus:bg-white transition-colors">
+                                    <SelectTrigger className={`bg-white border-gray-200 text-gray-900 focus:bg-white transition-colors ${ticket.ticketPurpose === 'ADMISSION' ? 'opacity-60 cursor-not-allowed bg-slate-100' : ''}`}>
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -261,10 +269,10 @@ const TicketBuilder = ({ tickets, onChange, eventType, capacity, categoryCode }:
                                 <Input
                                     type="number"
                                     value={ticket.participantsPerRegistration}
-                                    disabled={ticket.registrationType !== 'TEAM'}
+                                    disabled={ticket.registrationType !== 'TEAM' || ticket.ticketPurpose === 'ADMISSION'}
                                     min={ticket.registrationType === 'TEAM' ? 3 : 1}
                                     onChange={(e) => updateTicket(ticket.id, 'participantsPerRegistration', parseInt(e.target.value) || 1)}
-                                    className={`bg-white border-gray-200 text-gray-900 focus:bg-white transition-colors ${ticket.registrationType !== 'TEAM' ? 'opacity-60 cursor-not-allowed bg-slate-100' : ''}`}
+                                    className={`bg-white border-gray-200 text-gray-900 focus:bg-white transition-colors ${(ticket.registrationType !== 'TEAM' || ticket.ticketPurpose === 'ADMISSION') ? 'opacity-60 cursor-not-allowed bg-slate-100' : ''}`}
                                 />
                             </div>
                         </div>

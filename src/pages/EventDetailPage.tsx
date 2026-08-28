@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Calendar,
   MapPin,
@@ -52,6 +52,14 @@ import { toast } from 'sonner';
 
 const EventDetailPage = () => {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const promoterRef = searchParams.get('ref');
+
+  useEffect(() => {
+    if (id && promoterRef) {
+      sessionStorage.setItem(`promoter_ref_${id}`, promoterRef);
+    }
+  }, [id, promoterRef]);
   const navigate = useNavigate();
   const [event, setEvent] = useState<Event | null>(null);
   const [isLoading, setIsLoading] = useState(true);

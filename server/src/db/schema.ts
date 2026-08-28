@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, serial, integer, boolean, decimal, jsonb, uuid, index, uniqueIndex, AnyPgColumn, unique, primaryKey, varchar, pgEnum, numeric, check, foreignKey } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, serial, integer, boolean, decimal, jsonb, uuid, index, uniqueIndex, AnyPgColumn, unique, primaryKey, varchar, pgEnum, numeric, check, foreignKey, date } from 'drizzle-orm/pg-core';
 import { relations, sql } from 'drizzle-orm';
 
 // Enums
@@ -12,15 +12,21 @@ export const platformMasters = pgTable('platform_masters', {
     updatedAt: timestamp('updated_at').defaultNow(),
 });
 
-// Perfis de UsuÃ¡rios (ExtensÃ£o Universal do auth.users)
+// Perfis de Usuários (Extensão Universal do auth.users)
 export const profiles = pgTable('profiles', {
     id: uuid('id').primaryKey().defaultRandom(),
     userId: uuid('user_id').unique().notNull(), // FK to auth.users.id
     name: text('name').notNull(),
     email: text('email').notNull(),
+    cpf: text('cpf'),
+    phone: text('phone'),
+    birthDate: date('birth_date'),
+    city: text('city'),
+    state: text('state'),
     role: text('role').default('customer'),
     status: text('status').default('pending'),
     profileComplete: boolean('profile_complete').default(false),
+    avatarUrl: text('avatar_url'), // FOTO GLOBAL DA IDENTIDADE (Source of Truth)
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow(),
 });
@@ -147,16 +153,64 @@ export const employeePermissionOverrides = pgTable('employee_permission_override
 export const staffProfiles = pgTable('staff_profiles', {
     userId: uuid('user_id').primaryKey(), // Referencia auth.users(id)
     fullName: text('full_name').notNull(),
-    document: text('document'), // CPF/RG (Opcional nesta versÃ£o)
+    document: text('document'), // CPF/RG (Opcional nesta versão)
     phone: text('phone'),
     bio: text('bio'),
     avatarUrl: text('avatar_url'), // Selfie persistente do credenciamento
     isPublic: boolean('is_public').default(true),
+    profileComplete: boolean('profile_complete').default(false).notNull(),
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow(),
 });
 
-// FunÃ§Ãµes Operacionais CustomizÃ¡veis
+// =============================================================================
+// CATÁLOGO GLOBAL DE FUNÇÕES PROFISSIONAIS
+// =============================================================================
+
+// Catálogo Global de Funções Profissionais (O que o profissional sabe fazer)
+export const staffProfessionalFunctions = pgTable('staff_professional_functions', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    name: text('name').notNull(),
+    slug: text('slug').unique().notNull(),
+    category: text('category'),
+    description: text('description'),
+    isActive: boolean('is_active').default(true).notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Vínculo Global: O que o Staff faz (Currículo)
+export const staffProfileFunctions = pgTable('staff_profile_functions', {
+    staffUserId: uuid('staff_user_id').references(() => staffProfiles.userId, { onDelete: 'cascade' }).notNull(),
+    professionalFunctionId: uuid('professional_function_id').references(() => staffProfessionalFunctions.id, { onDelete: 'cascade' }).notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (t) => ({
+    unqStaffProfileFunction: unique('unq_staff_profile_function').on(t.staffUserId, t.professionalFunctionId)
+}));
+
+// Candidaturas de Staff
+export const staffApplications = pgTable('staff_applications', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    eventId: uuid('event_id').references(() => events.id, { onDelete: 'cascade' }).notNull(),
+    userId: uuid('user_id').notNull(),
+    status: text('status', { enum: ['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'] }).notNull().default('PENDING'),
+    reviewedAt: timestamp('reviewed_at'),
+    reviewedBy: uuid('reviewed_by'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (t) => ({
+    unqActiveStaffApplication: uniqueIndex('unq_active_staff_application').on(t.eventId, t.userId).where(sql`status IN ('PENDING', 'APPROVED', 'REJECTED')`)
+}));
+
+// Funções da Candidatura de Staff
+export const staffApplicationFunctions = pgTable('staff_application_functions', {
+    staffApplicationId: uuid('staff_application_id').references(() => staffApplications.id, { onDelete: 'cascade' }).notNull(),
+    professionalFunctionId: uuid('professional_function_id').references(() => staffProfessionalFunctions.id, { onDelete: 'cascade' }).notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (t) => ({
+    pk: primaryKey({ columns: [t.staffApplicationId, t.professionalFunctionId] })
+}));
+
+// Funções Operacionais Customizáveis
 export const staffFunctions = pgTable('staff_functions', {
     id: uuid('id').primaryKey().defaultRandom(),
     organizerId: uuid('organizer_id').notNull(), // Referencia auth.users(id) da realidade atual
@@ -274,6 +328,7 @@ export const events = pgTable('events', {
     sportsLastSyncAt: timestamp('sports_last_sync_at', { withTimezone: true }),
     eventType: text('event_type').default('paid'),
     status: text('status').default('draft'),
+    operationStatus: text('operation_status', { enum: ['closed', 'open'] }).default('closed').notNull(),
     startDate: timestamp('start_date'),
     endDate: timestamp('end_date'),
     time: text('time'),
@@ -341,14 +396,27 @@ export const tickets = pgTable('tickets', {
 
 
 // Promoters Específicos por Evento
+export const promoters = pgTable('promoters', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id').notNull(), // Deve apontar para auth.users idealmente
+    name: text('name').notNull(),
+    email: text('email').notNull(),
+    phone: text('phone'),
+    isActive: boolean('is_active').default(true).notNull(),
+    profileComplete: boolean('profile_complete').default(false).notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
 export const eventPromoters = pgTable('event_promoters', {
     id: uuid('id').primaryKey().defaultRandom(),
     eventId: uuid('event_id').references(() => events.id, { onDelete: 'cascade' }).notNull(),
-    promoterId: uuid('promoter_id').notNull(),
+    promoterId: uuid('promoter_id').references(() => promoters.id).notNull(),
     commissionRate: decimal('commission_rate', { precision: 5, scale: 2 }).notNull(),
     discountRate: decimal('discount_rate', { precision: 5, scale: 2 }).default('0.00').notNull(),
-    referralCode: text('referral_code').unique().notNull(),
-    isActive: boolean('is_active').default(true).notNull(),
+    referralCode: text('referral_code').unique(),
+    isActive: boolean('is_active').default(false).notNull(),
+    status: text('status', { enum: ['PENDING', 'APPROVED', 'REJECTED'] }).default('PENDING').notNull(),
+    settlementMode: text('settlement_mode', { enum: ['MANUAL', 'ASAAS_SPLIT'] }).default('MANUAL').notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (t) => ({
@@ -385,6 +453,7 @@ export const sales = pgTable('sales', {
     asaasPaymentId: text('asaas_payment_id'), // ID da cobranÃ§a no Asaas
     promoterId: uuid('promoter_id'),
     promoterCommissionAmount: decimal('promoter_commission_amount', { precision: 10, scale: 2 }),
+    promoterSettlementMode: text('promoter_settlement_mode', { enum: ['MANUAL', 'ASAAS_SPLIT'] }),
     payoutStatus: text('payout_status'),
     payoutRequestId: uuid('payout_request_id'),
     createdAt: timestamp('created_at').defaultNow(),
@@ -1387,6 +1456,21 @@ export const eventFeaturedCycles = pgTable('event_featured_cycles', {
         idxUntil: index('idx_feat_cycles_until').on(table.featuredUntil)
     };
 });
+
+export const eventPromotersRelations = relations(eventPromoters, ({ one }) => ({
+    event: one(events, {
+        fields: [eventPromoters.eventId],
+        references: [events.id]
+    }),
+    promoter: one(promoters, {
+        fields: [eventPromoters.promoterId],
+        references: [promoters.id]
+    })
+}));
+
+export const promotersRelations = relations(promoters, ({ many }) => ({
+    eventPromoters: many(eventPromoters)
+}));
 
 
 

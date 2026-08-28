@@ -35,7 +35,7 @@ router.post('/presign', async (c: Context) => {
     const { type, fileName, contentType, fileSize, albumId } = body;
 
     // Validate type
-    if (type !== 'producer-logo' && type !== 'producer-banner' && type !== 'cms-hero-banner' && type !== 'producer-album-photo' && type !== 'producer-watermark') {
+    if (type !== 'profile-avatar' && type !== 'producer-logo' && type !== 'producer-banner' && type !== 'cms-hero-banner' && type !== 'producer-album-photo' && type !== 'producer-watermark') {
       return c.json({ error: 'Invalid upload type' }, 400);
     }
 
@@ -70,6 +70,11 @@ router.post('/presign', async (c: Context) => {
     let objectKey = '';
     if (type === 'cms-hero-banner') {
       objectKey = `cms/hero-banners/${uuidv4()}.${ext}`;
+    } else if (type === 'profile-avatar') {
+      if (size > 5 * 1024 * 1024) {
+        return c.json({ error: 'Avatar size exceeds 5MB limit' }, 400);
+      }
+      objectKey = `profile-avatar/${userId}/${uuidv4()}.${ext}`;
     } else if (type === 'producer-album-photo') {
       if (!albumId) {
         return c.json({ error: 'albumId is required for this upload type' }, 400);

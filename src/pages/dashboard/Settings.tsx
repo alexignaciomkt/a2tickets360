@@ -82,7 +82,8 @@ const Settings = () => {
       
       await organizerService.updateProfile(user.profileDocId || '', {
         logoUrl: url,
-        photo_url: url
+        photo_url: url,
+        avatar_url: url
       }, user.id);
       
       await refreshUser();

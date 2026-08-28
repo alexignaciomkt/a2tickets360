@@ -25,14 +25,22 @@ interface CheckoutData {
   gender: string;
   couponCode: string;
   promoterId?: string;
+  promoterRef?: string;
   discountApplied?: number;
 }
 
 // Dados de um jogador para inscricao esportiva
 interface PlayerData {
   name: string;
+  nickname: string;
   cpf: string;
   phone: string;
+  email: string;
+  birthDate: string;
+  photo: File | null;
+  photoPreview?: string | null;
+  photoUrl?: string;
+  isBuyer?: boolean;
 }
 
 interface SportData {
@@ -68,8 +76,8 @@ const initialFormData: CheckoutData = {
 const initialSportData: SportData = {
   teamName: '',
   players: [
-    { name: '', cpf: '', phone: '' },
-    { name: '', cpf: '', phone: '' },
+    { name: '', nickname: '', cpf: '', phone: '', email: '', birthDate: '', photo: null },
+    { name: '', nickname: '', cpf: '', phone: '', email: '', birthDate: '', photo: null },
   ],
 };
 
@@ -91,6 +99,16 @@ const CheckoutPage = () => {
   const [hasTicket, setHasTicket] = useState(false);
   const [validatingCoupon, setValidatingCoupon] = useState(false);
   const [couponMessage, setCouponMessage] = useState({ text: '', type: '' });
+
+  // Capturar tracking ?ref= do sessionStorage
+  useEffect(() => {
+    if (eventId) {
+      const savedRef = sessionStorage.getItem(`promoter_ref_${eventId}`);
+      if (savedRef) {
+        setFormData(prev => ({ ...prev, promoterRef: savedRef }));
+      }
+    }
+  }, [eventId]);
   const [feeConfig, setFeeConfig] = useState({ percentage: 8, fixed: 5, passToBuyer: true });
   
   // Persist PIX and step across reloads
@@ -114,6 +132,7 @@ const CheckoutPage = () => {
   const [registrationType, setRegistrationType] = useState<string>('INDIVIDUAL');
   const [participantsPerReg, setParticipantsPerReg] = useState<number>(1);
   const [sportData, setSportData] = useState<SportData>(initialSportData);
+  const [buyerIsParticipant, setBuyerIsParticipant] = useState<boolean | null>(null);
   // Repescagem
   const [repechageCpf, setRepechageCpf] = useState('');
   const [checkingEligibility, setCheckingEligibility] = useState(false);
@@ -240,6 +259,34 @@ const CheckoutPage = () => {
     setFormData((prev) => ({ ...prev, [name]: value.toUpperCase() === value && name === 'couponCode' ? value : value }));
   };
 
+  useEffect(() => {
+    if (buyerIsParticipant) {
+      setSportData(prev => {
+        const newPlayers = [...prev.players];
+        newPlayers[0] = {
+          ...newPlayers[0],
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          cpf: formData.cpf,
+          birthDate: formData.birthDate,
+          photo: formData.photo,
+          photoPreview: photoPreview,
+          isBuyer: true
+        };
+        return { ...prev, players: newPlayers };
+      });
+    }
+  }, [buyerIsParticipant, formData, photoPreview]);
+
+  const handlePlayerChange = (index: number, field: string, value: any) => {
+    setSportData(prev => {
+      const newPlayers = [...prev.players];
+      newPlayers[index] = { ...newPlayers[index], [field]: value };
+      return { ...prev, players: newPlayers };
+    });
+  };
+
   const handleApplyCoupon = async () => {
     if (!formData.couponCode) return;
     setValidatingCoupon(true);
@@ -293,14 +340,6 @@ const CheckoutPage = () => {
     }
   };
 
-  // Atualizar campo de um jogador especifico
-  const handlePlayerChange = (playerIndex: number, field: keyof PlayerData, value: string) => {
-    setSportData(prev => {
-      const newPlayers = [...prev.players];
-      newPlayers[playerIndex] = { ...newPlayers[playerIndex], [field]: value };
-      return { ...prev, players: newPlayers };
-    });
-  };
 
   // Verificar elegibilidade de repescagem via backend
   const handleCheckEligibility = async () => {
@@ -409,16 +448,26 @@ const CheckoutPage = () => {
           return;
       }
 
-      // Validacao esportiva: REGISTRATION/DOUBLE exige nome da dupla e dados dos jogadores
+      // Validacao esportiva: REGISTRATION/DOUBLE exige dados completos dos 2 jogadores
       if (ticketPurpose === 'REGISTRATION' && registrationType === 'DOUBLE') {
         if (!sportData.teamName.trim()) {
-          toast({ variant: 'destructive', title: 'Nome da dupla obrigatorio', description: 'Informe o nome da dupla.' });
+          toast({ variant: 'destructive', title: 'Nome da dupla obrigatório', description: 'Informe o nome da dupla.' });
           return;
         }
+
+        if (buyerIsParticipant === null) {
+          toast({ variant: 'destructive', title: 'Resposta pendente', description: 'Por favor, responda se você faz parte da dupla.' });
+          return;
+        }
+
         for (let i = 0; i < 2; i++) {
           const p = sportData.players[i];
-          if (!p.name.trim() || !p.cpf.trim() || !p.phone.trim()) {
-            toast({ variant: 'destructive', title: `Competidor ${i + 1} incompleto`, description: `Preencha nome, CPF e WhatsApp do Competidor ${i + 1}.` });
+          if (!p.name.trim() || !p.cpf.trim() || !p.phone.trim() || !p.email.trim() || !p.nickname.trim() || !p.birthDate.trim() || (!p.photo && !p.photoUrl && !p.photoPreview)) {
+            toast({ 
+              variant: 'destructive', 
+              title: `Jogador ${i + 1} incompleto`, 
+              description: `Preencha nome completo, apelido, CPF, WhatsApp, email, data de nascimento e foto do Jogador ${i + 1}.` 
+            });
             return;
           }
         }
@@ -586,7 +635,24 @@ const CheckoutPage = () => {
                 // Integracao real com Asaas
                 // Montar sportData para envio
                 let sportPayload: any = undefined;
-                if (ticketPurpose === 'REGISTRATION') {
+                if (ticketPurpose === 'REGISTRATION' && registrationType === 'DOUBLE') {
+                    sportPayload = {
+                        registrationType: 'DOUBLE',
+                        participantsPerRegistration: 2,
+                        teamName: sportData.teamName.trim(),
+                        buyerIsParticipant: buyerIsParticipant,
+                        players: sportData.players.slice(0, 2).map(p => ({
+                            name: p.name,
+                            nickname: p.nickname,
+                            cpf: p.cpf,
+                            phone: p.phone,
+                            email: p.email,
+                            birthDate: p.birthDate,
+                            photoUrl: p.photoPreview || '',
+                            isBuyer: p.isBuyer || false,
+                        })),
+                    };
+                } else if (ticketPurpose === 'REGISTRATION') {
                     sportPayload = {
                         teamName: sportData.teamName,
                         players: sportData.players.map(p => ({
@@ -612,8 +678,10 @@ const CheckoutPage = () => {
                         buyerName: formData.name || eligibilityResult?.teamName || 'Comprador',
                         buyerEmail: formData.email,
                         buyerCpf: formData.cpf || repechageCpf,
+                        buyerPhone: formData.phone,
                         paymentMethod: 'PIX',
                         sportData: sportPayload,
+                        promoterRef: formData.promoterRef,
                     })
                 });
                 const responseData = await res.json();
@@ -1029,8 +1097,10 @@ const CheckoutPage = () => {
                 {/* DADOS DA DUPLA — aparece no step 0 para REGISTRATION/DOUBLE */}
                 {currentStep === 0 && ticketPurpose === 'REGISTRATION' && registrationType === 'DOUBLE' && (
                   <div className="mt-6 bg-white rounded-lg shadow-md p-6">
-                    <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-5">Dados da Dupla</p>
-                    <div className="mb-5">
+                    <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-5">INSCRIÇÃO DA DUPLA</p>
+                    <p className="text-sm font-medium text-gray-700 mb-6">Esta inscrição é válida para 2 jogadores.</p>
+
+                    <div className="mb-6">
                       <label htmlFor="team-name" className="block text-sm font-medium text-gray-700 mb-1">Nome da Dupla *</label>
                       <input
                         id="team-name"
@@ -1038,31 +1108,112 @@ const CheckoutPage = () => {
                         value={sportData.teamName}
                         onChange={e => setSportData(prev => ({ ...prev, teamName: e.target.value }))}
                         className="input-field w-full font-bold uppercase"
-                        placeholder="Ex: SILVA & COSTA"
+                        placeholder="Ex.: Os Barões"
                       />
+                      <p className="text-xs text-gray-500 mt-1">Escolha como sua dupla aparecerá no campeonato, chaveamento e telão.</p>
                     </div>
-                    {[0, 1].map(idx => (
-                      <div key={idx} className="bg-indigo-50/40 rounded-2xl p-5 mb-4 border border-indigo-100">
-                        <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-4">Competidor {idx + 1}</p>
-                        <div className="space-y-3">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Nome completo *</label>
-                            <input id={`player-${idx}-name`} type="text" value={sportData.players[idx]?.name || ''} onChange={e => handlePlayerChange(idx, 'name', e.target.value)} className="input-field w-full" placeholder="Nome completo" />
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">CPF *</label>
-                              <input id={`player-${idx}-cpf`} type="text" value={sportData.players[idx]?.cpf || ''} onChange={e => handlePlayerChange(idx, 'cpf', e.target.value)} className="input-field w-full" placeholder="000.000.000-00" />
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">WhatsApp *</label>
-                              <input id={`player-${idx}-phone`} type="tel" value={sportData.players[idx]?.phone || ''} onChange={e => handlePlayerChange(idx, 'phone', e.target.value)} className="input-field w-full" placeholder="(00) 00000-0000" />
-                            </div>
-                          </div>
-                        </div>
+
+                    <div className="mb-6 bg-indigo-50/40 rounded-2xl p-5 border border-indigo-100 text-center">
+                      <p className="text-sm font-bold text-gray-800 mb-4">VOCÊ FAZ PARTE DESTA DUPLA?</p>
+                      <div className="flex justify-center gap-4">
+                        <button
+                          type="button"
+                          onClick={() => setBuyerIsParticipant(true)}
+                          className={`px-6 py-2 rounded-full font-bold uppercase tracking-wider text-xs transition-all ${buyerIsParticipant === true ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'bg-white border-2 border-gray-200 text-gray-500 hover:border-primary/50 hover:text-primary'}`}
+                        >
+                          SIM
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setBuyerIsParticipant(false)}
+                          className={`px-6 py-2 rounded-full font-bold uppercase tracking-wider text-xs transition-all ${buyerIsParticipant === false ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'bg-white border-2 border-gray-200 text-gray-500 hover:border-primary/50 hover:text-primary'}`}
+                        >
+                          NÃO
+                        </button>
                       </div>
-                    ))}
-                    <p className="text-xs text-gray-400 italic mt-2">O comprador não precisa ser competidor. Os dados são independentes.</p>
+                    </div>
+
+                    {buyerIsParticipant !== null && (
+                      <div className="space-y-6">
+                        {[0, 1].map(idx => (
+                          <div key={idx} className="bg-indigo-50/40 rounded-2xl p-5 border border-indigo-100">
+                            <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-4">
+                              {buyerIsParticipant && idx === 0 ? 'JOGADOR 1 — VOCÊ' : `JOGADOR ${idx + 1}${buyerIsParticipant && idx === 1 ? ' — PARCEIRO' : ''}`}
+                            </p>
+                            <div className="space-y-3">
+                              {/* Se for o comprador (idx === 0 e buyerIsParticipant === true), mostramos info read-only e pedimos só o apelido */}
+                              {buyerIsParticipant && idx === 0 ? (
+                                <>
+                                  <div className="bg-white/60 p-4 rounded-xl space-y-2 mb-3 text-sm text-gray-600">
+                                    <p><strong>Nome:</strong> {sportData.players[idx]?.name || formData.name}</p>
+                                    <p><strong>CPF:</strong> {sportData.players[idx]?.cpf || formData.cpf}</p>
+                                    <p><strong>WhatsApp:</strong> {sportData.players[idx]?.phone || formData.phone}</p>
+                                    <p><strong>Email:</strong> {sportData.players[idx]?.email || formData.email}</p>
+                                    <p><strong>Nascimento:</strong> {sportData.players[idx]?.birthDate || formData.birthDate}</p>
+                                    <p className="text-xs italic mt-2 text-indigo-500">Dados vinculados ao seu cadastro principal.</p>
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Apelido / Nome de jogo *</label>
+                                    <input type="text" value={sportData.players[idx]?.nickname || ''} onChange={e => handlePlayerChange(idx, 'nickname', e.target.value)} className="input-field w-full" placeholder="Ex: SILVA" />
+                                  </div>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <div>
+                                      <label className="block text-sm font-medium text-gray-700 mb-1">Nome completo *</label>
+                                      <input type="text" value={sportData.players[idx]?.name || ''} onChange={e => handlePlayerChange(idx, 'name', e.target.value)} className="input-field w-full" placeholder="Nome completo" />
+                                    </div>
+                                    <div>
+                                      <label className="block text-sm font-medium text-gray-700 mb-1">Apelido / Nome de jogo *</label>
+                                      <input type="text" value={sportData.players[idx]?.nickname || ''} onChange={e => handlePlayerChange(idx, 'nickname', e.target.value)} className="input-field w-full" placeholder="Apelido" />
+                                    </div>
+                                  </div>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <div>
+                                      <label className="block text-sm font-medium text-gray-700 mb-1">CPF *</label>
+                                      <input type="text" value={sportData.players[idx]?.cpf || ''} onChange={e => handlePlayerChange(idx, 'cpf', e.target.value)} className="input-field w-full" placeholder="000.000.000-00" />
+                                    </div>
+                                    <div>
+                                      <label className="block text-sm font-medium text-gray-700 mb-1">WhatsApp *</label>
+                                      <input type="tel" value={sportData.players[idx]?.phone || ''} onChange={e => handlePlayerChange(idx, 'phone', e.target.value)} className="input-field w-full" placeholder="(00) 00000-0000" />
+                                    </div>
+                                  </div>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <div>
+                                      <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                                      <input type="email" value={sportData.players[idx]?.email || ''} onChange={e => handlePlayerChange(idx, 'email', e.target.value)} className="input-field w-full" placeholder="email@exemplo.com" />
+                                    </div>
+                                    <div>
+                                      <label className="block text-sm font-medium text-gray-700 mb-1">Data de Nascimento *</label>
+                                      <input type="date" value={sportData.players[idx]?.birthDate || ''} onChange={e => handlePlayerChange(idx, 'birthDate', e.target.value)} className="input-field w-full" />
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Foto *</label>
+                                    <input type="file" accept="image/*" onChange={e => {
+                                      const file = e.target.files?.[0];
+                                      if (file) {
+                                        handlePlayerChange(idx, 'photo', file);
+                                        const url = URL.createObjectURL(file);
+                                        handlePlayerChange(idx, 'photoPreview', url);
+                                      }
+                                    }} className="input-field w-full text-sm p-2" />
+                                    {sportData.players[idx]?.photoPreview && (
+                                      <img src={sportData.players[idx].photoPreview as string} alt={`Preview do Jogador ${idx+1}`} className="mt-2 h-16 w-16 object-cover rounded-xl border border-indigo-200" />
+                                    )}
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {buyerIsParticipant === false && (
+                      <p className="text-xs text-gray-400 italic mt-4 text-center">O comprador continua sendo somente o responsável financeiro.</p>
+                    )}
                   </div>
                 )}
 

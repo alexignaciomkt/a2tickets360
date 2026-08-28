@@ -135,6 +135,29 @@ const OrganizerReports = () => {
     }));
   }, [filteredTickets]);
 
+  const channelData = useMemo(() => {
+    let directSales = 0;
+    let directRevenue = 0;
+    let promoterSales = 0;
+    let promoterRevenue = 0;
+
+    filteredTxs.forEach(tx => {
+      if (tx.promoterId) {
+        promoterSales += 1;
+        promoterRevenue += (tx.grossAmount || 0);
+      } else {
+        directSales += 1;
+        directRevenue += (tx.grossAmount || 0);
+      }
+    });
+
+    return {
+      direct: { count: directSales, revenue: directRevenue },
+      promoter: { count: promoterSales, revenue: promoterRevenue },
+      total: { count: directSales + promoterSales, revenue: directRevenue + promoterRevenue }
+    };
+  }, [filteredTxs]);
+
   if (loading) {
     return (
       <DashboardLayout userType="organizer">
@@ -351,9 +374,24 @@ const OrganizerReports = () => {
               <CardHeader>
                 <CardTitle>Canais de Venda</CardTitle>
               </CardHeader>
-              <CardContent className="h-64 flex flex-col items-center justify-center text-gray-500 gap-2">
-                <AlertCircle className="w-8 h-8 text-gray-400" />
-                <p>O rastreamento de Canais de Venda (Promoters, PDVs, UTMs) ainda não possui dados reais suficientes para exibição.</p>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                  <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 flex flex-col items-center justify-center text-center">
+                    <span className="text-sm font-semibold text-slate-500 uppercase tracking-widest mb-2">Venda Direta</span>
+                    <span className="text-3xl font-black text-slate-900">{channelData.direct.count}</span>
+                    <span className="text-sm font-medium text-emerald-600 mt-1">{formatCurrency(channelData.direct.revenue)}</span>
+                  </div>
+                  <div className="bg-indigo-50 rounded-xl p-4 border border-indigo-100 flex flex-col items-center justify-center text-center">
+                    <span className="text-sm font-semibold text-indigo-500 uppercase tracking-widest mb-2">Promoters</span>
+                    <span className="text-3xl font-black text-indigo-900">{channelData.promoter.count}</span>
+                    <span className="text-sm font-medium text-emerald-600 mt-1">{formatCurrency(channelData.promoter.revenue)}</span>
+                  </div>
+                  <div className="bg-slate-900 rounded-xl p-4 border border-slate-800 flex flex-col items-center justify-center text-center">
+                    <span className="text-sm font-semibold text-slate-400 uppercase tracking-widest mb-2">Total</span>
+                    <span className="text-3xl font-black text-white">{channelData.total.count}</span>
+                    <span className="text-sm font-medium text-emerald-400 mt-1">{formatCurrency(channelData.total.revenue)}</span>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

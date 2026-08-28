@@ -611,7 +611,8 @@ class OrganizerService {
           gmv: Number(s.buyer_total || 0),
           status: s.payment_status === 'paid' ? 'completed' : 'pending',
           type: 'credit',
-          buyer: s.buyer_name || s.buyer_email || 'Comprador'
+          buyer: s.buyer_name || s.buyer_email || 'Comprador',
+          promoterId: s.promoter_id
         })),
         payouts: []
       } as any;
@@ -704,7 +705,7 @@ class OrganizerService {
   }
 
   async updateProfile(profileDocId: string, data: any, userId: string): Promise<any> {
-    const profileFields = ['name', 'email', 'status', 'profile_complete', 'cpf', 'phone', 'photo_url'];
+    const profileFields = ['name', 'email', 'status', 'profile_complete', 'cpf', 'phone', 'photo_url', 'avatar_url'];
     // All fields that go to organizer_details (snake_case as stored in DB)
     const detailsFieldsMap: Record<string, string> = {
       'slug': 'slug',

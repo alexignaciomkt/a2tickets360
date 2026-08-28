@@ -118,6 +118,9 @@ export class AsaasService {
 
         // Wallet do organizador no Asaas.
         splitWalletId: string;
+        
+        // Splits adicionais (ex: promoter)
+        additionalSplits?: { walletId: string, fixedValue: number }[];
     }) {
         const payload: any = {
             customer: data.customer,
@@ -142,6 +145,12 @@ export class AsaasService {
                         data.splitValue,
                 },
             ];
+            
+            if (data.additionalSplits && data.additionalSplits.length > 0) {
+                payload.split.push(...data.additionalSplits);
+            }
+        } else if (data.additionalSplits && data.additionalSplits.length > 0) {
+            payload.split = [...data.additionalSplits];
         }
 
         return this.request(
@@ -159,6 +168,7 @@ export class AsaasService {
         name: string;
         email: string;
         cpfCnpj: string;
+        mobilePhone?: string;
     }) {
         return this.request(
             '/customers',

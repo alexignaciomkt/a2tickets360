@@ -34,9 +34,9 @@ const PromoterEvents = () => {
     if (pData) {
       setPromoterInfo(pData);
       
-      // 2. Fetch existing affiliations to exclude them
+      // 2. Fetch existing affiliations from the backend
       const { data: affData } = await supabase
-        .from('promoter_affiliations')
+        .from('event_promoters')
         .select('event_id')
         .eq('promoter_id', pData.id);
         
@@ -70,30 +70,39 @@ const PromoterEvents = () => {
   const handleApply = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!promoterInfo || !selectedEventToApply) return;
-    
     setApplying(true);
-    const { error } = await supabase
-      .from('promoter_affiliations')
-      .insert({
-        promoter_id: promoterInfo.id,
-        event_id: selectedEventToApply.id,
-        commission_rate: selectedEventToApply.promoter_commission_rate || 10,
-        status: 'pending',
-        application_data: promoterInfo.profile_data
+    
+    try {
+      const token = (await supabase.auth.getSession()).data.session?.access_token;
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/promoter/events/${selectedEventToApply.id}/apply`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({}) // Backend resolve promoterId pela sessão
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Erro ao processar solicitação');
+      }
+
+      toast({
+        title: "Solicitação Enviada!",
+        description: "O produtor analisará seu perfil. Acompanhe em Minhas Afiliações.",
       });
       
-    if (error) {
-      console.error('Apply error:', error);
-      toast({ variant: 'destructive', title: 'Erro', description: `Falha ao enviar solicitação: ${error.message}` });
-      setApplying(false);
-    } else {
-      toast({ title: 'Sucesso', description: 'Solicitação enviada para o organizador!' });
       setSelectedEventToApply(null);
-      fetchVitrineData(false); // Refresh in background
-      // NOTE: We intentionally do NOT set applying(false) here. 
-      // The modal is closing and animating out via Radix UI. 
-      // If we flip the state to false, React will try to mutate the DOM (re-inserting the Send icon) 
-      // inside a portal that is being destroyed, causing a fatal 'insertBefore' crash!
+      fetchVitrineData(); // Refresh list to remove the applied event
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: "Ops...",
+        description: err.message || "Não foi possível enviar a solicitação.",
+      });
+    } finally {
+      setApplying(false);
     }
   };
 
