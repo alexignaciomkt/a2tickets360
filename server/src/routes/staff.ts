@@ -11,7 +11,8 @@ import {
     events,
     staffApplications,
     staffProfessionalFunctions,
-    staffProfileFunctions
+    staffProfileFunctions,
+    organizers
 } from '../db/schema';
 import { eq, and, or, sql, lt, gt, inArray, isNull } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
@@ -601,7 +602,8 @@ router.get('/events', async (c: Context) => {
             organizerAvatarUrl: profiles.avatarUrl
         })
         .from(events)
-        .leftJoin(profiles, eq(events.organizerId, profiles.userId))
+        .leftJoin(organizers, eq(events.organizerId, organizers.id))
+        .leftJoin(profiles, eq(organizers.userId, profiles.userId))
         .where(
             and(
                 eq(events.status, 'published'),

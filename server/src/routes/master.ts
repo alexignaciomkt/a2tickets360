@@ -189,12 +189,12 @@ router.get('/events', async (c) => {
         const queryParams = c.req.query();
         
         // Manual JOIN to fix auth vs document ID mismatch
-        // events.organizerId stores auth.users.id
-        // organizersTable.userId stores auth.users.id
+        // events.organizerId stores organizers.id
+        // organizersTable.id stores the entity ID
         const rawEvents = await db.select({
             event: events,
             organizer: organizersTable
-        }).from(events).leftJoin(organizersTable, eq(events.organizerId, organizersTable.userId));
+        }).from(events).leftJoin(organizersTable, eq(events.organizerId, organizersTable.id));
 
         let mappedEvents = rawEvents.map(row => ({
             ...row.event,

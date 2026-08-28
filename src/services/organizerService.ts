@@ -66,13 +66,20 @@ class OrganizerService {
   // Events Management
   async getEvents(organizerId: string): Promise<Event[]> {
     try {
+      // FIX FK MIXUP: If organizerId is a UUID that could be user.id, resolve it to organizer_details.id first.
+      let realOrganizerId = organizerId;
+      const { data: orgData } = await supabase.from('organizer_details').select('id').eq('user_id', organizerId).maybeSingle();
+      if (orgData) {
+          realOrganizerId = orgData.id;
+      }
+
       const { data, error } = await supabase
         .from('events')
         .select(`
           *,
           tickets (*)
         `)
-        .eq('organizer_id', organizerId)
+        .eq('organizer_id', realOrganizerId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -394,12 +401,18 @@ class OrganizerService {
   // Stats for Dashboard
   async getStats(organizerId: string): Promise<any> {
     try {
+      let realOrganizerId = organizerId;
+      const { data: orgData } = await supabase.from('organizer_details').select('id').eq('user_id', organizerId).maybeSingle();
+      if (orgData) {
+          realOrganizerId = orgData.id;
+      }
+
       const [
         { count: totalEvents },
         { data: events }
       ] = await Promise.all([
-        supabase.from('events').select('*', { count: 'exact', head: true }).eq('organizer_id', organizerId),
-        supabase.from('events').select('title').eq('organizer_id', organizerId).order('created_at', { ascending: false }).limit(1)
+        supabase.from('events').select('*', { count: 'exact', head: true }).eq('organizer_id', realOrganizerId),
+        supabase.from('events').select('title').eq('organizer_id', realOrganizerId).order('created_at', { ascending: false }).limit(1)
       ]);
 
       return {
@@ -424,8 +437,14 @@ class OrganizerService {
   // BI Analytics Stats
   async getBIStats(organizerId: string, eventId: string = 'all', dateRange?: { from: Date; to: Date }): Promise<any> {
     try {
+      let realOrganizerId = organizerId;
+      const { data: orgData } = await supabase.from('organizer_details').select('id').eq('user_id', organizerId).maybeSingle();
+      if (orgData) {
+          realOrganizerId = orgData.id;
+      }
+
       // 1. Fetch Events for this organizer
-      let eventsQuery = supabase.from('events').select('*, tickets(*)').eq('organizer_id', organizerId);
+      let eventsQuery = supabase.from('events').select('*, tickets(*)').eq('organizer_id', realOrganizerId);
       if (eventId !== 'all') {
         const ids = eventId.split(',');
         eventsQuery = eventsQuery.in('id', ids);

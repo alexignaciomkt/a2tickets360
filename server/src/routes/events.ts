@@ -97,7 +97,7 @@ router.post('/', async (c) => {
         });
 
         if (existingEvent) {
-            if (existingEvent.organizerId !== userId) {
+            if (existingEvent.organizerId !== organizerDetails.id) {
                 return c.json({ error: 'Conflito de chave de operação e segurança.' }, 409);
             }
             // Sucesso idempotente
@@ -124,7 +124,7 @@ router.post('/', async (c) => {
             const eventResult = await db.transaction(async (tx) => {
                 const [newEvent] = await tx.insert(events).values({
                     id: operationId, // OPERATION ID = EVENT ID
-                    organizerId: userId,
+                    organizerId: organizerDetails.id,
                     title,
                     slug,
                     description,
