@@ -15,20 +15,27 @@ export const portariaService = {
 
         const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3002';
         
-        const response = await fetch(`${apiUrl}/api/portaria/current-operation`, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${session.access_token}`
+        console.log('[PORTARIA SERVICE] BEFORE REQUEST', apiUrl);
+        try {
+            const response = await fetch(`${apiUrl}/api/portaria/current-operation`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${session.access_token}`
+                }
+            });
+            console.log('[PORTARIA SERVICE] AFTER REQUEST', { status: response.status });
+
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.error || 'Erro ao carregar operações da portaria');
             }
-        });
 
-        if (!response.ok) {
-            const err = await response.json();
-            throw new Error(err.error || 'Erro ao carregar operações da portaria');
+            const data = await response.json();
+            return data.operations || [];
+        } catch (error: any) {
+            console.error('[PORTARIA SERVICE] ERROR', error.message || error);
+            throw error;
         }
-
-        const data = await response.json();
-        return data.operations || [];
     },
 
     sendRecoveryForStaff: async (eventStaffId: string): Promise<void> => {

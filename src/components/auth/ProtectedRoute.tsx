@@ -17,6 +17,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     const { user, loading, isAuthenticated, personalModules, staffProfileComplete } = useAuth();
     const location = useLocation();
 
+    console.log('[PROTECTED ROUTE]', { authLoading: loading, hasUser: !!user, pathname: location.pathname });
+
     // Show loading while checking session
     if (loading) {
         return (

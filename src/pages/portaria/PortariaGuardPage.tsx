@@ -16,15 +16,20 @@ export default function PortariaGuardPage() {
 
     useEffect(() => {
         const checkOperations = async () => {
+            console.log('[PORTARIA] START');
             try {
                 // Confirmar sessão
+                console.log('[PORTARIA] BEFORE AUTH');
                 const { data: { session } } = await supabase.auth.getSession();
+                console.log('[PORTARIA] AFTER AUTH', { hasSession: !!session });
                 if (!session) {
                     navigate('/login');
                     return;
                 }
 
+                console.log('[PORTARIA] BEFORE CURRENT OPERATION');
                 const ops = await portariaService.getCurrentOperations();
+                console.log('[PORTARIA] AFTER CURRENT OPERATION', { count: ops.length });
                 setOperations(ops);
 
                 // Regra: Uma operação -> vai direto
@@ -32,8 +37,10 @@ export default function PortariaGuardPage() {
                     navigate(`/${ops[0].slug}/scanner`, { replace: true });
                 }
             } catch (err: any) {
+                console.error('[PORTARIA] ERROR', err.message || err);
                 setError(err.message);
             } finally {
+                console.log('[PORTARIA] FINALLY');
                 setLoading(false);
             }
         };

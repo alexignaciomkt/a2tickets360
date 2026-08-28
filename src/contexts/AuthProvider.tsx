@@ -148,6 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const checkSession = async () => {
+      console.log('[AUTH BOOT] START');
       try {
         // First try localStorage for instant restore
         const savedUser = localStorage.getItem('A2Tickets_user');
@@ -157,7 +158,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           } catch { /* ignore parse errors */ }
         }
 
+        console.log('[AUTH BOOT] BEFORE GET SESSION');
         const { data: { session }, error } = await supabase.auth.getSession();
+        console.log('[AUTH BOOT] AFTER GET SESSION');
+        
+        console.log('[AUTH BOOT] SESSION RESULT', { hasSession: !!session?.user, error: !!error });
+        
         if (error || !session?.user) {
           // SE O TOKEN FALHAR OU NÃO TIVER SESSÃO, LIMPAR CACHE TOTAL
           localStorage.removeItem('A2Tickets_user');
@@ -167,16 +173,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setPersonalModules(undefined);
           setContexts(undefined);
         } else {
+          console.log('[AUTH BOOT] BEFORE PROFILE');
           const profile = await fetchUserProfile(session.user.id, session.user.email!);
+          console.log('[AUTH BOOT] AFTER PROFILE', { hasProfile: !!profile });
+          
           if (profile) {
             setUser(profile);
             localStorage.setItem('A2Tickets_user', JSON.stringify(profile));
           }
+          
+          console.log('[AUTH BOOT] BEFORE CONTEXTS');
           await refreshCapabilities();
+          console.log('[AUTH BOOT] AFTER CONTEXTS');
         }
-      } catch (error) {
-        console.error('Erro na sessão:', error);
+      } catch (error: any) {
+        console.error('[AUTH BOOT] ERROR', error.message || error);
       } finally {
+        console.log('[AUTH BOOT] FINALLY');
         setLoading(false);
       }
     };
