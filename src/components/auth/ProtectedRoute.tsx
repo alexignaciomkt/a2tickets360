@@ -14,7 +14,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     allowedRoles,
     requireApproved = true,
 }) => {
-    const { user, loading, isAuthenticated, personalModules } = useAuth();
+    const { user, loading, isAuthenticated, personalModules, staffProfileComplete } = useAuth();
     const location = useLocation();
 
     // Show loading while checking session
@@ -78,14 +78,29 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
         if (allowedRoles.includes('customer' as UserRole) && personalModules.tickets) isAllowed = true;
     }
 
+    if (personalModules?.staff) {
+        const isStaffRoute = location.pathname.startsWith('/dashboard/staff') || location.pathname.startsWith('/staff/');
+        const isOnboardingRoute = location.pathname === '/onboarding/staff';
+
+        if (!staffProfileComplete && isStaffRoute && !isOnboardingRoute) {
+             return <Navigate to="/onboarding/staff" replace />;
+        }
+        if (staffProfileComplete && isOnboardingRoute) {
+             return <Navigate to="/dashboard/staff/invites" replace />;
+        }
+    }
+
     if (!isAllowed) {
         const redirectMap: Record<string, string> = {
             master: '/master',
             organizer: '/organizer/dashboard',
-            staff: '/dashboard/staff/invites',
+            staff: (personalModules?.staff && !staffProfileComplete) ? '/onboarding/staff' : '/dashboard/staff/invites',
             exhibitor: '/organizer/exhibitor',
             customer: '/dashboard',
         };
+        
+
+
         if (personalModules?.tickets) {
             return <Navigate to="/dashboard" replace />;
         }

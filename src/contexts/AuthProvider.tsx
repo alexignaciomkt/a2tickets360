@@ -9,6 +9,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [personalModules, setPersonalModules] = useState<{tickets: boolean, promoter: boolean, staff: boolean} | undefined>(undefined);
   const [staffPendingInvites, setStaffPendingInvites] = useState<number | undefined>(undefined);
+  const [staffProfileComplete, setStaffProfileComplete] = useState<boolean | undefined>(undefined);
   const [contexts, setContexts] = useState<any[] | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -68,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 role: combinedData.role as UserRole,
                 status: (combinedData.status || 'pending') as ProfileStatus,
                 profileComplete: combinedData.profile_complete || false,
-                photoUrl: combinedData.logo_url || combinedData.photo_url || '',
+                photoUrl: combinedData.avatar_url || combinedData.logo_url || combinedData.photo_url || '',
                 cpf: combinedData.cpf,
                 phone: combinedData.phone,
                 city: combinedData.city,
@@ -129,15 +130,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (data?.success) {
         setPersonalModules(data.personalModules || { tickets: true, promoter: false, staff: false });
         setStaffPendingInvites(data.staffPendingInvites || 0);
+        setStaffProfileComplete(data.staffProfileComplete || false);
         setContexts(data.contexts || []);
+        return data;
       } else {
         console.warn('⚠️ [AuthProvider] API retornou false para success ao buscar contextos, aplicando fallback.', data);
         setPersonalModules({ tickets: true, promoter: false, staff: false });
+        return null;
       }
     } catch (error) {
       console.error('Erro ao atualizar capacidades:', error);
       // Fallback para evitar spinner infinito caso a API falhe
       setPersonalModules({ tickets: true, promoter: false, staff: false });
+      return null;
     }
   }, []);
 
@@ -305,6 +310,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (authData.user) {
         // Persistir dados para o onboarding capturar (Safety Net)
         localStorage.setItem('A2Tickets_PendingRegistration', JSON.stringify({
+          email: data.email,
+          userId: authData.user.id,
           companyName: (data as any).companyName || data.name,
           slug: (data as any).slug,
           phone: (data as any).phone,
@@ -315,22 +322,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // 1. Garantir profile no banco (fallback para trigger)
         try {
           const extData = data as any;
-          await supabase.from('profiles').upsert({
+          
+          const { data: existingProfile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('user_id', authData.user.id)
+            .maybeSingle();
+
+          const basePayload = {
             id: authData.user.id,
             user_id: authData.user.id,
             name: data.name,
             email: data.email,
-            role: data.role,
             cpf: data.cpf,
             phone: data.phone,
             city: extData.city || null,
             state: extData.state || null,
             address: extData.address || null,
             birth_date: extData.birthDate || null,
-            status: data.role === 'organizer' ? 'pending' : 'approved',
-            profile_complete: data.role !== 'organizer'
-          }, { onConflict: 'user_id' });
-          console.log('✅ [AuthProvider] Profile upsert realizado com sucesso.');
+          };
+
+          if (existingProfile) {
+            // Usuário existente: Update apenas de dados pessoais. NÃO alterar role legada.
+            await supabase.from('profiles').update(basePayload).eq('user_id', authData.user.id);
+            console.log('✅ [AuthProvider] Profile atualizado (role legada preservada).');
+          } else {
+            // Usuário novo: Insert com role inicial.
+            await supabase.from('profiles').insert({
+              ...basePayload,
+              role: data.role,
+              status: data.role === 'organizer' ? 'pending' : 'approved',
+              profile_complete: data.role !== 'organizer'
+            });
+            console.log('✅ [AuthProvider] Profile inserido com sucesso.');
+          }
+          
+          // If staff, ensure staff_profiles exists to activate the capability
+          if (data.role === 'staff') {
+            await supabase.from('staff_profiles').upsert({
+              user_id: authData.user.id,
+              full_name: data.name,
+              phone: data.phone,
+              profile_complete: false
+            }, { onConflict: 'user_id' });
+          }
         } catch (e) {
           console.warn('Fallback do profile ignorado/falhou', e);
         }
@@ -468,6 +503,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         personalModules,
         staffPendingInvites,
+        staffProfileComplete,
+        setStaffProfileComplete,
         contexts,
         loading,
         login,

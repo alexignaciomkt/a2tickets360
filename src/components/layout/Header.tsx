@@ -14,7 +14,7 @@ import {
 import Logo from '@/components/ui/logo';
 
 const Header = () => {
-  const { user, logout, personalModules } = useAuth();
+  const { user, logout, personalModules, staffProfileComplete } = useAuth();
   const location = useLocation();
   const isHome = location.pathname === '/';
 
@@ -133,14 +133,19 @@ const Header = () => {
                     </DropdownMenuItem>
                   )}
 
-                  {/* Meu Painel Staff: Somente se módulo staff ativo */}
+                  {/* PERFIL PROFISSIONAL - Somente se módulo staff ativo */}
                   {personalModules?.staff === true && (
                     <DropdownMenuItem className="p-3 rounded-2xl cursor-pointer hover:bg-white/5 group" asChild>
-                      <Link to="/dashboard/staff/invites" className="flex items-center gap-4">
+                      <Link to={staffProfileComplete ? "/staff/profile" : "/onboarding/staff"} className="flex items-center gap-4">
                         <div className="w-10 h-10 bg-indigo-600/20 text-indigo-400 rounded-xl flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition">
                           <LayoutDashboard className="w-5 h-5" />
                         </div>
-                        <span className="font-black text-[10px] uppercase tracking-widest">Meu Painel Staff</span>
+                        <div className="flex flex-col">
+                          <span className="font-black text-[10px] uppercase tracking-widest">Meu Perfil Staff</span>
+                          {!staffProfileComplete && (
+                            <span className="text-[9px] text-amber-500 font-bold uppercase tracking-wider mt-0.5">Pendente</span>
+                          )}
+                        </div>
                       </Link>
                     </DropdownMenuItem>
                   )}

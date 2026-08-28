@@ -71,15 +71,27 @@ contextsRoutes.get('/', async (c: Context) => {
             isPromoter = true;
         }
 
-        // Check Staff
+        // Check Staff Capability (existence of staff_profiles) and Global Photo
+        let staffProfileComplete = false;
+        const staffProfileResult = await db.execute(sql`
+            SELECT sp.user_id, sp.profile_complete, p.avatar_url 
+            FROM staff_profiles sp 
+            LEFT JOIN profiles p ON p.user_id = sp.user_id 
+            WHERE sp.user_id = ${userId} 
+            LIMIT 1
+        `);
+        if (staffProfileResult.length > 0) {
+            isStaff = true;
+            const row = staffProfileResult[0] as any;
+            staffProfileComplete = row.profile_complete === true && row.avatar_url != null && row.avatar_url.trim() !== '';
+        }
+
+        // Check Pending Staff Invites (event_staff still used for operation, not capability)
         const staffResult = await db.execute(sql`
             SELECT status FROM event_staff WHERE user_id = ${userId}
         `);
         
         staffResult.forEach((row: any) => {
-            if (['PENDING_PROFILE', 'PENDING_ACCEPTANCE', 'ACTIVE', 'COMPLETED'].includes(row.status)) {
-                isStaff = true;
-            }
             if (['PENDING_ACCEPTANCE'].includes(row.status)) {
                 staffPendingInvites++;
             }
@@ -92,6 +104,7 @@ contextsRoutes.get('/', async (c: Context) => {
                 promoter: isPromoter,
                 staff: isStaff
             },
+            staffProfileComplete,
             staffPendingInvites,
             contexts
         });

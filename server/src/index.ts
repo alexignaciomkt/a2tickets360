@@ -31,11 +31,13 @@ import integrationRoutes from './routes/integrations';
 import contextsRoutes from './routes/contexts';
 import permissionsRoutes from './routes/permissions';
 import staffRoutes from './routes/staff';
+import staffProfileRoutes from './routes/staffProfile';
 import credentialsRoutes from './routes/credentials';
 import ticketCheckinRoutes from './routes/ticketCheckin';
 import portariaRoutes from './routes/portaria';
 import uploadsRoutes from './routes/uploads';
 import albumsRoutes from './routes/albums';
+import promotersRoutes from './routes/promoters';
 import publicAlbumsRoutes from './routes/publicAlbums';
 import masterRoutes from './routes/master';
 import eventsRoutes from './routes/events';
@@ -97,6 +99,7 @@ app.route('/api/ai', aiRoutes);
 app.route('/api/integrations', integrationRoutes);
 app.route('/api/me/contexts', contextsRoutes);
 app.route('/api/me/permissions', permissionsRoutes);
+app.route('/api/me/staff-profile', staffProfileRoutes);
 app.route('/api/staff', staffRoutes);
 app.route('/api/credentials', credentialsRoutes);
 app.route('/api/checkin/tickets', ticketCheckinRoutes);
@@ -104,6 +107,7 @@ app.route('/api/portaria', portariaRoutes);
 app.route('/api/uploads', uploadsRoutes);
 app.route('/api/organizer/albums', albumsRoutes);
 app.route('/api/organizer/events', eventsRoutes);
+app.route('/api/promoter', promotersRoutes);
 app.route('/api/public/producers', publicAlbumsRoutes);
 app.route('/api/master', masterRoutes);
 
@@ -523,10 +527,18 @@ app.get('/api/events/:id/featured-credit-status', authMiddleware, async (c: Cont
 
 app.post('/api/payments/checkout', async (c: Context) => {
     const body = await c.req.json();
-    const { ticketId, buyerId, buyerName, buyerEmail, buyerCpf, paymentMethod, sportData } = body;
+    const { ticketId, buyerId, buyerName, buyerEmail, buyerCpf, buyerPhone, paymentMethod, sportData, promoterRef } = body;
     let { quantity } = body;
 
     try {
+        if (!buyerPhone || typeof buyerPhone !== 'string' || !buyerPhone.trim()) {
+            throw new Error('Telefone do comprador é obrigatório.');
+        }
+        const normalizedBuyerPhone = buyerPhone.replace(/\D/g, '');
+        if (normalizedBuyerPhone.length < 10) {
+            throw new Error('Telefone do comprador é inválido.');
+        }
+
         const ticket = await db.query.tickets.findFirst({
             where: eq(schema.tickets.id, ticketId),
             with: { event: true }
@@ -570,9 +582,26 @@ app.post('/api/payments/checkout', async (c: Context) => {
             }
         }
 
-        // Forcar quantity = 1 para produtos esportivos
+        // Validar payload para Inscrição Dupla (DOUBLE)
         const isSportTicket = ticket.ticketPurpose === 'REGISTRATION' || ticket.ticketPurpose === 'REPECHAGE';
-        if (isSportTicket) {
+        if (ticket.ticketPurpose === 'REGISTRATION' && ticket.registrationType === 'DOUBLE') {
+            quantity = 1;
+            if (!sportData || sportData.registrationType !== 'DOUBLE' || sportData.participantsPerRegistration !== 2) {
+                throw new Error('Payload de esporte inválido para inscrição de dupla.');
+            }
+            if (!sportData.teamName || sportData.teamName.trim() === '') {
+                throw new Error('Nome da dupla é obrigatório.');
+            }
+            if (!sportData.players || sportData.players.length !== 2) {
+                throw new Error('Inscrição de dupla exige exatamente 2 jogadores.');
+            }
+            for (let i = 0; i < 2; i++) {
+                const p = sportData.players[i];
+                if (!p.name?.trim() || !p.nickname?.trim() || !p.cpf?.trim() || !p.phone?.trim() || !p.email?.trim() || !p.birthDate?.trim() || !p.photoUrl?.trim()) {
+                    throw new Error(`Dados incompletos para o Jogador ${i + 1}.`);
+                }
+            }
+        } else if (isSportTicket) {
             quantity = 1;
         } else {
             quantity = Math.max(1, parseInt(quantity as any) || 1);
@@ -718,14 +747,71 @@ app.post('/api/payments/checkout', async (c: Context) => {
             ? eventPassFeeToBuyer
             : (organizerSettings.passFeeToBuyer !== false);
 
+        // ============================================================
+        // MOTOR DO PROMOTER V1
+        // ============================================================
+        let resolvedPromoterId: string | null = null;
+        let resolvedEventPromoterId: string | null = null;
+        let resolvedPromoterRate = 0;
+        let resolvedPromoterAmount = 0;
+        let promoterWalletId: string | null = null;
+        let promoterSettlementMode = 'MANUAL';
+
+        if (promoterRef) {
+            try {
+                const affiliation = await db.query.eventPromoters.findFirst({
+                    where: and(
+                        eq(schema.eventPromoters.eventId, ticket.eventId),
+                        eq(schema.eventPromoters.referralCode, promoterRef),
+                        eq(schema.eventPromoters.isActive, true)
+                    )
+                });
+
+                if (affiliation) {
+                    resolvedPromoterId = affiliation.promoterId;
+                    resolvedEventPromoterId = affiliation.id;
+                    resolvedPromoterRate = Number(affiliation.commissionRate);
+                    promoterSettlementMode = affiliation.settlementMode; // Lendo do banco
+
+                    if (promoterSettlementMode === 'ASAAS_SPLIT') {
+                        // Buscar Wallet do Promoter somente se ASAAS_SPLIT for exigido
+                        const wallet = await db.query.wallets.findFirst({
+                            where: and(
+                                eq(schema.wallets.ownerId, affiliation.promoterId),
+                                eq(schema.wallets.ownerType, 'PROMOTER'),
+                                eq(schema.wallets.isActive, true)
+                            )
+                        });
+
+                        if (wallet && wallet.gatewayWalletId) {
+                            promoterWalletId = wallet.gatewayWalletId;
+                        } else {
+                            throw new Error('Promoter configurado para split automático (ASAAS_SPLIT), mas não possui uma carteira Asaas válida.');
+                        }
+                    }
+                } else {
+                    console.warn(`[CHECKOUT] Promoter ref inválido ou inativo: ${promoterRef}. Prosseguindo como venda direta.`);
+                }
+            } catch (err) {
+                console.error('[CHECKOUT] Erro ao resolver promoterRef:', err);
+            }
+        }
+
         const dist = calculateFinancialDistribution({
             unitPriceCents: Math.round(Number(ticket.price) * 100),
             quantity: quantity,
             billableUnits: billableUnits,
             discountAmountCents: 0,
-            promoterCommissionRate: 0,
+            promoterCommissionRate: 0, // mantido zero na prop base para não sujar o valor do produtor, pois quem paga é o produtor da parte dele
             passPlatformFeeToBuyer: passFeeToBuyer
         });
+
+        // Calcular a comissão estritamente sobre o grossAmount
+        if (resolvedPromoterRate > 0) {
+            resolvedPromoterAmount = (dist.grossAmountCents / 100) * (resolvedPromoterRate / 100);
+            // Arredondamento seguro 2 casas
+            resolvedPromoterAmount = Math.round(resolvedPromoterAmount * 100) / 100;
+        }
 
         const totalValue = dist.buyerTotalCents / 100;
         const producerNetValue = dist.producerAmountCents / 100;
@@ -735,7 +821,7 @@ app.post('/api/payments/checkout', async (c: Context) => {
             // 1. Criar Sale ANTES de chamar o Asaas
             const saleResult = await tx.insert(schema.sales).values({
                 eventId: ticket.eventId,
-                buyerInfo: { name: buyerName, email: buyerEmail, cpf: normalizeCpf(buyerCpf) },
+                buyerInfo: { name: buyerName, email: buyerEmail, cpf: normalizeCpf(buyerCpf), phone: normalizedBuyerPhone },
                 
                 unitPrice: (Math.round(Number(ticket.price) * 100) / 100).toString(),
                 quantity: quantity,
@@ -751,7 +837,14 @@ app.post('/api/payments/checkout', async (c: Context) => {
                 totalAmount: totalValue.toString(),
                 revenueType,
                 paymentStatus: 'pending',
-                paymentMethod: paymentMethod
+                paymentMethod: paymentMethod,
+
+                // Campos do Promoter V1.1
+                promoterId: resolvedPromoterId,
+                eventPromoterId: resolvedEventPromoterId,
+                promoterCommissionRate: resolvedPromoterRate > 0 ? resolvedPromoterRate.toString() : null,
+                promoterCommissionAmount: resolvedPromoterRate > 0 ? resolvedPromoterAmount.toString() : null,
+                promoterSettlementMode: resolvedPromoterId ? promoterSettlementMode : null,
             }).returning({ id: schema.sales.id });
             const saleId = saleResult[0].id;
 
@@ -799,12 +892,18 @@ app.post('/api/payments/checkout', async (c: Context) => {
                             const newName = p.name?.trim();
                             const hasNewName = newName && newName !== existingParts[0].fullName;
                             const hasNewPhone = phone && phone !== existingParts[0].phone;
+                            const newPhoto = p.photoUrl?.trim();
+                            const hasNewPhoto = newPhoto && newPhoto !== existingParts[0].photoUrl;
+                            const newEmail = p.email?.trim();
+                            const hasNewEmail = newEmail && newEmail !== existingParts[0].email;
                             
-                            if (hasNewName || hasNewPhone) {
+                            if (hasNewName || hasNewPhone || hasNewPhoto || hasNewEmail) {
                                 await tx.update(schema.eventParticipants)
                                     .set({
                                         fullName: hasNewName ? newName : existingParts[0].fullName,
-                                        phone: hasNewPhone ? phone : existingParts[0].phone
+                                        phone: hasNewPhone ? phone : existingParts[0].phone,
+                                        photoUrl: hasNewPhoto ? newPhoto : existingParts[0].photoUrl,
+                                        email: hasNewEmail ? newEmail : existingParts[0].email,
                                     })
                                     .where(eq(schema.eventParticipants.id, eventParticipantId));
                             }
@@ -817,6 +916,8 @@ app.post('/api/payments/checkout', async (c: Context) => {
                             fullName: p.name?.trim(),
                             cpf: normCpf,
                             phone: phone,
+                            photoUrl: p.photoUrl?.trim() || null,
+                            email: p.email?.trim() || null,
                         }).returning({ id: schema.eventParticipants.id });
                         eventParticipantId = newPart[0].id;
                     }
@@ -901,12 +1002,23 @@ app.post('/api/payments/checkout', async (c: Context) => {
             asaasCustomer = await asaas.createCustomer({
                 name: buyerName,
                 email: buyerEmail,
-                cpfCnpj: normalizeCpf(buyerCpf)
+                cpfCnpj: normalizeCpf(buyerCpf),
+                mobilePhone: normalizedBuyerPhone
             });
             
             let humanDescription = `Ingresso ${ticket.name} | ${ticket.event.title}`;
             if (revenueType === 'REGISTRATION') humanDescription = `Inscrição | ${ticket.event.title}`;
             else if (revenueType === 'REPECHAGE') humanDescription = `Repescagem | ${ticket.event.title}`;
+
+            const additionalSplits: any[] = [];
+            
+            // Adicionar split do promoter, se aplicável
+            if (promoterSettlementMode === 'ASAAS_SPLIT' && promoterWalletId && resolvedPromoterAmount > 0) {
+                additionalSplits.push({
+                    walletId: promoterWalletId,
+                    fixedValue: resolvedPromoterAmount
+                });
+            }
 
             payment = await asaas.createPayment({
                 customer: asaasCustomer.id,
@@ -916,7 +1028,8 @@ app.post('/api/payments/checkout', async (c: Context) => {
                 description: humanDescription,
                 externalReference: `sale_${saleId}`,
                 splitValue: producerNetValue,
-                splitWalletId: organizer.walletId
+                splitWalletId: organizer.walletId,
+                additionalSplits: additionalSplits.length > 0 ? additionalSplits : undefined
             });
         } catch (asaasErr: any) {
             console.error('[CHECKOUT] Asaas API error:', asaasErr.message);
@@ -1528,8 +1641,19 @@ app.post('/api/webhooks/asaas', async (c: Context) => {
                     }
                     
                     if (saleRecord.paymentStatus === 'pending') {
+                        const updateData: any = { paymentStatus: 'paid' };
+                        
+                        // Consolidação da comissão do promoter
+                        if (saleRecord.promoterId && !saleRecord.payoutStatus) {
+                            if (saleRecord.promoterSettlementMode === 'ASAAS_SPLIT') {
+                                updateData.payoutStatus = 'processed';
+                            } else {
+                                updateData.payoutStatus = 'payable';
+                            }
+                        }
+
                         await tx.update(schema.sales)
-                            .set({ paymentStatus: 'paid' })
+                            .set(updateData)
                             .where(eq(schema.sales.id, saleRecord.id));
 
                         await tx.update(purchasedTickets)
@@ -1878,8 +2002,17 @@ app.post('/api/webhooks/asaas', async (c) => {
 
             if (sale && sale.paymentStatus !== 'paid') {
                 // Atualizar Status da Venda
+                const updateData: any = { paymentStatus: 'paid' };
+                if (sale.promoterId && !sale.payoutStatus) {
+                    if (sale.promoterSettlementMode === 'ASAAS_SPLIT') {
+                        updateData.payoutStatus = 'processed';
+                    } else {
+                        updateData.payoutStatus = 'payable';
+                    }
+                }
+
                 await db.update(schema.sales)
-                    .set({ paymentStatus: 'paid' })
+                    .set(updateData)
                     .where(eq(schema.sales.id, sale.id));
 
                 // 2. Procurar o User pelo email (ou criar user placeholder)

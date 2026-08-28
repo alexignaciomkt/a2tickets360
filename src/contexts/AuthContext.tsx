@@ -9,6 +9,8 @@ export interface AuthContextType {
     staff: boolean;
   };
   staffPendingInvites?: number;
+  staffProfileComplete?: boolean;
+  setStaffProfileComplete?: (val: boolean) => void;
   contexts?: any[];
   loading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
@@ -16,7 +18,7 @@ export interface AuthContextType {
   logout: (silent?: boolean) => Promise<void>;
   isAuthenticated: boolean;
   refreshUser: () => Promise<void>;
-  refreshCapabilities: () => Promise<void>;
+  refreshCapabilities: () => Promise<any>;
   sendPasswordRecovery: (email: string) => Promise<boolean>;
 }
 

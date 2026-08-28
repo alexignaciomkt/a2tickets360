@@ -49,9 +49,14 @@ import EventsPage from '@/pages/EventsPage';
 import EventDetailPage from '@/pages/EventDetailPage';
 import ParaProdutores from '@/pages/ParaProdutores';
 import WorkWithUs from '@/pages/WorkWithUs';
+import StaffOnboardingPage from '@/pages/staff/StaffOnboardingPage';
+import StaffProfilePage from '@/pages/staff/StaffProfilePage';
 import StaffReaderPage from '@/pages/staff/StaffReaderPage';
 import StaffPortalDashboard from '@/pages/staff/StaffPortalDashboard';
+import StaffEventsPage from '@/pages/staff/StaffEventsPage';
+import StaffApplicationsPage from '@/pages/staff/StaffApplicationsPage';
 import PromoterDashboard from '@/pages/promoter/PromoterDashboard';
+import PromoterHistory from '@/pages/promoter/PromoterHistory';
 import PromoterEvents from '@/pages/promoter/PromoterEvents';
 import PromoterMailing from '@/pages/promoter/PromoterMailing';
 import PromoterMarketing from '@/pages/promoter/PromoterMarketing';
@@ -137,6 +142,16 @@ function AppRoutes() {
         <Route path="/onboarding/promoter" element={
           <ProtectedRoute allowedRoles={['promoter']}>
             <PromoterOnboardingPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/onboarding/staff" element={
+          <ProtectedRoute allowedRoles={['staff']}>
+            <StaffOnboardingPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/staff/profile" element={
+          <ProtectedRoute allowedRoles={['staff']}>
+            <StaffProfilePage />
           </ProtectedRoute>
         } />
         <Route path="/validador" element={<CheckInPage />} />
@@ -417,6 +432,16 @@ function AppRoutes() {
             <StaffPortalDashboard />
           </ProtectedRoute>
         } />
+        <Route path="/dashboard/staff/events" element={
+          <ProtectedRoute allowedRoles={['staff']}>
+            <StaffEventsPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/dashboard/staff/applications" element={
+          <ProtectedRoute allowedRoles={['staff']}>
+            <StaffApplicationsPage />
+          </ProtectedRoute>
+        } />
         <Route path="/dashboard/staff/agenda" element={
           <ProtectedRoute allowedRoles={['staff']}>
             <AgendaPage />
@@ -443,6 +468,11 @@ function AppRoutes() {
         <Route path="/promoter" element={
           <ProtectedRoute allowedRoles={['promoter']}>
             <PromoterDashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/promoter/history" element={
+          <ProtectedRoute allowedRoles={['promoter']}>
+            <PromoterHistory />
           </ProtectedRoute>
         } />
         <Route path="/promoter/events" element={

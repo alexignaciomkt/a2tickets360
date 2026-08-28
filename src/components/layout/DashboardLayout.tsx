@@ -28,9 +28,12 @@ import {
   Database,
   ShieldAlert,
   HelpCircle,
+  History,
   Image as ImageIcon,
   Plus,
-  ExternalLink
+  ExternalLink,
+  Briefcase,
+  Inbox
 } from 'lucide-react';
 import Logo from '@/components/ui/logo';
 import { Button } from '@/components/ui/button';
@@ -88,7 +91,8 @@ const DashboardLayout = ({ children, userType }: DashboardLayoutProps) => {
         items.push({
           category: 'Promoção',
           items: [
-            { name: 'Painel', path: '/promoter', icon: LayoutDashboard },
+            { name: 'Painel Ativos', path: '/promoter', icon: LayoutDashboard },
+            { name: 'Eventos Trabalhados', path: '/promoter/history', icon: History },
             { name: 'Eventos para Trabalhar', path: '/promoter/events', icon: Calendar },
             { name: 'Mailing', path: '/promoter/mailing', icon: Users },
             { name: 'Marketing & Links', path: '/promoter/marketing', icon: Share2 },
@@ -101,6 +105,8 @@ const DashboardLayout = ({ children, userType }: DashboardLayoutProps) => {
         items.push({
           category: 'Trabalho em Eventos',
           items: [
+            { name: 'Eventos para Trabalhar', path: '/dashboard/staff/events', icon: Briefcase },
+            { name: 'Minhas Candidaturas', path: '/dashboard/staff/applications', icon: Inbox },
             { 
               name: `Convites${staffPendingInvites ? ` (${staffPendingInvites})` : ''}`, 
               path: '/dashboard/staff/invites', 

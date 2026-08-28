@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import { Eye, EyeOff } from 'lucide-react';
 
 const LoginForm = () => {
-  const { login, sendPasswordRecovery } = useAuth();
+  const { login, sendPasswordRecovery, refreshCapabilities } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -40,28 +40,52 @@ const LoginForm = () => {
       console.log('Login success status:', success);
 
       if (success) {
-        // Redirecionamento automático baseado na role retornada pelo backend
+        const contextsData = await refreshCapabilities();
+        const personalModules = contextsData?.personalModules || {};
+        const staffProfileComplete = contextsData?.staffProfileComplete || false;
+
         const savedUser = localStorage.getItem('A2Tickets_user');
-        console.log('Saved user in localStorage:', savedUser);
+        const intentData = localStorage.getItem('A2Tickets_PendingRegistration');
+        
+        let targetRoute = '/dashboard';
+        let intentConsumed = false;
+
         if (savedUser) {
           const user = JSON.parse(savedUser);
-          console.log('Parsed user role:', user.role);
-          if (user.role === 'master' || user.role === 'admin') {
-            navigate('/master');
-          } else if (user.role === 'organizer') {
-            if (!user.profileComplete) {
-              navigate('/organizer/onboarding');
-            } else {
-              navigate('/organizer/dashboard');
-            }
-          } else if (user.role === 'staff') {
-            navigate('/dashboard/staff/invites');
+          
+          if (intentData) {
+             try {
+                const intent = JSON.parse(intentData);
+                // Valida se a intenção pertence ao e-mail/user que acabou de logar
+                if (intent.email === user.email || intent.userId === user.id) {
+                    if (intent.role === 'staff' && personalModules.staff) {
+                        targetRoute = staffProfileComplete ? '/dashboard/staff/invites' : '/onboarding/staff';
+                        intentConsumed = true;
+                    } else if (intent.role === 'promoter') {
+                        targetRoute = '/onboarding/promoter';
+                        intentConsumed = true;
+                    }
+                }
+             } catch(e) {
+                console.error('Invalid intent payload', e);
+             }
+          }
+          
+          if (intentConsumed) {
+              localStorage.removeItem('A2Tickets_PendingRegistration');
+              navigate(targetRoute);
           } else {
-            navigate('/dashboard');
+             // Fallback para role permanente apenas se não houver intenção one-time
+             if (user.role === 'master' || user.role === 'admin') {
+               navigate('/master');
+             } else if (user.role === 'organizer') {
+               navigate(!user.profileComplete ? '/organizer/onboarding' : '/organizer/dashboard');
+             } else {
+               navigate('/dashboard'); // default para customer/multi-capability
+             }
           }
         } else {
-          console.error('Login returned success but A2Tickets_user is not in localStorage');
-          navigate('/dashboard'); // fallback
+          navigate('/dashboard');
         }
       }
     } catch (err) {
