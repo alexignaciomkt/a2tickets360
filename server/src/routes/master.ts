@@ -293,6 +293,45 @@ router.get('/organizers', async (c) => {
     }
 });
 
+router.get('/organizers/:id/dossier', async (c) => {
+    const id = c.req.param('id');
+    try {
+        const [organizer] = await db.select({
+            id: organizersTable.id,
+            userId: organizersTable.userId,
+            companyName: organizersTable.companyName,
+            tradeName: organizersTable.tradeName,
+            cpf: organizersTable.cpf,
+            cnpj: organizersTable.cnpj,
+            phone: organizersTable.phone,
+            address: organizersTable.address,
+            city: organizersTable.city,
+            state: organizersTable.state,
+            postalCode: organizersTable.postalCode,
+            documentFrontUrl: organizersTable.documentFrontUrl,
+            documentBackUrl: organizersTable.documentBackUrl,
+            logoUrl: organizersTable.logoUrl,
+            bannerUrl: organizersTable.bannerUrl,
+            slug: organizersTable.slug,
+            createdAt: organizersTable.createdAt,
+            status: profiles.status,
+            profileComplete: profiles.profileComplete,
+            email: profiles.email
+        }).from(organizersTable)
+        .leftJoin(profiles, eq(organizersTable.userId, profiles.userId))
+        .where(eq(organizersTable.id, id));
+
+        if (!organizer) {
+            return c.json({ error: 'Produtor não encontrado' }, 404);
+        }
+
+        return c.json(organizer);
+    } catch (error: any) {
+        console.error('Get organizer dossier error:', error);
+        return c.json({ error: error.message }, 400);
+    }
+});
+
 router.post('/organizers/:id/approve', async (c) => {
     const id = c.req.param('id');
     try {

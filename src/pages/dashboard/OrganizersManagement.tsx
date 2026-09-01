@@ -41,7 +41,9 @@ const OrganizersManagement = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [selectedOrg, setSelectedOrg] = useState<Organizer | null>(null);
+  const [selectedOrg, setSelectedOrg] = useState<any | null>(null);
+  const [isDossierLoading, setIsDossierLoading] = useState(false);
+  const [dossierError, setDossierError] = useState<string | null>(null);
   const [newOrg, setNewOrg] = useState({ name: '', email: '', password: '' });
   const [editForm, setEditForm] = useState({ name: '', email: '' });
   const [isApproving, setIsApproving] = useState(false);
@@ -83,7 +85,21 @@ const OrganizersManagement = () => {
     active: organizers.filter(org => org.status === 'approved' && org.profileComplete === true).length
   };
 
-  const handleShowReport = (org: Organizer) => { setSelectedOrg(org); setIsReportModalOpen(true); };
+  const handleShowReport = async (org: Organizer) => {
+    setSelectedOrg(org); // Set initial superficial data immediately for UI responsiveness
+    setIsReportModalOpen(true);
+    setIsDossierLoading(true);
+    setDossierError(null);
+    try {
+      const fullDossier = await masterService.getOrganizerDossier(org.id);
+      setSelectedOrg(fullDossier);
+    } catch (err: any) {
+      setDossierError(err.message || 'Erro ao carregar o dossiê completo.');
+      toast({ title: 'Erro de Dossiê', description: 'Não foi possível carregar os documentos.', variant: 'destructive' });
+    } finally {
+      setIsDossierLoading(false);
+    }
+  };
 
   const handleApprove = async (id: string) => {
     try {
@@ -441,7 +457,13 @@ const OrganizersManagement = () => {
             </DialogHeader>
 
             {selectedOrg && (
-              <div className="space-y-8">
+              <div className="space-y-8 relative">
+                {isDossierLoading && (
+                  <div className="absolute inset-0 z-50 bg-white/60 backdrop-blur-sm flex flex-col items-center justify-center rounded-xl">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mb-4"></div>
+                    <p className="text-sm font-medium text-slate-600">Carregando dossiê seguro...</p>
+                  </div>
+                )}
                 <div className="h-28 w-full bg-slate-900 rounded-t-xl overflow-hidden relative">
                   <img src={selectedOrg.bannerUrl || selectedOrg.banner_url} loading="lazy" decoding="async" className="w-full h-full object-cover opacity-80" alt="Banner" />
                 </div>
@@ -467,10 +489,10 @@ const OrganizersManagement = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 px-4">
                   <div className="space-y-6">
                     {[
-                      { l: 'Razão Social', v: selectedOrg.name || '---' },
-                      { l: 'E-mail', v: selectedOrg.email || '---', lowercase: true },
-                      { l: 'Telefone', v: selectedOrg.phone || '---' },
-                      { l: 'Página Pública', v: selectedOrg.slug ? `${window.location.host}/p/${selectedOrg.slug}` : '---', lowercase: true, color: 'indigo' },
+                      { l: 'Razão Social', v: selectedOrg.companyName || selectedOrg.name || (isDossierLoading ? 'Carregando...' : '---') },
+                      { l: 'E-mail', v: selectedOrg.email || (isDossierLoading ? 'Carregando...' : '---'), lowercase: true },
+                      { l: 'Telefone', v: selectedOrg.phone || (isDossierLoading ? 'Carregando...' : '---') },
+                      { l: 'Página Pública', v: selectedOrg.slug ? `${window.location.host}/p/${selectedOrg.slug}` : (isDossierLoading ? 'Carregando...' : '---'), lowercase: true, color: 'indigo' },
                     ].map((item, i) => (
                       <div key={i} className="space-y-1">
                         <p className="text-xs font-semibold text-slate-500">{item.l}</p>
@@ -480,8 +502,8 @@ const OrganizersManagement = () => {
                   </div>
                   <div className="space-y-6">
                     {[
-                      { l: 'CPF do Titular', v: selectedOrg.cpf || 'Não informado' },
-                      { l: 'CNPJ', v: selectedOrg.cnpj || 'Não informado' },
+                      { l: 'CPF do Titular', v: selectedOrg.cpf || (isDossierLoading ? 'Carregando...' : 'Não informado') },
+                      { l: 'CNPJ', v: selectedOrg.cnpj || (isDossierLoading ? 'Carregando...' : 'Não informado') },
                       { l: 'Status da Conta', v: selectedOrg.status || 'Pendente', badge: true },
                     ].map((item, i) => (
                       <div key={i} className="space-y-1">
@@ -496,7 +518,7 @@ const OrganizersManagement = () => {
                   </div>
                   <div className="col-span-1 md:col-span-2 space-y-2 pt-6 border-t border-slate-100 bg-slate-50 p-6 rounded-lg">
                     <p className="text-xs font-semibold text-slate-500 flex items-center gap-2"><MapPin className="h-4 w-4 text-slate-400" /> Endereço Sede</p>
-                    <p className="text-sm font-medium text-slate-900">{selectedOrg.address ? `${selectedOrg.address}, ${selectedOrg.city} - ${selectedOrg.state} | CEP: ${selectedOrg.postalCode}` : 'Endereço não cadastrado.'}</p>
+                    <p className="text-sm font-medium text-slate-900">{isDossierLoading ? 'Carregando...' : selectedOrg.address ? `${selectedOrg.address}, ${selectedOrg.city || ''} ${selectedOrg.state ? '- ' + selectedOrg.state : ''} | CEP: ${selectedOrg.postalCode || ''}` : 'Endereço não cadastrado.'}</p>
                   </div>
                 </div>
 
@@ -506,8 +528,8 @@ const OrganizersManagement = () => {
                   </p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {[
-                      { l: 'RG / CNH (Frente)', v: selectedOrg.documentFrontUrl || selectedOrg.document_front_url },
-                      { l: 'RG / CNH (Verso)', v: selectedOrg.documentBackUrl || selectedOrg.document_back_url }
+                      { l: 'RG / CNH (Frente)', v: isDossierLoading ? 'Carregando...' : selectedOrg.documentFrontUrl || selectedOrg.document_front_url },
+                      { l: 'RG / CNH (Verso)', v: isDossierLoading ? 'Carregando...' : selectedOrg.documentBackUrl || selectedOrg.document_back_url }
                     ].map((doc, i) => (
                       <div key={i} className="space-y-3">
                         <p className="text-xs font-semibold text-slate-500">{doc.l}</p>

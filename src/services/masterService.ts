@@ -30,6 +30,10 @@ class MasterService {
         return api.get('/api/master/organizers');
     }
 
+    async getOrganizerDossier(id: string) {
+        return api.get(`/api/master/organizers/${id}/dossier`);
+    }
+
     async getPendingOrganizers() {
         // Frontend can filter or we can fetch all
         return api.get('/api/master/organizers');
