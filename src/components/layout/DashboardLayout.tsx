@@ -77,7 +77,7 @@ const DashboardLayout = ({ children, userType }: DashboardLayoutProps) => {
   // Define navigation items based on user type or capabilities
   const getNavItems = () => {
     // If the active dashboard layout is for personal modules
-    if (userType === 'customer' || userType === 'promoter') {
+    if (userType === 'customer') {
       let items: any[] = [
         {
           category: 'Para Você',
@@ -91,12 +91,7 @@ const DashboardLayout = ({ children, userType }: DashboardLayoutProps) => {
         items.push({
           category: 'Promoção',
           items: [
-            { name: 'Painel Ativos', path: '/promoter', icon: LayoutDashboard },
-            { name: 'Eventos Trabalhados', path: '/promoter/history', icon: History },
-            { name: 'Eventos para Trabalhar', path: '/promoter/events', icon: Calendar },
-            { name: 'Mailing', path: '/promoter/mailing', icon: Users },
-            { name: 'Marketing & Links', path: '/promoter/marketing', icon: Share2 },
-            { name: 'Recebimentos', path: '/promoter/settings', icon: DollarSign },
+            { name: 'Ir para Painel Promoter', path: '/promoter', icon: LayoutDashboard },
           ]
         });
       }
@@ -127,6 +122,31 @@ const DashboardLayout = ({ children, userType }: DashboardLayoutProps) => {
       
       return items;
     }
+
+    if (userType === 'promoter') {
+      return [
+        {
+          category: 'Promoção',
+          icon: Users,
+          items: [
+            { name: 'Painel Ativos', path: '/promoter', icon: LayoutDashboard },
+            { name: 'Eventos Trabalhados', path: '/promoter/history', icon: History },
+            { name: 'Eventos para Trabalhar', path: '/promoter/events', icon: Calendar },
+            { name: 'Mailing', path: '/promoter/mailing', icon: Users },
+            { name: 'Marketing & Links', path: '/promoter/marketing', icon: Share2 },
+            { name: 'Recebimentos', path: '/promoter/settings', icon: DollarSign },
+          ]
+        },
+        {
+          category: 'Sua Conta',
+          icon: Settings,
+          items: [
+            { name: 'Dados Cadastrais', path: '/dashboard/settings', icon: Settings },
+          ]
+        }
+      ];
+    }
+
     
     // Default organizer / admin items
     switch (userType) {
