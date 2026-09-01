@@ -300,7 +300,6 @@ router.get('/organizers/:id/dossier', async (c) => {
             id: organizersTable.id,
             userId: organizersTable.userId,
             companyName: organizersTable.companyName,
-            tradeName: organizersTable.tradeName,
             cpf: organizersTable.cpf,
             cnpj: organizersTable.cnpj,
             phone: organizersTable.phone,
