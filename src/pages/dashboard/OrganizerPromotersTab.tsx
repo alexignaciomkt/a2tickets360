@@ -180,19 +180,31 @@ const OrganizerPromotersTab = ({ eventId }: { eventId: string }) => {
 
   const handleSaveSettings = async () => {
     setSavingSettings(true);
-    const { error } = await supabase
-      .from('events')
-      .update({
-        accepts_promoters: acceptsPromoters,
-        promoter_commission_rate: promoterCommissionRate,
-        promoter_discount_rate: promoterDiscountRate
-      })
-      .eq('id', eventId);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3002';
+      
+      const response = await fetch(`${apiUrl}/api/organizer/events/${eventId}/promoter-settings`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`
+        },
+        body: JSON.stringify({
+          accepts_promoters: acceptsPromoters,
+          promoter_commission_rate: promoterCommissionRate,
+          promoter_discount_rate: promoterDiscountRate
+        })
+      });
 
-    if (error) {
-      toast({ variant: 'destructive', title: 'Erro', description: 'Erro ao salvar configurações do promoter.' });
-    } else {
+      if (!response.ok) {
+        throw new Error('Falha ao salvar');
+      }
+      
       toast({ title: 'Sucesso', description: 'Configurações de promoter atualizadas com sucesso!' });
+    } catch (error) {
+      console.error(error);
+      toast({ variant: 'destructive', title: 'Erro', description: 'Erro ao salvar configurações do promoter.' });
     }
     setSavingSettings(false);
   };

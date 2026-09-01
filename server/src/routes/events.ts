@@ -225,6 +225,53 @@ router.get('/operations/:operationId', async (c) => {
     }
 });
 
+// Configurar regras do programa de promoters (organizador)
+router.put('/:id/promoter-settings', async (c) => {
+    try {
+        const payload = c.get('jwtPayload');
+        if (payload.role !== 'organizer' && payload.role !== 'master') {
+            return c.json({ error: 'Acesso negado.' }, 403);
+        }
+
+        const eventId = c.req.param('id');
+        const body = await c.req.json();
+
+        // Identificar organizer_details.id
+        const organizerData = await db.query.organizers.findFirst({
+            where: (org, { eq }) => eq(org.userId, payload.id)
+        });
+        
+        if (!organizerData && payload.role !== 'master') {
+            return c.json({ error: 'Produtor não encontrado.' }, 404);
+        }
+        
+        const organizerRecordId = organizerData?.id;
+
+        // Validar ownership do evento
+        const evData = await db.query.events.findFirst({
+            where: (e, { eq }) => eq(e.id, eventId)
+        });
+
+        if (!evData) return c.json({ error: 'Evento não encontrado.' }, 404);
+        if (evData.organizerId !== organizerRecordId && payload.role !== 'master') {
+            return c.json({ error: 'Acesso negado ao evento.' }, 403);
+        }
+
+        await db.update(events)
+            .set({
+                acceptsPromoters: body.accepts_promoters,
+                promoterCommissionRate: body.promoter_commission_rate ? String(body.promoter_commission_rate) : null,
+                promoterDiscountRate: body.promoter_discount_rate !== undefined ? String(body.promoter_discount_rate) : '0'
+            })
+            .where(eq(events.id, eventId));
+
+        return c.json({ success: true });
+    } catch (err: any) {
+        console.error('[EVENT API] Erro ao salvar regras do promoter:', err);
+        return c.json({ error: 'Erro interno ao salvar configurações.' }, 500);
+    }
+});
+
 // Aprovar promoter
 router.post('/:eventId/promoters/:id/approve', async (c) => {
     try {
