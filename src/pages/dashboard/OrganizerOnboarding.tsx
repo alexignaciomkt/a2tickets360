@@ -62,7 +62,7 @@ const OrganizerOnboarding = () => {
         companyAddress: '',
 
         // Financeiro (Step 3)
-        asaasApiKey: '',
+        walletId: '',
         lastStep: 1,
     });
 
@@ -170,6 +170,7 @@ const OrganizerOnboarding = () => {
                     cnpj: pendingOverrides.cnpj || profile.cnpj || profile.cpf_cnpj || formData.cnpj,
                     documentFrontUrl: profile.document_front_url || profile.documentFrontUrl || formData.documentFrontUrl,
                     documentBackUrl: profile.document_back_url || profile.documentBackUrl || formData.documentBackUrl,
+                    walletId: profile.wallet_id || profile.walletId || profile.asaas_key || formData.walletId, // Adicionando asaas_key como fallback legado
                     ...draftOverrides,
                     ...pendingOverrides
                 };
@@ -725,7 +726,7 @@ const OrganizerOnboarding = () => {
                                             <li>Split de comissão seguro e homologado pelo Banco Central.</li>
                                         </ul>
                                         <a
-                                            href="https://sandbox.asaas.com/r/acbd710c-189a-4ae3-ac75-74b4a2b668e4"
+                                            href="/organizer/finance/onboarding"
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="inline-flex items-center gap-2 text-indigo-600 font-bold text-sm hover:underline"
@@ -735,15 +736,15 @@ const OrganizerOnboarding = () => {
                                     </div>
 
                                     <div className="space-y-2">
-                                        <label className="text-sm font-semibold text-gray-700 block">Sua API Key do Asaas</label>
+                                        <label className="text-sm font-semibold text-gray-700 block">Seu Wallet ID do Asaas</label>
                                         <div className="relative">
                                             <Landmark className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                                             <Input
-                                                name="asaasApiKey"
-                                                value={formData.asaasApiKey}
+                                                name="walletId"
+                                                value={formData.walletId}
                                                 onChange={handleInputChange}
                                                 className="pl-10 h-12 rounded-xl focus:ring-indigo-500"
-                                                placeholder="$a2p_..."
+                                                placeholder="e.g. 5e9196a0-..."
                                             />
                                         </div>
                                     </div>
