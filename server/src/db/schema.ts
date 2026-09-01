@@ -41,7 +41,7 @@ export const organizers = pgTable('organizer_details', {
     cpf: text('cpf'),
     phone: text('phone'),
     bio: text('bio'),
-    asaasKey: text('asaas_key'),
+    asaasKey: text('asaas_key'), // ATENÇÃO: Apesar do nome, este campo é exclusivamente o Customer ID (cus_...) do Asaas para cobranças de serviços. Não é API Key nem Wallet.
     walletId: text('wallet_id'),
     logoUrl: text('logo_url'),
     bannerUrl: text('banner_url'),

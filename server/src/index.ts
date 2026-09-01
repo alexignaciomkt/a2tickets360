@@ -1379,7 +1379,9 @@ app.post('/api/service-credits/buy', authMiddleware, async (c: Context) => {
         let customerId = organizer.asaasKey;
 
         try {
-            if (!customerId) {
+            // FASE 6 - Proteção: se customerId existir mas não for válido ('cus_...'), forçar recriação
+            if (!customerId || !customerId.startsWith('cus_')) {
+                console.log(`[SERVICE-CREDITS] Customer inválido ou ausente (${customerId}). Criando novo no Asaas...`);
                 const customer = await asaas.createCustomer({ 
                     name: producerName, 
                     email: producerEmail, 

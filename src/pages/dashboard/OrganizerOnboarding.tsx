@@ -170,7 +170,7 @@ const OrganizerOnboarding = () => {
                     cnpj: pendingOverrides.cnpj || profile.cnpj || profile.cpf_cnpj || formData.cnpj,
                     documentFrontUrl: profile.document_front_url || profile.documentFrontUrl || formData.documentFrontUrl,
                     documentBackUrl: profile.document_back_url || profile.documentBackUrl || formData.documentBackUrl,
-                    walletId: profile.wallet_id || profile.walletId || profile.asaas_key || formData.walletId, // Adicionando asaas_key como fallback legado
+                    walletId: profile.wallet_id || profile.walletId || formData.walletId,
                     ...draftOverrides,
                     ...pendingOverrides
                 };

@@ -749,8 +749,6 @@ class OrganizerService {
       'document_front_url': 'document_front_url',
       'documentBackUrl': 'document_back_url',
       'document_back_url': 'document_back_url',
-      'asaasApiKey': 'asaas_key',
-      'asaas_key': 'asaas_key',
       'walletId': 'wallet_id',
       'wallet_id': 'wallet_id',
       'instagramUrl': 'instagram_url',
