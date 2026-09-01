@@ -26,6 +26,7 @@ const EventApprovalPage = () => {
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
+  const isApprovingRef = useRef(false);
 
   const loadEvents = async () => {
     try {
