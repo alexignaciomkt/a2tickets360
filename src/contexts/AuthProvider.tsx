@@ -367,11 +367,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           };
 
           if (existingProfile) {
-            // Usuário existente: Update apenas de dados pessoais. NÃO alterar role legada.
-            await supabase.from('profiles').update(basePayload).eq('user_id', authData.user.id);
-            console.log('✅ [AuthProvider] Profile atualizado (role legada preservada).');
+            // Como o trigger do DB (handle_new_user) cria o perfil como 'customer' logo no signUp,
+            // devemos forçar a role correta (ex: organizer, staff) aqui para evitar que o usuário
+            // fique preso como customer e seja redirecionado errado.
+            await supabase.from('profiles').update({
+              ...basePayload,
+              role: data.role,
+              status: data.role === 'organizer' ? 'pending' : 'approved',
+              profile_complete: data.role !== 'organizer'
+            }).eq('user_id', authData.user.id);
+            console.log('✅ [AuthProvider] Profile atualizado com a role correta de registro.');
           } else {
-            // Usuário novo: Insert com role inicial.
+            // Usuário novo: Insert com role inicial (fallback caso a trigger falhe).
             await supabase.from('profiles').insert({
               ...basePayload,
               role: data.role,
