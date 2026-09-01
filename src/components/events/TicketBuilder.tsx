@@ -8,6 +8,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 
 export interface TicketTier {
     id: string;
@@ -18,6 +19,7 @@ export interface TicketTier {
     registrationType: 'INDIVIDUAL' | 'DOUBLE' | 'TEAM';
     participantsPerRegistration: number;
     ticketPurpose: 'ADMISSION' | 'REGISTRATION' | 'REPECHAGE';
+    promoterEligible?: boolean;
 }
 
 interface TicketBuilderProps {
@@ -59,6 +61,7 @@ const TicketBuilder = ({ tickets, onChange, eventType, capacity, categoryCode }:
             registrationType: 'INDIVIDUAL',
             participantsPerRegistration: 1,
             ticketPurpose: 'ADMISSION',
+            promoterEligible: true,
         };
         onChange([...tickets, newTicket]);
     };
@@ -274,6 +277,26 @@ const TicketBuilder = ({ tickets, onChange, eventType, capacity, categoryCode }:
                                     onChange={(e) => updateTicket(ticket.id, 'participantsPerRegistration', parseInt(e.target.value) || 1)}
                                     className={`bg-white border-gray-200 text-gray-900 focus:bg-white transition-colors ${(ticket.registrationType !== 'TEAM' || ticket.ticketPurpose === 'ADMISSION') ? 'opacity-60 cursor-not-allowed bg-slate-100' : ''}`}
                                 />
+                            </div>
+                        </div>
+
+                        {/* Elegibilidade Promoter */}
+                        <div className="bg-indigo-50/50 p-4 rounded-lg border border-indigo-100 flex items-start gap-4 mb-4">
+                            <Switch
+                                checked={ticket.promoterEligible !== false}
+                                onCheckedChange={(checked) => updateTicket(ticket.id, 'promoterEligible', checked)}
+                                className="mt-1"
+                            />
+                            <div className="flex-1">
+                                <label className="text-sm font-bold text-indigo-900 block mb-1">
+                                    Disponível para Promoters
+                                </label>
+                                <p className="text-[11px] text-indigo-700/70 leading-relaxed mb-1">
+                                    Permite que promoters divulguem este ingresso e recebam comissão pelas vendas realizadas através do seu canal.
+                                </p>
+                                <p className="text-[11px] text-indigo-700/70 leading-relaxed">
+                                    <em>Desative para repescagens, rebuys, adicionais e outros itens que não façam parte da aquisição inicial do cliente.</em>
+                                </p>
                             </div>
                         </div>
 

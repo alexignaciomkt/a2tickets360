@@ -390,6 +390,7 @@ export const tickets = pgTable('tickets', {
     registrationType: text('registration_type').default('INDIVIDUAL'),
     participantsPerRegistration: integer('participants_per_registration').default(1),
     ticketPurpose: text('ticket_purpose').default('REGISTRATION'),
+    promoterEligible: boolean('promoter_eligible').notNull().default(true),
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow(),
 });

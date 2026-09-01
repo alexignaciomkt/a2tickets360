@@ -796,6 +796,13 @@ app.post('/api/payments/checkout', async (c: Context) => {
                 console.error('[CHECKOUT] Erro ao resolver promoterRef:', err);
             }
         }
+        // Validar elegibilidade do ticket para o canal Promoter
+        if (ticket.promoterEligible === false) {
+            resolvedPromoterRate = 0;
+            resolvedPromoterAmount = 0;
+            // Nota: resolvedPromoterId e resolvedEventPromoterId são mantidos
+            // para preservar a attribution (histórico da origem do cliente)
+        }
 
         const dist = calculateFinancialDistribution({
             unitPriceCents: Math.round(Number(ticket.price) * 100),
@@ -842,8 +849,8 @@ app.post('/api/payments/checkout', async (c: Context) => {
                 // Campos do Promoter V1.1
                 promoterId: resolvedPromoterId,
                 eventPromoterId: resolvedEventPromoterId,
-                promoterCommissionRate: resolvedPromoterRate > 0 ? resolvedPromoterRate.toString() : null,
-                promoterCommissionAmount: resolvedPromoterRate > 0 ? resolvedPromoterAmount.toString() : null,
+                promoterCommissionRate: resolvedPromoterId ? resolvedPromoterRate.toString() : null,
+                promoterCommissionAmount: resolvedPromoterId ? resolvedPromoterAmount.toString() : null,
                 promoterSettlementMode: resolvedPromoterId ? promoterSettlementMode : null,
             }).returning({ id: schema.sales.id });
             const saleId = saleResult[0].id;

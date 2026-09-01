@@ -45,7 +45,7 @@ const PromoterEvents = () => {
       // 3. Fetch available events from the promoter's city
       let query = supabase
         .from('events')
-        .select('*, tickets(name, price)')
+        .select('*, tickets(name, price, promoter_eligible)')
         .eq('status', 'published')
         .eq('accepts_promoters', true);
         
@@ -62,7 +62,10 @@ const PromoterEvents = () => {
       if (evError) {
          console.error("Error fetching available events:", evError);
       }
-      if (evData) setAvailableEvents(evData);
+      if (evData) {
+         const eligibleEvents = evData.filter(ev => ev.tickets && ev.tickets.some((t: any) => t.promoter_eligible !== false));
+         setAvailableEvents(eligibleEvents);
+      }
     }
     if (isInitial) setLoading(false);
   };
@@ -239,11 +242,11 @@ const PromoterEvents = () => {
                 </div>
               )}
 
-              {selectedEventToApply.tickets && selectedEventToApply.tickets.length > 0 && (
+              {selectedEventToApply.tickets && selectedEventToApply.tickets.filter((t: any) => t.promoter_eligible !== false).length > 0 && (
                 <div className="mb-8">
                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Setores, Valores e Sua Comissão</p>
                    <div className="space-y-3">
-                     {selectedEventToApply.tickets.map((t: any, i: number) => {
+                     {selectedEventToApply.tickets.filter((t: any) => t.promoter_eligible !== false).map((t: any, i: number) => {
                         const originalPrice = t.price || 0;
                         const discountRate = selectedEventToApply.promoter_discount_rate || 0;
                         const commissionRate = selectedEventToApply.promoter_commission_rate || 0;

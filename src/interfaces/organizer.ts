@@ -53,6 +53,7 @@ export interface Ticket {
   salesEnd: string;
   isActive: boolean;
   category: 'standard' | 'vip' | 'early-bird' | 'student' | 'group';
+  promoterEligible?: boolean;
 }
 
 export interface SalesChannel {

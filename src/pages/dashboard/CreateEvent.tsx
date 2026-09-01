@@ -221,7 +221,7 @@ const CreateEvent = () => {
   const [locationPostalCode, setLocationPostalCode] = useState('');
   const [capacity, setCapacity] = useState(100);
   const [tickets, setTickets] = useState<TicketTier[]>([
-    { id: `temp_${Date.now()}`, name: '', price: 0, quantity: 100, category: 'standard', registrationType: 'INDIVIDUAL', participantsPerRegistration: 1, ticketPurpose: 'REGISTRATION' }
+    { id: `temp_${Date.now()}`, name: '', price: 0, quantity: 100, category: 'standard', registrationType: 'INDIVIDUAL', participantsPerRegistration: 1, ticketPurpose: 'REGISTRATION', promoterEligible: true }
   ]);
 
   // ===== DUMB PERSISTENCE: SAVE =====
@@ -269,7 +269,7 @@ const CreateEvent = () => {
     setLocationPostalCode('');
     setCapacity(100);
     setTickets([
-      { id: `temp_${Date.now()}`, name: '', price: 0, quantity: 100, category: 'standard', registrationType: 'INDIVIDUAL', participantsPerRegistration: 1, ticketPurpose: 'REGISTRATION' }
+      { id: `temp_${Date.now()}`, name: '', price: 0, quantity: 100, category: 'standard', registrationType: 'INDIVIDUAL', participantsPerRegistration: 1, ticketPurpose: 'REGISTRATION', promoterEligible: true }
     ]);
     setAcceptsPromoters(false);
     setPromoterCommissionRate(10);
@@ -444,7 +444,8 @@ const CreateEvent = () => {
             category: t.category,
             registrationType: t.registrationType,
             participantsPerRegistration: t.participantsPerRegistration,
-            ticketPurpose: t.ticketPurpose
+            ticketPurpose: t.ticketPurpose,
+            promoterEligible: t.promoterEligible
           }));
           
           let newEvent: any = null;
