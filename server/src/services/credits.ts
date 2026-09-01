@@ -145,7 +145,7 @@ export const consumeFeaturedReservation = async (reservationToken: string, event
         `);
 
         // 2. Lock evento FOR UPDATE
-        const events = await tx.execute(sql`SELECT * FROM events WHERE id = ${eventId} AND organizer_id = ${organizerUserId} FOR UPDATE`);
+        const events = await tx.execute(sql`SELECT * FROM events WHERE id = ${eventId} AND organizer_id = ${organizerRecordId} FOR UPDATE`);
         if (events.length === 0) throw new Error('Evento não encontrado ou não pertence a esta produtora.');
         
         const event = events[0] as any;
@@ -245,7 +245,7 @@ export const consumeFeaturedReservation = async (reservationToken: string, event
 export const activateFeaturedCredit = async (eventId: string, organizerRecordId: string, organizerUserId: string, actorUserId: string | null) => {
     return await db.transaction(async (tx) => {
         // 1. Lock evento FOR UPDATE e verificar regras
-        const events = await tx.execute(sql`SELECT * FROM events WHERE id = ${eventId} AND organizer_id = ${organizerUserId} FOR UPDATE`);
+        const events = await tx.execute(sql`SELECT * FROM events WHERE id = ${eventId} AND organizer_id = ${organizerRecordId} FOR UPDATE`);
         if (events.length === 0) throw new Error('Evento não encontrado ou não pertence a esta produtora.');
         
         const event = events[0] as any;
