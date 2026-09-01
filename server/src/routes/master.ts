@@ -193,12 +193,18 @@ router.get('/events', async (c) => {
         // organizersTable.id stores the entity ID
         const rawEvents = await db.select({
             event: events,
-            organizer: organizersTable
-        }).from(events).leftJoin(organizersTable, eq(events.organizerId, organizersTable.id));
+            organizer: organizersTable,
+            profileComplete: profiles.profileComplete
+        }).from(events)
+          .leftJoin(organizersTable, eq(events.organizerId, organizersTable.id))
+          .leftJoin(profiles, eq(organizersTable.userId, profiles.userId));
 
         let mappedEvents = rawEvents.map(row => ({
             ...row.event,
-            organizer: row.organizer
+            organizer: {
+                ...row.organizer,
+                profileComplete: row.profileComplete
+            }
         }));
         
         // Sort by desc createdAt
