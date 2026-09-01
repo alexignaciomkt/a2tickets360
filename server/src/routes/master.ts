@@ -312,6 +312,7 @@ router.get('/organizers/:id/dossier', async (c) => {
             logoUrl: organizersTable.logoUrl,
             bannerUrl: organizersTable.bannerUrl,
             slug: organizersTable.slug,
+            walletId: organizersTable.walletId,
             createdAt: organizersTable.createdAt,
             status: profiles.status,
             profileComplete: profiles.profileComplete,
