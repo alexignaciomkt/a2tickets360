@@ -334,11 +334,14 @@ router.get('/organizers/:id/dossier', async (c) => {
 router.post('/organizers/:id/approve', async (c) => {
     const id = c.req.param('id');
     try {
-        const [updated] = await db.update(organizersTable)
+        const [org] = await db.select({ userId: organizersTable.userId }).from(organizersTable).where(eq(organizersTable.id, id));
+        if (!org) return c.json({ error: 'Organizador não encontrado' }, 404);
+
+        const [updated] = await db.update(profiles)
             .set({ status: 'approved', profileComplete: true, updatedAt: new Date() })
-            .where(eq(organizersTable.id, id))
+            .where(eq(profiles.userId, org.userId))
             .returning();
-        if (!updated) return c.json({ error: 'Not found' }, 404);
+        
         return c.json({ message: 'Organizador aprovado', organizer: updated });
     } catch (error: any) { return c.json({ error: error.message }, 400); }
 });
@@ -346,11 +349,14 @@ router.post('/organizers/:id/approve', async (c) => {
 router.post('/organizers/:id/reject', async (c) => {
     const id = c.req.param('id');
     try {
-        const [updated] = await db.update(organizersTable)
+        const [org] = await db.select({ userId: organizersTable.userId }).from(organizersTable).where(eq(organizersTable.id, id));
+        if (!org) return c.json({ error: 'Organizador não encontrado' }, 404);
+
+        const [updated] = await db.update(profiles)
             .set({ status: 'rejected', updatedAt: new Date() })
-            .where(eq(organizersTable.id, id))
+            .where(eq(profiles.userId, org.userId))
             .returning();
-        if (!updated) return c.json({ error: 'Not found' }, 404);
+        
         return c.json({ message: 'Organizador rejeitado', organizer: updated });
     } catch (error: any) { return c.json({ error: error.message }, 400); }
 });
@@ -358,11 +364,14 @@ router.post('/organizers/:id/reject', async (c) => {
 router.post('/organizers/:id/suspend', async (c) => {
     const id = c.req.param('id');
     try {
-        const [updated] = await db.update(organizersTable)
-            .set({ status: 'suspended', isActive: false, updatedAt: new Date() })
-            .where(eq(organizersTable.id, id))
+        const [org] = await db.select({ userId: organizersTable.userId }).from(organizersTable).where(eq(organizersTable.id, id));
+        if (!org) return c.json({ error: 'Organizador não encontrado' }, 404);
+
+        const [updated] = await db.update(profiles)
+            .set({ status: 'suspended', updatedAt: new Date() })
+            .where(eq(profiles.userId, org.userId))
             .returning();
-        if (!updated) return c.json({ error: 'Not found' }, 404);
+        
         return c.json({ message: 'Organizador suspenso', organizer: updated });
     } catch (error: any) { return c.json({ error: error.message }, 400); }
 });
@@ -370,11 +379,14 @@ router.post('/organizers/:id/suspend', async (c) => {
 router.post('/organizers/:id/reactivate', async (c) => {
     const id = c.req.param('id');
     try {
-        const [updated] = await db.update(organizersTable)
-            .set({ status: 'approved', isActive: true, updatedAt: new Date() })
-            .where(eq(organizersTable.id, id))
+        const [org] = await db.select({ userId: organizersTable.userId }).from(organizersTable).where(eq(organizersTable.id, id));
+        if (!org) return c.json({ error: 'Organizador não encontrado' }, 404);
+
+        const [updated] = await db.update(profiles)
+            .set({ status: 'approved', updatedAt: new Date() })
+            .where(eq(profiles.userId, org.userId))
             .returning();
-        if (!updated) return c.json({ error: 'Not found' }, 404);
+        
         return c.json({ message: 'Organizador reativado', organizer: updated });
     } catch (error: any) { return c.json({ error: error.message }, 400); }
 });

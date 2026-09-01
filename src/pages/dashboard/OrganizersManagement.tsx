@@ -151,7 +151,7 @@ const OrganizersManagement = () => {
       await masterService.approveOrganizerManually(org.id);
       setIsReportModalOpen(false);
       loadOrganizers();
-      toast({ title: 'KYC Validated', description: `O perfil de ${org.name} foi autenticado manualmente.` });
+      toast({ title: 'KYC Validated', description: `O perfil de ${org.companyName || org.name} foi autenticado manualmente.` });
     } catch (error) {
       toast({ title: 'Validation Failed', variant: 'destructive' });
     } finally {
