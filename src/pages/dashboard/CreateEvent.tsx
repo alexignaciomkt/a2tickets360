@@ -1,9 +1,9 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Tag, FileText, MapPin, Ticket, CheckCircle2,
   ArrowLeft, ArrowRight, Camera, Calendar, Clock,
-  Users, DollarSign, Sparkles, Save, Send, ShieldCheck, Star
+  Users, DollarSign, Sparkles, Save, Send, ShieldCheck, Star, Trash2
 } from 'lucide-react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -43,6 +43,29 @@ const EDIT_STEPS = [
   { number: 4, title: 'Revisão', icon: <CheckCircle2 className="h-4 w-4" /> },
 ];
 
+function getOrganizerId(): string | null {
+  try {
+    const ctx = localStorage.getItem('A2_active_context');
+    if (ctx) {
+      const parsed = JSON.parse(ctx);
+      return parsed.organizerId || parsed.id || null;
+    }
+  } catch { /* ignore */ }
+  return null;
+}
+
+function loadEventDraft() {
+  const orgId = getOrganizerId();
+  if (!orgId) return null;
+  try {
+    const raw = localStorage.getItem(`a2tickets:event-draft:${orgId}`);
+    if (raw) return JSON.parse(raw);
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
 const CreateEvent = () => {
   const { eventId } = useParams<{ eventId: string }>();
   const isEditMode = !!eventId;
@@ -51,13 +74,27 @@ const CreateEvent = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
-  const [currentStep, setCurrentStep] = useState(1);
+  
+  // 1. Synchronously load the draft (runs before the first render)
+  const [initialDraft] = useState(() => (isEditMode ? null : loadEventDraft()));
+
+  // 2. Initialize state directly from the loaded draft
+  const [currentStep, setCurrentStep] = useState(() => initialDraft?.currentStep ?? 1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [acceptsPromoters, setAcceptsPromoters] = useState(false);
   const [promoterCommissionRate, setPromoterCommissionRate] = useState(10);
   const [promoterDiscountRate, setPromoterDiscountRate] = useState(0);
 
   const operationIdRef = useRef(crypto.randomUUID());
+
+  const [hasDraft, setHasDraft] = useState(false);
+  const [isDiscardOpen, setIsDiscardOpen] = useState(false);
+  const [bannerNeedsReselect, setBannerNeedsReselect] = useState(false);
+
+  // Resolve organizerId from active context — no fallback to user.id
+  const resolvedOrganizerId = useCallback((): string | null => {
+    return getOrganizerId();
+  }, []);
 
   // Renderização do Aviso de Perfil Incompleto (Não bloqueante)
   const renderProfileWarning = () => {
@@ -92,7 +129,7 @@ const CreateEvent = () => {
   const [eventType, setEventType] = useState<'paid' | 'free'>('paid');
   const [category, setCategory] = useState('');
   const [categoryCode, setCategoryCode] = useState<string | undefined>('');
-  const [title, setTitle] = useState('');
+  const [title, setTitle] = useState(() => initialDraft?.title ?? '');
   const [description, setDescription] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -186,6 +223,61 @@ const CreateEvent = () => {
   const [tickets, setTickets] = useState<TicketTier[]>([
     { id: `temp_${Date.now()}`, name: '', price: 0, quantity: 100, category: 'standard', registrationType: 'INDIVIDUAL', participantsPerRegistration: 1, ticketPurpose: 'REGISTRATION' }
   ]);
+
+  // ===== DUMB PERSISTENCE: SAVE =====
+  useEffect(() => {
+    if (isEditMode) return;
+    const orgId = getOrganizerId();
+    if (!orgId) return;
+    // Não salvar um rascunho com valores absolutos padrão a menos que o usuário tenha digitado algo
+    if (currentStep === 1 && !title) return;
+
+    const key = `a2tickets:event-draft:${orgId}`;
+    localStorage.setItem(key, JSON.stringify({ currentStep, title }));
+    setHasDraft(true);
+  }, [currentStep, title, isEditMode]);
+
+  // ===== CLEAR DRAFT =====
+  const clearDraft = useCallback(() => {
+    const orgId = resolvedOrganizerId();
+    if (!orgId) return;
+    const key = `a2tickets:event-draft:${orgId}`;
+    localStorage.removeItem(key);
+    setHasDraft(false);
+  }, [resolvedOrganizerId]);
+
+  // ===== DISCARD DRAFT (reset form to initial state) =====
+  const discardDraft = useCallback(() => {
+    clearDraft();
+    setCurrentStep(1);
+    setEventType('paid');
+    setCategory('');
+    setCategoryCode('');
+    setTitle('');
+    setDescription('');
+    setImageUrl('');
+    setPreviewUrl(null);
+    setDate('');
+    setTime('');
+    setEndDate('');
+    setEndTime('');
+    setDuration('');
+    setLocationName('');
+    setLocationAddress('');
+    setLocationCity('');
+    setLocationState('');
+    setLocationPostalCode('');
+    setCapacity(100);
+    setTickets([
+      { id: `temp_${Date.now()}`, name: '', price: 0, quantity: 100, category: 'standard', registrationType: 'INDIVIDUAL', participantsPerRegistration: 1, ticketPurpose: 'REGISTRATION' }
+    ]);
+    setAcceptsPromoters(false);
+    setPromoterCommissionRate(10);
+    setPromoterDiscountRate(0);
+    setBannerNeedsReselect(false);
+    setIsDiscardOpen(false);
+    toast({ title: '🗑️ Rascunho descartado', description: 'O formulário foi limpo.' });
+  }, [clearDraft, toast]);
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -399,12 +491,14 @@ const CreateEvent = () => {
           }
 
           if (forceStatus === 'draft') {
+            clearDraft();
             toast({ title: '💾 Rascunho salvo!', description: 'Você pode continuar editando.' });
             navigate('/organizer/events');
             return;
           }
 
           operationIdRef.current = crypto.randomUUID(); // Renew for future creations if user stays
+          clearDraft();
           toast({ title: 'Sucesso!', description: 'Evento criado.' });
           navigate('/organizer/events');
           return;
@@ -565,6 +659,12 @@ const CreateEvent = () => {
       </div>
       <div>
         <label className="text-sm font-medium text-gray-700 mb-2 block">Banner / Arte do Evento</label>
+        {bannerNeedsReselect && !previewUrl && (
+          <div className="mb-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700 flex items-center gap-2">
+            <Camera className="h-4 w-4 text-amber-500 shrink-0" />
+            Rascunho restaurado — selecione a imagem do banner novamente.
+          </div>
+        )}
         <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-indigo-400 transition-colors relative cursor-pointer group bg-gray-50">
           <input type="file" accept="image/*" onChange={handleImageChange}
             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
@@ -805,13 +905,14 @@ const CreateEvent = () => {
           </div>
 
           <div className="shrink-0 flex flex-col items-center">
-            <Button
-              type="button"
-              onClick={() => navigate('/organizer/settings/credits')}
-              className="rounded-full h-10 px-6 font-bold uppercase text-[10px] tracking-widest bg-white border-2 border-indigo-200 text-indigo-600 hover:bg-indigo-50"
+            <a
+              href="/organizer/settings?tab=credits"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center rounded-full h-10 px-6 font-bold uppercase text-[10px] tracking-widest bg-white border-2 border-indigo-200 text-indigo-600 hover:bg-indigo-50 transition-colors"
             >
               Ver Créditos e Serviços
-            </Button>
+            </a>
           </div>
         </div>
       </div>
@@ -846,6 +947,9 @@ const CreateEvent = () => {
   return (
     <DashboardLayout userType="organizer">
       <div className="max-w-4xl mx-auto space-y-6">
+        
+        {/* Dev Debug Panel Removed */}
+
         <div className="flex items-center space-x-4">
           <Button variant="ghost" size="sm" onClick={() => navigate(isEditMode ? `/organizer/event/${eventId}/manage` : '/organizer/events')}
             className="text-gray-500 hover:text-gray-900">
@@ -857,6 +961,17 @@ const CreateEvent = () => {
             </h1>
             <p className="text-sm text-gray-500 mt-1">{isEditMode ? `Atualize as informações do seu evento.` : `Siga as etapas para configurar seu evento completo`}</p>
           </div>
+          {!isEditMode && hasDraft && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsDiscardOpen(true)}
+              className="text-rose-500 hover:text-rose-700 hover:bg-rose-50 gap-1 ml-auto"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Descartar rascunho</span>
+            </Button>
+          )}
         </div>
 
         <EventWizardStepper steps={STEPS} currentStep={currentStep} onStepClick={setCurrentStep} />
@@ -906,6 +1021,24 @@ const CreateEvent = () => {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={confirmAlertAndSave} className="bg-red-600 hover:bg-red-700">Confirmar Alteração</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Discard Draft Confirmation */}
+      <AlertDialog open={isDiscardOpen} onOpenChange={setIsDiscardOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-rose-600 flex items-center gap-2">
+              <Trash2 className="h-5 w-5" /> Descartar Rascunho?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Todos os dados preenchidos serão apagados e o formulário voltará ao estado inicial. Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={discardDraft} className="bg-rose-600 hover:bg-rose-700">Descartar</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

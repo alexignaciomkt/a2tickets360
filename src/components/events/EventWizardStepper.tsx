@@ -13,9 +13,13 @@ interface EventWizardStepperProps {
 }
 
 const EventWizardStepper = ({ steps, currentStep, onStepClick }: EventWizardStepperProps) => {
+    const currentStepData = steps.find(s => s.number === currentStep);
+    const progressPercent = steps.length > 1 ? ((currentStep - 1) / (steps.length - 1)) * 100 : 0;
+
     return (
         <div className="w-full mb-8">
-            <div className="flex items-center justify-between">
+            {/* Desktop Stepper */}
+            <div className="hidden md:flex items-center justify-between">
                 {steps.map((step, index) => {
                     const isCompleted = step.number < currentStep;
                     const isActive = step.number === currentStep;
@@ -71,8 +75,52 @@ const EventWizardStepper = ({ steps, currentStep, onStepClick }: EventWizardStep
                     );
                 })}
             </div>
+
+            {/* Mobile Stepper — Compact */}
+            <div className="md:hidden">
+                <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-bold text-gray-900">
+                        Etapa {currentStep} de {steps.length}
+                    </span>
+                    {currentStepData && (
+                        <span className="text-sm font-medium text-indigo-600 truncate ml-2">
+                            {currentStepData.title}
+                        </span>
+                    )}
+                </div>
+                <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                        className="h-full bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full transition-all duration-500 ease-out"
+                        style={{ width: `${progressPercent}%` }}
+                    />
+                </div>
+                {/* Mini step indicators */}
+                <div className="flex items-center justify-between mt-2 px-0.5">
+                    {steps.map((step) => {
+                        const isCompleted = step.number < currentStep;
+                        const isActive = step.number === currentStep;
+                        return (
+                            <button
+                                key={step.number}
+                                onClick={() => isCompleted && onStepClick && onStepClick(step.number)}
+                                disabled={!isCompleted || !onStepClick}
+                                className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-all
+                                    ${isCompleted
+                                        ? 'bg-emerald-500 text-white cursor-pointer'
+                                        : isActive
+                                            ? 'bg-indigo-600 text-white ring-2 ring-indigo-300'
+                                            : 'bg-gray-200 text-gray-400'
+                                    }`}
+                            >
+                                {isCompleted ? <Check className="h-3 w-3" /> : step.number}
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
         </div>
     );
 };
 
 export default EventWizardStepper;
+
