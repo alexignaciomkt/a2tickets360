@@ -91,8 +91,29 @@ const EventApprovalPage = () => {
     }
   };
 
+  const [dossier, setDossier] = useState<any>(null);
+  const [isLoadingDossier, setIsLoadingDossier] = useState(false);
+  const [dossierError, setDossierError] = useState<string | null>(null);
+
+  const loadDossier = async (organizerId: string) => {
+    try {
+      setIsLoadingDossier(true);
+      setDossierError(null);
+      const data = await masterService.getOrganizerDossier(organizerId);
+      setDossier(data);
+    } catch (err: any) {
+      setDossierError(err.message || 'Erro ao carregar dados do produtor.');
+    } finally {
+      setIsLoadingDossier(false);
+    }
+  };
+
   const openModal = (event: any) => {
     setSelectedEvent(event);
+    setDossier(null);
+    if (event?.organizerId) {
+       loadDossier(event.organizerId);
+    }
     setIsModalOpen(true);
   };
 
@@ -363,38 +384,54 @@ const EventApprovalPage = () => {
                   </TabsContent>
 
                   <TabsContent value="producer" className="mt-0 space-y-6">
-                    <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-lg border border-slate-100">
-                      <div className="w-14 h-14 rounded-lg bg-white overflow-hidden border border-slate-200 shrink-0 shadow-sm">
-                        {org.logoUrl ? <img src={org.logoUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-slate-500 font-bold text-lg">{(org.companyName || 'P').charAt(0)}</div>}
+                    {isLoadingDossier ? (
+                      <div className="flex flex-col items-center justify-center py-12 gap-4">
+                        <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
+                        <p className="text-xs font-semibold text-slate-500">Carregando dados do produtor...</p>
                       </div>
-                      <div className="space-y-0.5">
-                        <h4 className="text-sm font-bold text-slate-900">{org.companyName || org.name || 'Produtor'}</h4>
-                        <p className="text-xs text-slate-500">{org.email}</p>
-                        <div className="mt-1">
-                           {org.profileComplete ? <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-200 text-[10px] font-semibold px-2 py-0.5 rounded-md">Perfil Completo</Badge> : <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200 text-[10px] font-semibold px-2 py-0.5 rounded-md">Perfil Incompleto</Badge>}
+                    ) : dossierError ? (
+                      <div className="flex flex-col items-center justify-center py-12 text-center">
+                        <AlertTriangle className="h-6 w-6 text-rose-500 mb-2" />
+                        <p className="text-xs font-semibold text-slate-900">Erro ao carregar dados</p>
+                        <p className="text-[10px] text-slate-500 mt-1">{dossierError}</p>
+                        <Button onClick={() => loadDossier(ev.organizerId)} variant="outline" className="mt-4 text-xs h-7">Tentar Novamente</Button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-lg border border-slate-100">
+                          <div className="w-14 h-14 rounded-lg bg-white overflow-hidden border border-slate-200 shrink-0 shadow-sm">
+                            {dossier?.logoUrl || org.logoUrl ? <img src={dossier?.logoUrl || org.logoUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-slate-500 font-bold text-lg">{(dossier?.companyName || org.companyName || 'P').charAt(0)}</div>}
+                          </div>
+                          <div className="space-y-0.5">
+                            <h4 className="text-sm font-bold text-slate-900">{dossier?.companyName || org.companyName || org.name || 'Produtor'}</h4>
+                            <p className="text-xs text-slate-500">{dossier?.email || org.email}</p>
+                            <div className="mt-1">
+                               {dossier?.profileComplete ? <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-200 text-[10px] font-semibold px-2 py-0.5 rounded-md">Perfil Completo</Badge> : <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200 text-[10px] font-semibold px-2 py-0.5 rounded-md">Perfil Incompleto</Badge>}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
 
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-                       {[
-                         { l: 'CPF do Titular', v: org.cpf || 'Não informado' },
-                         { l: 'CNPJ', v: org.cnpj || 'Não informado' },
-                         { l: 'Telefone', v: org.phone || 'Não informado' },
-                         { l: 'Chave Asaas', v: org.asaasKey ? `${org.asaasKey.slice(0,24)}…` : 'Não vinculada', mono: true },
-                         { l: 'Página Pública', v: org.slug || 'Não definido' },
-                         { l: 'Status', v: org.status || 'Pendente', badge: true },
-                       ].map((item, i) => (
-                         <div key={i} className="space-y-1">
-                            <p className="text-xs font-semibold text-slate-500">{item.l}</p>
-                            {item.badge ? (
-                              <Badge variant="outline" className={`text-xs font-medium px-2 py-0.5 rounded-md ${item.v === 'approved' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-amber-50 text-amber-600 border-amber-200'}`}>{item.v === 'approved' ? 'Aprovado' : 'Pendente'}</Badge>
-                            ) : (
-                              <p className={`text-sm font-medium text-slate-900 ${item.mono ? 'font-mono text-xs text-slate-500' : ''} truncate`}>{item.v}</p>
-                            )}
-                         </div>
-                       ))}
-                    </div>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+                           {[
+                             { l: 'CPF do Titular', v: dossier?.cpf || 'Não informado' },
+                             { l: 'CNPJ', v: dossier?.cnpj || 'Não informado' },
+                             { l: 'Telefone', v: dossier?.phone || 'Não informado' },
+                             { l: 'Wallet Asaas', v: dossier?.walletId ? 'Vinculada' : 'Não vinculada', badge: dossier?.walletId ? true : false, isWallet: true },
+                             { l: 'Página Pública', v: dossier?.slug || 'Não definido' },
+                             { l: 'Status', v: dossier?.status || org.status || 'Pendente', badge: true },
+                           ].map((item, i) => (
+                             <div key={i} className="space-y-1">
+                                <p className="text-xs font-semibold text-slate-500">{item.l}</p>
+                                {item.badge ? (
+                                  <Badge variant="outline" className={`text-xs font-medium px-2 py-0.5 rounded-md ${item.v === 'approved' || item.isWallet ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-amber-50 text-amber-600 border-amber-200'}`}>{item.v === 'approved' ? 'Aprovado' : item.v === 'pending' ? 'Pendente' : item.v}</Badge>
+                                ) : (
+                                  <p className={`text-sm font-medium text-slate-900 ${item.mono ? 'font-mono text-xs text-slate-500' : ''} truncate`}>{item.v}</p>
+                                )}
+                             </div>
+                           ))}
+                        </div>
+                      </>
+                    )}
                   </TabsContent>
                 </Tabs>
               </div>
