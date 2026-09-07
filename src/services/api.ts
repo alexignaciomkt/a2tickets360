@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3002';
-console.log('API Conectada em:', API_URL);
+export const API_BASE_URL = import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? 'http://localhost:3002' : '');
+console.log('API Conectada em:', API_BASE_URL || '(Relativa / Vercel)');
 
 export interface CustomRequestInit extends RequestInit {
     timeout?: number;
@@ -66,7 +66,7 @@ export async function request<T>(endpoint: string, options: CustomRequestInit = 
     }
 
     try {
-        const response = await fetch(`${API_URL}${endpoint}`, {
+        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
             ...fetchOptions,
             headers,
         });

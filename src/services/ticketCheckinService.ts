@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/services/api';
 import { supabase } from '@/lib/supabase';
 
 export interface CheckinValidationResponse {
@@ -18,9 +19,9 @@ export const ticketCheckinService = {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) throw new Error('Não autenticado');
 
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3002';
         
-        const response = await fetch(`${apiUrl}/api/checkin/tickets/validate`, {
+        
+        const response = await fetch(`${API_BASE_URL}/api/checkin/tickets/validate`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -41,9 +42,9 @@ export const ticketCheckinService = {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) throw new Error('Não autenticado');
 
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3002';
+        
 
-        const response = await fetch(`${apiUrl}/api/checkin/tickets/undo`, {
+        const response = await fetch(`${API_BASE_URL}/api/checkin/tickets/undo`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

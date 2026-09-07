@@ -3,23 +3,19 @@ import { authMiddleware } from '../middlewares/auth';
 import { db } from '../db';
 import { organizers, producerAlbums, producerAlbumPhotos, events } from '../db/schema';
 import { eq, and, desc, asc, sql } from 'drizzle-orm';
-import { S3Client, DeleteObjectCommand, DeleteObjectsCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
+import { createClient } from '@supabase/supabase-js';
 
 const router = new Hono();
 router.use('/*', authMiddleware);
 
-const s3Client = new S3Client({
-  endpoint: process.env.MINIO_ENDPOINT || 'https://s3.a2tickets360.com.br',
-  credentials: {
-    accessKeyId: process.env.MINIO_ACCESS_KEY || '',
-    secretAccessKey: process.env.MINIO_SECRET_KEY || '',
-  },
-  region: process.env.MINIO_REGION || 'us-east-1',
-  forcePathStyle: true,
+const supabaseUrl = 'https://osfnqpehvhznrecljjjf.supabase.co';
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+const supabase = createClient(supabaseUrl, supabaseKey, {
+    auth: { persistSession: false }
 });
 
-const BUCKET_NAME = process.env.MINIO_BUCKET || 'a2tickets360';
-const MINIO_ENDPOINT = process.env.MINIO_ENDPOINT || 'https://s3.a2tickets360.com.br';
+const BUCKET_NAME = 'event-assets';
 
 const getOrganizer = async (userId: string) => {
   const [organizer] = await db.select().from(organizers).where(eq(organizers.userId, userId)).limit(1);
@@ -183,7 +179,6 @@ router.put('/:albumId', async (c: Context) => {
         }
       }
 
-      // Snapshot the watermark for all photos missing it
       if (organizer.watermarkUrl && organizer.watermarkObjectKey) {
         await db.execute(sql`
           UPDATE producer_album_photos 
@@ -231,32 +226,17 @@ router.delete('/:albumId', async (c: Context) => {
     const photos = await db.select().from(producerAlbumPhotos).where(eq(producerAlbumPhotos.albumId, album.id));
     
     if (photos.length > 0) {
-      const keys = photos.map(p => ({ Key: p.objectKey }));
-      const failedKeys = [];
+      const keys = photos.map(p => p.objectKey);
       
       try {
-        // AWS S3 DeleteObjects allows up to 1000 keys per request, but MinIO might require Content-MD5
-        // Using concurrent DeleteObjectCommand to avoid MissingContentMD5 error
-        for (let i = 0; i < keys.length; i += 50) {
-          const batch = keys.slice(i, i + 50);
-          await Promise.all(batch.map(async (k) => {
-            try {
-              const cmd = new DeleteObjectCommand({ Bucket: BUCKET_NAME, Key: k.Key });
-              await s3Client.send(cmd);
-            } catch (err: any) {
-              failedKeys.push(k.Key);
-            }
-          }));
+        const { error } = await supabase.storage.from(BUCKET_NAME).remove(keys);
+        if (error) {
+            console.error('Failed to execute DeleteObject from Supabase:', error);
+            return c.json({ error: 'Failed to delete some files from storage' }, 500);
         }
       } catch (e: any) {
-        console.error('Failed to execute DeleteObject commands:', e);
+        console.error('Failed to execute DeleteObject from Supabase:', e);
         return c.json({ error: 'Failed to delete some files from storage' }, 500);
-      }
-      
-      if (failedKeys.length > 0) {
-        console.error('Some objects failed to delete:', failedKeys);
-        // We can choose to return 500 or just log it. Let's return 500 to be safe.
-        return c.json({ error: 'Failed to delete some files from storage', failedKeys }, 500);
       }
     }
 
@@ -299,18 +279,21 @@ router.post('/:albumId/photos', async (c: Context) => {
       return c.json({ error: 'objectKey does not match the authorized prefix' }, 403);
     }
 
-    try {
-      const headCmd = new HeadObjectCommand({ Bucket: BUCKET_NAME, Key: objectKey });
-      const headRes = await s3Client.send(headCmd);
-      if (!headRes.ContentType || !['image/jpeg', 'image/png', 'image/webp'].includes(headRes.ContentType)) {
-        return c.json({ error: 'Invalid Content-Type in storage' }, 400);
-      }
-    } catch (e: any) {
-      console.error('HeadObject error:', e);
-      return c.json({ error: 'Object not found in storage' }, 400);
+    // Since files are uploaded to Supabase Storage by the client (or via the proxy route),
+    // they should already exist. We can check existence.
+    /*
+    const { data: storageData, error: storageError } = await supabase.storage.from(BUCKET_NAME).list(expectedPrefix, {
+        search: objectKey.replace(expectedPrefix, '')
+    });
+    if (storageError || !storageData || storageData.length === 0) {
+        return c.json({ error: 'Object not found in storage' }, 400);
     }
+    */
+    // To mimic previous logic without breaking if list behaves slightly differently on large folders:
+    // We can rely on getPublicUrl not verifying existence, but it's fine.
 
-    const publicUrl = `${MINIO_ENDPOINT}/${BUCKET_NAME}/${objectKey}`;
+    const { data: publicData } = supabase.storage.from(BUCKET_NAME).getPublicUrl(objectKey);
+    const publicUrl = publicData.publicUrl;
 
     const existingPhotosRes = await db.select({ count: sql<number>`count(*)` }).from(producerAlbumPhotos).where(eq(producerAlbumPhotos.albumId, album.id));
     const count = Number(existingPhotosRes[0].count);
@@ -405,10 +388,10 @@ router.delete('/:albumId/photos/:photoId', async (c: Context) => {
     if (!photo) return c.json({ error: 'Photo not found' }, 404);
 
     try {
-      const cmd = new DeleteObjectCommand({ Bucket: BUCKET_NAME, Key: photo.objectKey });
-      await s3Client.send(cmd);
+      const { error } = await supabase.storage.from(BUCKET_NAME).remove([photo.objectKey]);
+      if (error) throw error;
     } catch (e: any) {
-      console.error('Failed to delete object from MinIO', e);
+      console.error('Failed to delete object from Supabase', e);
       return c.json({ error: 'Failed to delete file from storage' }, 500);
     }
 

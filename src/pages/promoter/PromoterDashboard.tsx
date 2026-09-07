@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/services/api';
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Ticket, Copy, Wallet, Loader2 } from 'lucide-react';
@@ -24,8 +25,8 @@ const PromoterDashboard = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
       
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3002';
-      const res = await fetch(`${apiUrl}/api/promoter/dashboard`, {
+      
+      const res = await fetch(`${API_BASE_URL}/api/promoter/dashboard`, {
         headers: { 'Authorization': `Bearer ${session.access_token}` }
       });
       

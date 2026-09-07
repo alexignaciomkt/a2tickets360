@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/services/api';
 import React, { useState, useEffect, useMemo } from 'react';
 import { Users, Search, Filter, Calendar, MapPin, Mail, Phone, Ticket } from 'lucide-react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
@@ -44,8 +45,8 @@ const PromoterMailing = () => {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
 
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3002';
-        const res = await fetch(`${apiUrl}/api/promoter/mailing`, {
+        
+        const res = await fetch(`${API_BASE_URL}/api/promoter/mailing`, {
           headers: {
             'Authorization': `Bearer ${session.access_token}`
           }

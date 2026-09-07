@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/services/api';
 import React, { useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabase';
@@ -123,8 +124,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const token = accessToken || localStorage.getItem('A2Tickets_token');
       if (!token) return;
       
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3002';
-      const response = await fetch(`${apiUrl}/api/me/contexts`, {
+      
+      const response = await fetch(`${API_BASE_URL}/api/me/contexts`, {
           headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();

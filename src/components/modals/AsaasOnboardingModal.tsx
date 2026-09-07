@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/services/api';
 import { useState } from 'react';
 import {
   Dialog,
@@ -38,8 +39,8 @@ export const AsaasOnboardingModal = ({ open, onOpenChange, organizerId, onSucces
     e.preventDefault();
     setLoading(true);
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-      const response = await fetch(`${apiUrl}/api/organizers/${organizerId}/asaas-account`, {
+      
+      const response = await fetch(`${API_BASE_URL}/api/organizers/${organizerId}/asaas-account`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

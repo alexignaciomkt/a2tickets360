@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/services/api';
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
@@ -53,10 +54,10 @@ export default function StaffProfilePage() {
             const token = session?.access_token;
             if (!token) throw new Error("Usuário não autenticado");
 
-            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3002';
+            
             
             // 1. Solicita presign URL
-            const presignRes = await fetch(`${apiUrl}/api/uploads/presign`, {
+            const presignRes = await fetch(`${API_BASE_URL}/api/uploads/presign`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -118,12 +119,12 @@ export default function StaffProfilePage() {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return;
             
-            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3002';
             
-            const profRes = await fetch(`${apiUrl}/api/me/staff-profile`, {
+            
+            const profRes = await fetch(`${API_BASE_URL}/api/me/staff-profile`, {
                 headers: { 'Authorization': `Bearer ${session.access_token}` }
             });
-            const catRes = await fetch(`${apiUrl}/api/staff/professional-functions`);
+            const catRes = await fetch(`${API_BASE_URL}/api/staff/professional-functions`);
             
             if (profRes.ok && catRes.ok) {
                 const pData = await profRes.json();
@@ -182,9 +183,9 @@ export default function StaffProfilePage() {
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return;
-            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3002';
             
-            const res = await fetch(`${apiUrl}/api/me/staff-profile`, {
+            
+            const res = await fetch(`${API_BASE_URL}/api/me/staff-profile`, {
                 method: 'PUT',
                 headers: { 
                     'Authorization': `Bearer ${session.access_token}`,

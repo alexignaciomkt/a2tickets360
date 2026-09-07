@@ -48,7 +48,7 @@ export class AuthorizationEngine {
             .from(organizers)
             .where(and(
                 eq(organizers.userId, userId),
-                eq(organizers.userId, organizerId)
+                eq(organizers.id, organizerId)
             ));
             
         if (ownerRecords.length > 0) {

@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/services/api';
 import { supabase } from '@/lib/supabase';
 
 export interface PortariaOperation {
@@ -10,11 +11,11 @@ export interface PortariaOperation {
 
 export const portariaService = {
     getCurrentOperations: async (accessToken: string): Promise<PortariaOperation[]> => {
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3002';
+        
         
         console.log('[PORTARIA SERVICE] BEFORE REQUEST', apiUrl);
         try {
-            const response = await fetch(`${apiUrl}/api/portaria/current-operation`, {
+            const response = await fetch(`${API_BASE_URL}/api/portaria/current-operation`, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${accessToken}`
@@ -36,9 +37,9 @@ export const portariaService = {
     },
 
     sendRecoveryForStaff: async (eventStaffId: string, accessToken: string): Promise<void> => {
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3002';
         
-        const response = await fetch(`${apiUrl}/api/staff/${eventStaffId}/send-access-recovery`, {
+        
+        const response = await fetch(`${API_BASE_URL}/api/staff/${eventStaffId}/send-access-recovery`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${accessToken}`,

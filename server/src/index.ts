@@ -5,6 +5,7 @@ import { Hono, Context } from 'hono';
 import { cors } from 'hono/cors';
 import { db } from './db';
 import * as schema from './db/schema';
+import { supabaseAdmin } from './lib/supabaseAdmin';
 
 const {
     admins, organizers: organizersTable, eventCategories, events, tickets, sales, staff,
@@ -264,28 +265,38 @@ app.post('/api/upload', async (c: Context) => {
 // --- Rota de Cadastro de Organizador (Com Asaas e Verificação) ---
 app.post('/api/organizers/register', async (c: Context) => {
     const { name, email, password, cpfCnpj, mobilePhone, slug, bannerUrl } = await c.req.json();
-    const token = uuidv4();
-
+    
     try {
-        // 0. Verificar se já existe um organizador com este e-mail
-        const existing = await db.query.organizers.findFirst({
-            where: eq(organizersTable.email, email)
-        });
-        if (existing) {
-            return c.json({ error: 'Já existe um organizador cadastrado com este e-mail.' }, 409);
+        if (!supabaseAdmin) {
+            return c.json({ error: 'Supabase Admin não configurado.' }, 500);
         }
 
-        // 0.1 Verificar se o slug já existe
+        // 1. Verificar slug
         if (slug) {
             const slugExisting = await db.query.organizers.findFirst({
                 where: eq(organizersTable.slug, slug)
             });
             if (slugExisting) {
-                return c.json({ error: 'Este link (slug) já está sendo usado por outro produtor.' }, 409);
+                return c.json({ error: 'Este link (slug) já está sendo usado.' }, 409);
             }
         }
 
-        // 1. Criar Subconta no Asaas (Opcional/Resiliente)
+        // 2. Criar usuário no Supabase Auth
+        const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+            email,
+            password,
+            email_confirm: true,
+            user_metadata: { role: 'organizer', name }
+        });
+
+        if (authError || !authData.user) {
+            // Se o erro for de usuário existente, podemos buscar o usuário
+            return c.json({ error: authError?.message || 'Erro ao criar usuário no Supabase Auth' }, 400);
+        }
+
+        const userId = authData.user.id;
+
+        // 3. Criar Subconta no Asaas (Opcional)
         let asaasAccount = null;
         if (cpfCnpj && mobilePhone) {
             try {
@@ -295,62 +306,24 @@ app.post('/api/organizers/register', async (c: Context) => {
             }
         }
 
-        // 2. Hash da senha
-        const passwordHash = await Bun.password.hash(password);
-
-        // 3. Salvar no Banco
+        // 4. Salvar detalhes do organizador (o profile já é criado pela trigger)
         const [newOrganizer] = await db.insert(organizersTable).values({
-            name,
-            email,
-            passwordHash,
+            userId,
+            companyName: name,
             phone: mobilePhone || null,
             cpf: cpfCnpj || null,
             slug: slug || name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]/g, ''),
             bannerUrl: bannerUrl || null,
-            asaasId: asaasAccount?.id,
+            asaasKey: asaasAccount?.id,
             walletId: asaasAccount?.walletId,
-            asaasApiKey: asaasAccount?.apiKey,
-            emailVerified: false,
-            verificationToken: token,
-            isActive: true,
-            profileComplete: false
         }).returning();
 
-        // 4. Enviar e-mail de confirmação (Resiliente)
-        try {
-            if (!transporter) {
-                console.warn('⚠️ SMTP not configured. Skipping verification email.');
-                throw new Error('SMTP disabled');
-            }
-            const appUrl = (process.env.APP_URL || 'http://localhost:5173').replace(/\/$/, '');
-            const verificationUrl = `${appUrl}/auth/verify?token=${token}&type=organizer`;
-            await transporter.sendMail({
-                from: process.env.SMTP_FROM || '"A2 Tickets 360º" <noreply@a2tickets360.com.br>',
-                to: email,
-                subject: 'Verifique sua conta de Organizador - A2 Tickets 360',
-                html: `
-                    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; background: #050505; color: white; padding: 40px; border-radius: 20px;">
-                        <h1 style="color: #6366f1;">Bem-vindo, Produção Elite!</h1>
-                        <p>Sua jornada na A2 Tickets 360 está prestes a começar. Confirme seu e-mail para ativar seu painel de organizador:</p>
-                        <a href="${verificationUrl}" style="display: inline-block; background: #6366f1; color: white; padding: 12px 24px; border-radius: 10px; text-decoration: none; font-weight: bold; margin-top: 20px;">ATIVAR CONTA</a>
-                        <p style="margin-top: 30px; font-size: 12px; color: #666;">Se você não realizou este cadastro, ignore este e-mail.</p>
-                    </div>
-                `
-            });
-        } catch (mailError) {
-            console.warn('⚠️ Falha ao enviar e-mail (Local/SMTP?):', mailError);
-        }
-
-        return c.json({
-            status: 'success',
-            message: 'Cadastro realizado com sucesso!',
-            organizerId: newOrganizer.id,
-            warning: 'Asaas ou E-mail podem não ter sido processados em ambiente local.'
-        });
+        return c.json(newOrganizer, 201);
     } catch (error: any) {
-        console.error('❌ Erro no cadastro de organizador:', error);
-        return c.json({ error: error.message || 'Erro interno ao criar organizador.' }, 400);
+        console.error('[POST /api/organizers/register]', error);
+        return c.json({ error: 'Erro ao registrar organizador.' }, 500);
     }
+
 });
 
 // =============================================================================
@@ -1763,7 +1736,7 @@ app.post('/api/auth/login', async (c: Context) => {
                 return c.json({ error: 'Credenciais inválidas ou e-mail não verificado' }, 401);
             }
 
-            const isPasswordCorrect = await Bun.password.verify(password, organizer.passwordHash);
+            const isPasswordCorrect = await verifyPassword(password, organizer.passwordHash);
             if (!isPasswordCorrect) return c.json({ error: 'Credenciais inválidas' }, 401);
 
             const token = 'simulated_organizer_jwt'; // TODO: Sign real JWT
@@ -1780,7 +1753,7 @@ app.post('/api/auth/login', async (c: Context) => {
 
         // Simular verificação (Staff ainda usa mock no seed)
         if (password !== staffMember.passwordHash && staffMember.passwordHash !== '123456') {
-            const isPasswordCorrect = await Bun.password.verify(password, staffMember.passwordHash);
+            const isPasswordCorrect = await verifyPassword(password, staffMember.passwordHash);
             if (!isPasswordCorrect) return c.json({ error: 'Credenciais inválidas' }, 401);
         }
 
@@ -2409,22 +2382,12 @@ app.post('/api/events/:eventId/floor-plan', async (c: Context) => {
 // --- Candidatos / Marketplace ---
 
 // 1. Cadastro Público de Candidato com Confirmação por e-mail
+
+// DEPRECATED: POST /api/candidates
 app.post('/api/candidates', async (c: Context) => {
-    const data = await c.req.json();
-    const token = uuidv4();
+    return c.json({ error: 'Endpoint descontinuado. Candidatos devem utilizar o Supabase Auth para registro.' }, 410);
+});
 
-    try {
-        const [newCandidate] = await db.insert(candidates).values({
-            ...data,
-            passwordHash: await Bun.password.hash(data.password),
-            emailVerified: false,
-            verificationToken: token
-        }).returning();
-
-        // Enviar e-mail de confirmação
-        if (!transporter) {
-            console.warn('⚠️ SMTP not configured. Skipping candidate verification email.');
-            return c.json({ status: 'success', message: 'Cadastro realizado! SMTP desabilitado.' });
         }
         const appUrl = (process.env.APP_URL || 'http://localhost:5173').replace(/\/$/, '');
         const verificationUrl = `${appUrl}/auth/verify?token=${token}&type=candidate`;
@@ -2935,7 +2898,4 @@ app.get('/api/purchased-tickets/:id/status', async (c: Context) => {
     }
 });
 
-export default {
-    port: process.env.PORT || 3002,
-    fetch: app.fetch,
-};
+export default app;

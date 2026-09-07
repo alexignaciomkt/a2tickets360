@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/services/api';
 import React, { useState, useEffect } from 'react';
 import { Users, Plus, Loader2, ExternalLink, Trash2, CheckCircle, XCircle, FileText } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -74,7 +75,7 @@ const OrganizerPromotersTab = ({ eventId }: { eventId: string }) => {
     setLoading(true);
     try {
       // Fetch Affiliations from canonical backend
-      const affRes = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/organizer/events/${eventId}/promoters`, {
+      const affRes = await fetch(`${API_BASE_URL}/api/organizer/events/${eventId}/promoters`, {
         headers: {
           'Authorization': `Bearer ${user?.id ? (await supabase.auth.getSession()).data.session?.access_token : ''}`
         }
@@ -182,9 +183,9 @@ const OrganizerPromotersTab = ({ eventId }: { eventId: string }) => {
     setSavingSettings(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3002';
       
-      const response = await fetch(`${apiUrl}/api/organizer/events/${eventId}/promoter-settings`, {
+      
+      const response = await fetch(`${API_BASE_URL}/api/organizer/events/${eventId}/promoter-settings`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

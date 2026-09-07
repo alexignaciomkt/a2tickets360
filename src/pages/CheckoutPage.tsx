@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/services/api';
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Check, Upload, Calendar, MapPin, Eye, EyeOff, Lock, ShieldCheck, ChevronRight, Clock, Copy, MessageCircle } from 'lucide-react';
@@ -347,7 +348,7 @@ const CheckoutPage = () => {
     setCheckingEligibility(true);
     setEligibilityResult(null);
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/sports/check-eligibility`, {
+      const res = await fetch(`${API_BASE_URL}/api/sports/check-eligibility`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ eventId, ticketId, cpf: repechageCpf }),
@@ -365,7 +366,7 @@ const CheckoutPage = () => {
     if (currentStep === 2 && pixData && purchasedTicketId) {
         const interval = setInterval(async () => {
             try {
-                const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/purchased-tickets/${purchasedTicketId}/status`);
+                const res = await fetch(`${API_BASE_URL}/api/purchased-tickets/${purchasedTicketId}/status`);
                 if (res.ok) {
                     const data = await res.json();
                     if (data.status === 'paid' || data.status === 'active') {
@@ -668,7 +669,7 @@ const CheckoutPage = () => {
                     };
                 }
 
-                const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/payments/checkout`, {
+                const res = await fetch(`${API_BASE_URL}/api/payments/checkout`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({

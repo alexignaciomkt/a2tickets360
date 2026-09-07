@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/services/api';
 import React, { useState, useEffect } from 'react';
 import { Search, Send, Loader2, CheckCircle2 } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
@@ -77,7 +78,7 @@ const PromoterEvents = () => {
     
     try {
       const token = (await supabase.auth.getSession()).data.session?.access_token;
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/promoter/events/${selectedEventToApply.id}/apply`, {
+      const response = await fetch(`${API_BASE_URL}/api/promoter/events/${selectedEventToApply.id}/apply`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/services/api';
 import { useState, useEffect } from 'react';
 import { ChevronDown, Check } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -21,8 +22,8 @@ export default function ContextSelector() {
                 const { data: { session } } = await supabase.auth.getSession();
                 if (!session) return;
                 
-                const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3002';
-                const response = await fetch(`${apiUrl}/api/me/contexts`, {
+                
+                const response = await fetch(`${API_BASE_URL}/api/me/contexts`, {
                     headers: { 'Authorization': `Bearer ${session.access_token}` }
                 });
                 
@@ -32,19 +33,20 @@ export default function ContextSelector() {
                     // Default to first context or one saved in localStorage
                     if (data.contexts.length > 0) {
                         const saved = localStorage.getItem('A2_active_context');
+                        let resolvedContext = data.contexts[0];
                         if (saved) {
                             try {
                                 const parsed = JSON.parse(saved);
-                                const exists = res.data.contexts.find(
-                                    (c: UserContext) => c.type === parsed.type && c.organizerId === parsed.organizerId
+                                const exists = data.contexts.find(
+                                    (c: UserContext) => c.type === parsed.type && (c.organizerId === parsed.organizerId || c.id === parsed.id)
                                 );
-                                setActiveContext(exists || res.data.contexts[0]);
+                                if (exists) resolvedContext = exists;
                             } catch {
-                                setActiveContext(res.data.contexts[0]);
+                                // ignore
                             }
-                        } else {
-                            setActiveContext(res.data.contexts[0]);
                         }
+                        setActiveContext(resolvedContext);
+                        localStorage.setItem('A2_active_context', JSON.stringify(resolvedContext));
                     }
                 }
             } catch (error) {

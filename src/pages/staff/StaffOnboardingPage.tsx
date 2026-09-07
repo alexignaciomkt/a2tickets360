@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/services/api';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -57,10 +58,10 @@ export default function StaffOnboardingPage() {
             const token = session?.access_token;
             if (!token) throw new Error("Usuário não autenticado");
 
-            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3002';
+            
             
             // 1. Solicita presign URL
-            const presignRes = await fetch(`${apiUrl}/api/uploads/presign`, {
+            const presignRes = await fetch(`${API_BASE_URL}/api/uploads/presign`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -128,10 +129,10 @@ export default function StaffOnboardingPage() {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return;
             
-            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3002';
+            
             
             // Load Profile Data
-            const profRes = await fetch(`${apiUrl}/api/me/staff-profile`, {
+            const profRes = await fetch(`${API_BASE_URL}/api/me/staff-profile`, {
                 headers: { 'Authorization': `Bearer ${session.access_token}` }
             });
             
@@ -142,7 +143,7 @@ export default function StaffOnboardingPage() {
             });
 
             // Load Catalog
-            const catRes = await fetch(`${apiUrl}/api/staff/professional-functions`, {
+            const catRes = await fetch(`${API_BASE_URL}/api/staff/professional-functions`, {
                 headers: { 'Authorization': `Bearer ${session.access_token}` }
             });
             
@@ -235,9 +236,9 @@ export default function StaffOnboardingPage() {
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return;
-            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3002';
             
-            const res = await fetch(`${apiUrl}/api/me/staff-profile`, {
+            
+            const res = await fetch(`${API_BASE_URL}/api/me/staff-profile`, {
                 method: 'PUT',
                 headers: { 
                     'Authorization': `Bearer ${session.access_token}`,
