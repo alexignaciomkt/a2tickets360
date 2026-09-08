@@ -12,7 +12,10 @@ const router = new Hono();
 router.post('/events/:eventId/apply', authMiddleware, async (c: Context) => {
     try {
         const eventId = c.req.param('eventId');
-        const user = c.get('user');
+        const user = c.get('jwtPayload');
+        if (!user || !user.id) {
+            return c.json({ error: 'Usuário não autenticado.' }, 401);
+        }
 
         const promoterResult = await db.query.promoters.findFirst({
             where: eq(schema.promoters.userId, user.id)
