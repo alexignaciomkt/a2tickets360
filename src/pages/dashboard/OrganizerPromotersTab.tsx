@@ -454,14 +454,14 @@ const OrganizerPromotersTab = ({ eventId }: { eventId: string }) => {
                       <span>Detalhes</span>
                     </button>
                     <button 
-                      onClick={() => handleApplicationStatus(app.id, 'APPROVED')}
+                      onClick={() => handleApproveApplication(app.id)}
                       className="text-sm font-medium text-emerald-600 hover:text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg transition-colors flex items-center space-x-1"
                     >
                       <CheckCircle className="w-4 h-4" />
                       <span>Aprovar</span>
                     </button>
                     <button 
-                      onClick={() => handleApplicationStatus(app.id, 'REJECTED')}
+                      onClick={() => handleRejectApplication(app.id)}
                       className="text-sm font-medium text-rose-600 hover:text-rose-700 bg-rose-50 px-3 py-1.5 rounded-lg transition-colors flex items-center space-x-1"
                     >
                       <XCircle className="w-4 h-4" />
@@ -713,7 +713,7 @@ const OrganizerPromotersTab = ({ eventId }: { eventId: string }) => {
               type="button"
               onClick={() => {
                 if (showApplicationModal) {
-                  handleApplicationStatus(showApplicationModal.id, 'REJECTED');
+                  handleRejectApplication(showApplicationModal.id);
                 }
               }}
               className="flex-1 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest text-white bg-rose-600 hover:bg-rose-700 transition-all shadow-lg shadow-rose-600/20"
@@ -724,7 +724,7 @@ const OrganizerPromotersTab = ({ eventId }: { eventId: string }) => {
               type="button"
               onClick={() => {
                 if (showApplicationModal) {
-                  handleApplicationStatus(showApplicationModal.id, 'APPROVED');
+                  handleApproveApplication(showApplicationModal.id);
                 }
               }}
               className="flex-[1.5] px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest text-white bg-emerald-600 hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2"
