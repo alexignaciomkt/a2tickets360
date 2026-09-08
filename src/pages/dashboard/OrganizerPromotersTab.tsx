@@ -125,37 +125,43 @@ const OrganizerPromotersTab = ({ eventId }: { eventId: string }) => {
 
   const handleApproveApplication = async (affId: string) => {
     setLoading(true);
-    // Gerar um cupom code aleatório
-    const couponCode = `PROM${Math.floor(Math.random() * 10000)}`;
-
-    const { error } = await supabase
-      .from('promoter_affiliations')
-      .update({ status: 'approved', coupon_code: couponCode })
-      .eq('id', affId);
-
-    if (error) {
+    try {
+      const token = user?.id ? (await supabase.auth.getSession()).data.session?.access_token : '';
+      const res = await fetch(`${API_BASE_URL}/api/organizer/events/${eventId}/promoters/${affId}/approve`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        toast({ title: 'Sucesso', description: 'Promoter aprovado com sucesso!' });
+        setAffiliations(affiliations.map(a => a.id === affId ? { ...a, status: 'APPROVED', referralCode: data.referralCode } : a));
+        setShowApplicationModal(null);
+      } else {
+        toast({ variant: 'destructive', title: 'Erro', description: 'Erro ao aprovar.' });
+      }
+    } catch (e) {
       toast({ variant: 'destructive', title: 'Erro', description: 'Erro ao aprovar.' });
-    } else {
-      toast({ title: 'Sucesso', description: 'Promoter aprovado com sucesso!' });
-      setAffiliations(affiliations.map(a => a.id === affId ? { ...a, status: 'approved', coupon_code: couponCode } : a));
-      setShowApplicationModal(null);
     }
     setLoading(false);
   };
 
   const handleRejectApplication = async (affId: string) => {
     setLoading(true);
-    const { error } = await supabase
-      .from('promoter_affiliations')
-      .update({ status: 'rejected' })
-      .eq('id', affId);
-
-    if (error) {
+    try {
+      const token = user?.id ? (await supabase.auth.getSession()).data.session?.access_token : '';
+      const res = await fetch(`${API_BASE_URL}/api/organizer/events/${eventId}/promoters/${affId}/reject`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        toast({ title: 'Sucesso', description: 'Promoter recusado.' });
+        setAffiliations(affiliations.map(a => a.id === affId ? { ...a, status: 'REJECTED' } : a));
+        setShowApplicationModal(null);
+      } else {
+        toast({ variant: 'destructive', title: 'Erro', description: 'Erro ao recusar.' });
+      }
+    } catch (e) {
       toast({ variant: 'destructive', title: 'Erro', description: 'Erro ao recusar.' });
-    } else {
-      toast({ title: 'Sucesso', description: 'Promoter recusado.' });
-      setAffiliations(affiliations.map(a => a.id === affId ? { ...a, status: 'rejected' } : a));
-      setShowApplicationModal(null);
     }
     setLoading(false);
   };
@@ -176,8 +182,8 @@ const OrganizerPromotersTab = ({ eventId }: { eventId: string }) => {
     setLoading(false);
   };
 
-  const activePromoters = affiliations.filter(a => a.status === 'APPROVED');
-  const pendingApplications = affiliations.filter(a => a.status === 'PENDING');
+  const activePromoters = affiliations.filter(a => a.status?.toUpperCase() === 'APPROVED');
+  const pendingApplications = affiliations.filter(a => a.status?.toUpperCase() === 'PENDING');
 
   const handleSaveSettings = async () => {
     setSavingSettings(true);
@@ -352,11 +358,11 @@ const OrganizerPromotersTab = ({ eventId }: { eventId: string }) => {
                         </td>
                         <td className="px-6 py-4">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            aff.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' :
-                            aff.status === 'REJECTED' ? 'bg-rose-100 text-rose-800' :
+                            aff.status?.toUpperCase() === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' :
+                            aff.status?.toUpperCase() === 'REJECTED' ? 'bg-rose-100 text-rose-800' :
                             'bg-amber-100 text-amber-800'
                           }`}>
-                            {aff.status === 'APPROVED' ? 'Ativo' : aff.status === 'REJECTED' ? 'Rejeitado' : 'Pendente'}
+                            {aff.status?.toUpperCase() === 'APPROVED' ? 'Ativo' : aff.status?.toUpperCase() === 'REJECTED' ? 'Rejeitado' : 'Pendente'}
                           </span>
                         </td>
                         <td className="px-6 py-4">
@@ -366,7 +372,7 @@ const OrganizerPromotersTab = ({ eventId }: { eventId: string }) => {
                           <div className="text-sm text-slate-600">{aff.settlementMode}</div>
                         </td>
                         <td className="px-6 py-4">
-                          {aff.status === 'APPROVED' && aff.referralCode ? (
+                          {aff.status?.toUpperCase() === 'APPROVED' && aff.referralCode ? (
                             <div className="flex items-center space-x-2">
                               <span className="text-sm font-medium text-indigo-600 bg-indigo-50 px-2 py-1 rounded">
                                 {aff.referralCode}
@@ -423,8 +429,8 @@ const OrganizerPromotersTab = ({ eventId }: { eventId: string }) => {
 
       {activeSubTab === 'applications' && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {affiliations.filter(a => a.status === 'PENDING').length > 0 ? (
-              affiliations.filter(a => a.status === 'PENDING').map((app) => (
+            {affiliations.filter(a => a.status?.toUpperCase() === 'PENDING').length > 0 ? (
+              affiliations.filter(a => a.status?.toUpperCase() === 'PENDING').map((app) => (
                 <div key={app.id} className="bg-white rounded-xl border border-slate-200 p-6 flex flex-col hover:border-indigo-200 hover:shadow-md transition-all">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center space-x-3">

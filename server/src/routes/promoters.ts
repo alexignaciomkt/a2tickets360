@@ -98,8 +98,7 @@ router.get('/dashboard', authMiddleware, async (c: Context) => {
         .where(
             and(
                 eq(schema.eventPromoters.promoterId, promoter.id),
-                eq(schema.eventPromoters.status, 'APPROVED'),
-                eq(schema.eventPromoters.isActive, true)
+                inArray(schema.eventPromoters.status, ['APPROVED', 'PENDING'])
             )
         );
         console.log('[PROM DASH] 3 AFFILIATIONS', affiliations.length);
