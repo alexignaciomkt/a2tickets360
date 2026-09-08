@@ -10,7 +10,11 @@ import {
     profiles, 
     staffProfiles,
     eventStaff,
-    staffProfileFunctions
+    staffProfileFunctions,
+    eventPromoters,
+    promoters,
+    sales,
+    purchasedTickets
 } from '../db/schema';
 import { eq, and, sql, inArray } from 'drizzle-orm';
 import { authMiddleware } from '../middlewares/auth';
@@ -294,8 +298,6 @@ router.post('/:eventId/promoters/:id/approve', async (c) => {
             return c.json({ error: 'Não autorizado.' }, 403);
         }
 
-        const { eventPromoters } = await import('../db/schema');
-        const { eq, and } = await import('drizzle-orm');
 
         const ep = await db.query.eventPromoters.findFirst({
             where: and(
@@ -332,8 +334,6 @@ router.get('/:eventId/promoters', async (c) => {
         const payload = (c.get as any)('jwtPayload');
         const eventId = c.req.param('eventId');
 
-        const { eventPromoters, promoters, sales, purchasedTickets } = await import('../db/schema');
-        const { eq, and, inArray } = await import('drizzle-orm');
 
         const eps = await db.select({
             id: eventPromoters.id,
@@ -422,7 +422,6 @@ router.get('/:eventId/promoters', async (c) => {
         }));
 
         // Calculate totalEventPaidSales
-        const { sql } = await import('drizzle-orm');
         const totalSalesQuery = await db.select({ count: sql`count(*)` }).from(sales).where(
             and(
                 eq(sales.eventId, eventId),
@@ -470,8 +469,6 @@ router.post('/:eventId/promoters/:id/reject', async (c) => {
             return c.json({ error: 'Não autorizado.' }, 403);
         }
 
-        const { eventPromoters } = await import('../db/schema');
-        const { eq, and } = await import('drizzle-orm');
 
         const ep = await db.query.eventPromoters.findFirst({
             where: and(
