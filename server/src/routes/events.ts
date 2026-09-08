@@ -291,7 +291,7 @@ router.post('/:eventId/promoters/:id/approve', async (c) => {
 
         // Validar ownership
         const orgEvent = await db.query.events.findFirst({
-            where: (e, { eq, and }) => and(eq(e.id, eventId), eq(e.organizerId, payload.id))
+            where: and(eq(events.id, eventId), eq(events.organizerId, payload.id))
         });
         
         if (!orgEvent && payload.role !== 'master') {
@@ -463,7 +463,7 @@ router.post('/:eventId/promoters/:id/reject', async (c) => {
 
         // Validar ownership
         const orgEvent = await db.query.events.findFirst({
-            where: (e, { eq, and }) => and(eq(e.id, eventId), eq(e.organizerId, payload.id))
+            where: and(eq(events.id, eventId), eq(events.organizerId, payload.id))
         });
         
         if (!orgEvent && payload.role !== 'master') {

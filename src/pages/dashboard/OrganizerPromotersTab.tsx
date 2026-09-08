@@ -130,7 +130,11 @@ const OrganizerPromotersTab = ({ eventId }: { eventId: string }) => {
       const token = user?.id ? (await supabase.auth.getSession()).data.session?.access_token : '';
       const res = await fetch(`${API_BASE_URL}/api/organizer/events/${eventId}/promoters/${affId}/approve`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({})
       });
       if (res.ok) {
         const data = await res.json();
