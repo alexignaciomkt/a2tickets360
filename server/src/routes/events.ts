@@ -290,22 +290,22 @@ router.post('/:eventId/promoters/:id/approve', async (c) => {
         const { commissionRate = '10.00', discountRate = '0.00', settlementMode = 'MANUAL' } = body;
 
         // Validar ownership
-        const orgEvent = await db.query.events.findFirst({
-            where: and(eq(events.id, eventId), eq(events.organizerId, payload.id))
-        });
+        const [orgEvent] = await db.select().from(events).where(
+            and(eq(events.id, eventId), eq(events.organizerId, payload.id))
+        ).limit(1);
         
         if (!orgEvent && payload.role !== 'master') {
             return c.json({ error: 'Não autorizado.' }, 403);
         }
 
 
-        const ep = await db.query.eventPromoters.findFirst({
-            where: and(
+        const [ep] = await db.select().from(eventPromoters).where(
+            and(
                 eq(eventPromoters.id, eventPromoterId),
                 eq(eventPromoters.eventId, eventId),
                 eq(eventPromoters.status, 'PENDING')
             )
-        });
+        ).limit(1);
 
         if (!ep) {
             return c.json({ error: 'Afiliação não encontrada ou não pendente.' }, 404);
@@ -462,21 +462,21 @@ router.post('/:eventId/promoters/:id/reject', async (c) => {
         const eventPromoterId = c.req.param('id');
 
         // Validar ownership
-        const orgEvent = await db.query.events.findFirst({
-            where: and(eq(events.id, eventId), eq(events.organizerId, payload.id))
-        });
+        const [orgEvent] = await db.select().from(events).where(
+            and(eq(events.id, eventId), eq(events.organizerId, payload.id))
+        ).limit(1);
         
         if (!orgEvent && payload.role !== 'master') {
             return c.json({ error: 'Não autorizado.' }, 403);
         }
 
 
-        const ep = await db.query.eventPromoters.findFirst({
-            where: and(
+        const [ep] = await db.select().from(eventPromoters).where(
+            and(
                 eq(eventPromoters.id, eventPromoterId),
                 eq(eventPromoters.eventId, eventId)
             )
-        });
+        ).limit(1);
 
         if (!ep) {
             return c.json({ error: 'Afiliação não encontrada.' }, 404);
