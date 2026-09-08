@@ -13,7 +13,8 @@ import {
 import { eq, and, sql } from 'drizzle-orm';
 import { AuthorizationEngine } from '../services/authorizationEngine';
 import { StaffAssignmentService } from '../services/staffAssignmentService';
-import { v4 as uuidv4 } from 'uuid';
+import crypto from 'node:crypto';
+const uuidv4 = () => crypto.randomUUID();
 
 const router = new Hono();
 router.use('/*', authMiddleware);

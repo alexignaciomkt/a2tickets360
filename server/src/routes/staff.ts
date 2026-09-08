@@ -16,7 +16,8 @@ import {
     organizers
 } from '../db/schema';
 import { eq, and, or, sql, lt, gt, inArray, isNull } from 'drizzle-orm';
-import { v4 as uuidv4 } from 'uuid';
+import crypto from 'node:crypto';
+const uuidv4 = () => crypto.randomUUID();
 import { supabaseAdmin } from '../lib/supabaseAdmin';
 import { supabaseAuthClient } from '../lib/supabaseAuthClient';
 import { StaffAssignmentService } from '../services/staffAssignmentService';

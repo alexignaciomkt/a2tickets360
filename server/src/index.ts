@@ -21,9 +21,10 @@ import { serveStatic } from '@hono/node-server/serve-static';
 import { join } from 'node:path';
 import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { v4 as uuidv4 } from 'uuid';
 import nodemailer from 'nodemailer';
 import crypto from 'node:crypto';
+// uuid replaced by native crypto.randomUUID()
+const uuidv4 = () => crypto.randomUUID();
 
 // Router Imports
 import exhibitorRoutes from './routes/exhibitor';

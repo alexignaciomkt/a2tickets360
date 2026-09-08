@@ -1,6 +1,7 @@
 import { Hono, Context } from 'hono';
 import { authMiddleware } from '../middlewares/auth';
-import { v4 as uuidv4 } from 'uuid';
+import crypto from 'node:crypto';
+const uuidv4 = () => crypto.randomUUID();
 import { db } from '../db';
 import { organizers, producerAlbums } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
