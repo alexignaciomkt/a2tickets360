@@ -405,6 +405,7 @@ export const promoters = pgTable('promoters', {
     phone: text('phone'),
     isActive: boolean('is_active').default(true).notNull(),
     profileComplete: boolean('profile_complete').default(false).notNull(),
+    profileData: jsonb('profile_data'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 

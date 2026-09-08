@@ -4,6 +4,7 @@ import { Users, Plus, Loader2, ExternalLink, Trash2, CheckCircle, XCircle, FileT
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 interface PromoterProfile {
   id: string;
@@ -446,6 +447,13 @@ const OrganizerPromotersTab = ({ eventId }: { eventId: string }) => {
                   
                   <div className="mt-auto pt-4 flex items-center justify-between border-t border-slate-100">
                     <button 
+                      onClick={() => setShowApplicationModal(app)}
+                      className="text-sm font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-lg transition-colors flex items-center space-x-1"
+                    >
+                      <FileText className="w-4 h-4" />
+                      <span>Detalhes</span>
+                    </button>
+                    <button 
                       onClick={() => handleApplicationStatus(app.id, 'APPROVED')}
                       className="text-sm font-medium text-emerald-600 hover:text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg transition-colors flex items-center space-x-1"
                     >
@@ -620,6 +628,113 @@ const OrganizerPromotersTab = ({ eventId }: { eventId: string }) => {
           </div>
         )}
       </div>
+      
+      {/* Modal de Detalhes da Aplicação */}
+      <Dialog open={!!showApplicationModal} onOpenChange={(open) => !open && setShowApplicationModal(null)}>
+        <DialogContent className="max-w-2xl bg-white p-0 overflow-hidden border-0 shadow-2xl rounded-3xl">
+          <DialogHeader className="bg-slate-50 p-6 border-b border-slate-100">
+            <DialogTitle className="text-xl font-black uppercase tracking-tight text-slate-900">
+              Detalhes do Promoter
+            </DialogTitle>
+            <DialogDescription className="text-sm font-medium text-slate-500">
+              Revise o perfil e o onboarding de {showApplicationModal?.promoterName} antes de aprovar a afiliação.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="p-6 overflow-y-auto max-h-[60vh] custom-scrollbar space-y-6">
+            <div>
+              <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Contato</h4>
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Nome</p>
+                  <p className="text-sm font-medium text-slate-900">{showApplicationModal?.promoterName}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Email</p>
+                  <p className="text-sm font-medium text-slate-900">{showApplicationModal?.promoterEmail}</p>
+                </div>
+              </div>
+            </div>
+
+            {showApplicationModal?.promoterProfileData ? (
+              <div>
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Questionário de Onboarding</h4>
+                <div className="space-y-4">
+                  {Object.entries(showApplicationModal.promoterProfileData).map(([key, value]) => {
+                    if (!value || (Array.isArray(value) && value.length === 0) || key === 'social_links') return null;
+                    return (
+                      <div key={key} className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">
+                          {fieldTranslations[key] || key}
+                        </p>
+                        <p className="text-sm font-medium text-slate-900 whitespace-pre-wrap">
+                          {Array.isArray(value) ? value.join(', ') : String(value)}
+                        </p>
+                      </div>
+                    );
+                  })}
+                  
+                  {showApplicationModal.promoterProfileData.social_links && (
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                      <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Redes Sociais</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {Object.entries(showApplicationModal.promoterProfileData.social_links).map(([social, link]) => {
+                          if (!link) return null;
+                          return (
+                            <div key={social} className="flex flex-col">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{social}</span>
+                              <a href={String(link)} target="_blank" rel="noreferrer" className="text-sm text-indigo-600 hover:underline font-medium truncate">
+                                {String(link)}
+                              </a>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="bg-slate-50 p-8 rounded-xl border border-slate-100 text-center">
+                <p className="text-sm font-medium text-slate-500">Este promoter não preencheu os dados de onboarding adicionais.</p>
+              </div>
+            )}
+          </div>
+          
+          <div className="p-6 bg-slate-50 border-t border-slate-100 flex gap-3">
+            <button 
+              type="button"
+              onClick={() => setShowApplicationModal(null)}
+              className="flex-1 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest text-slate-500 hover:bg-slate-200 transition-all border border-slate-200 bg-white"
+            >
+              Fechar
+            </button>
+            <button 
+              type="button"
+              onClick={() => {
+                if (showApplicationModal) {
+                  handleApplicationStatus(showApplicationModal.id, 'REJECTED');
+                }
+              }}
+              className="flex-1 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest text-white bg-rose-600 hover:bg-rose-700 transition-all shadow-lg shadow-rose-600/20"
+            >
+              Recusar
+            </button>
+            <button 
+              type="button"
+              onClick={() => {
+                if (showApplicationModal) {
+                  handleApplicationStatus(showApplicationModal.id, 'APPROVED');
+                }
+              }}
+              className="flex-[1.5] px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest text-white bg-emerald-600 hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2"
+            >
+              <CheckCircle className="w-4 h-4" />
+              Aprovar Promoter
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

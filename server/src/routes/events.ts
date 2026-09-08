@@ -348,6 +348,7 @@ router.get('/:eventId/promoters', async (c) => {
             createdAt: eventPromoters.createdAt,
             promoterName: promoters.name,
             promoterEmail: promoters.email,
+            promoterProfileData: promoters.profileData,
         })
         .from(eventPromoters)
         .leftJoin(promoters, eq(eventPromoters.promoterId, promoters.id))
