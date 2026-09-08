@@ -41,11 +41,11 @@ const PromoterStore = () => {
 
           if (pData) {
             const { data: affData } = await supabase
-              .from('promoter_affiliations')
+              .from('event_promoters')
               .select('*')
               .eq('promoter_id', pData.id)
               .eq('event_id', eventId)
-              .eq('status', 'approved')
+              .eq('status', 'APPROVED')
               .single();
               
             if (affData) setAffiliation(affData);
