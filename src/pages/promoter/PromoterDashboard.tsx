@@ -56,8 +56,9 @@ const PromoterDashboard = () => {
     toast({ title: 'Link de venda copiado!' });
   };
 
-  const activeEvents = affiliations.filter(aff => !aff.endDate || new Date(aff.endDate) > new Date());
-  const workedEventsCount = affiliations.length - activeEvents.length;
+  const activeEvents = affiliations.filter(aff => aff.status?.toUpperCase() === 'APPROVED' && (!aff.endDate || new Date(aff.endDate) > new Date()));
+  const pendingEvents = affiliations.filter(aff => aff.status?.toUpperCase() === 'PENDING');
+  const workedEventsCount = affiliations.filter(aff => aff.status?.toUpperCase() === 'APPROVED' && aff.endDate && new Date(aff.endDate) <= new Date()).length;
 
   if (loading) {
     return (
@@ -135,17 +136,17 @@ const PromoterDashboard = () => {
                      <img src={aff.bannerUrl || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30'} alt="Event" className="w-full h-full object-cover opacity-90 dark:opacity-50" />
                      <div className="absolute top-4 right-4">
                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${
-                         aff.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800 border-emerald-400 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/30' :
-                         aff.status === 'PENDING' ? 'bg-orange-100 text-orange-800 border-orange-400 dark:bg-orange-500/20 dark:text-orange-400 dark:border-orange-500/30' :
+                         aff.status?.toUpperCase() === 'APPROVED' ? 'bg-emerald-100 text-emerald-800 border-emerald-400 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/30' :
+                         aff.status?.toUpperCase() === 'PENDING' ? 'bg-orange-100 text-orange-800 border-orange-400 dark:bg-orange-500/20 dark:text-orange-400 dark:border-orange-500/30' :
                          'bg-red-100 text-red-800 border-red-400 dark:bg-red-500/20 dark:text-red-400 dark:border-red-500/30'
                        }`}>
-                         {aff.status === 'APPROVED' ? 'Aprovado' : aff.status === 'PENDING' ? 'Em Análise' : 'Recusado'}
+                         {aff.status?.toUpperCase() === 'APPROVED' ? 'Aprovado' : aff.status?.toUpperCase() === 'PENDING' ? 'Em Análise' : 'Recusado'}
                        </span>
                      </div>
                   </div>
                   <div className="p-6 flex-1 flex flex-col">
                     <h3 className="text-lg font-black uppercase tracking-tight text-slate-950 dark:text-white mb-4">
-                      {aff.title || 'Barões do Truco 2026'}
+                      {aff.title || 'Evento'}
                     </h3>
                     
                     <div className="grid grid-cols-2 gap-4 mb-4">
@@ -191,7 +192,7 @@ const PromoterDashboard = () => {
                        </div>
                     </div>
 
-                    {aff.status === 'APPROVED' && aff.referralCode && (
+                    {aff.status?.toUpperCase() === 'APPROVED' && aff.referralCode && (
                       <div className="mt-auto">
                         <p className="text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400 mb-2">Seu Link de Venda</p>
                         <div className="flex gap-2">
@@ -213,6 +214,38 @@ const PromoterDashboard = () => {
             </div>
           )}
         </div>
+
+        {/* Pending Events List */}
+        {pendingEvents.length > 0 && (
+          <div className="mt-12">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-black uppercase tracking-tight text-slate-950 dark:text-white">Solicitações em Análise</h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {pendingEvents.map(aff => (
+                <motion.div key={aff.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-3xl overflow-hidden flex flex-col hover:border-orange-500/50 transition-colors shadow-sm opacity-80">
+                  <div className="h-32 bg-slate-200 dark:bg-slate-800 relative grayscale">
+                     <img src={aff.bannerUrl || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30'} alt="Event" className="w-full h-full object-cover opacity-60" />
+                     <div className="absolute top-4 right-4">
+                       <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border bg-orange-100 text-orange-800 border-orange-400">
+                         Em Análise
+                       </span>
+                     </div>
+                  </div>
+                  <div className="p-6 flex-1 flex flex-col justify-center items-center text-center">
+                    <h3 className="text-lg font-black uppercase tracking-tight text-slate-950 dark:text-white mb-2">
+                      {aff.title || 'Evento'}
+                    </h3>
+                    <p className="text-xs text-slate-500 mb-4">Sua solicitação está sendo avaliada pelo produtor deste evento.</p>
+                    <div className="bg-orange-50 text-orange-700 text-xs font-semibold px-4 py-2 rounded-lg border border-orange-200">
+                      Aguardando Aprovação
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );
