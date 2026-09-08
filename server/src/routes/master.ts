@@ -1,7 +1,6 @@
 import { Hono } from 'hono';
 import { db } from '../db';
 import { profiles, sales, events, purchasedTickets, sportRegistrations, organizers as organizersTable } from '../db/schema';
-import { profiles, sales, events, purchasedTickets, sportRegistrations } from '../db/schema';
 import { eq, sql, desc } from 'drizzle-orm';
 import { authMiddleware } from '../middlewares/auth';
 
@@ -11,7 +10,7 @@ router.use('/*', authMiddleware);
 
 // Middleware to assert master role canonically
 router.use('/*', async (c, next) => {
-    const payload = c.get('jwtPayload');
+    const payload = (c.get as any)('jwtPayload');
     if (!payload || !payload.id) {
         return c.json({ error: 'Não autenticado' }, 401);
     }
@@ -143,7 +142,7 @@ router.get('/financial/transactions', async (c) => {
 
         // Note: As per instructions, "A tabela deve listar Sales reais... Esperado: pelo menos as 2 Sales da Copa Bruxa."
         if (queryParams.status && queryParams.status !== 'all') {
-             query = query.where(eq(sales.paymentStatus, queryParams.status));
+             query = query.where(eq(sales.paymentStatus, queryParams.status as 'pending' | 'paid' | 'refunded' | 'cancelled')) as any;
         }
 
         const tx = await query.orderBy(sql`${sales.createdAt} DESC`);
@@ -402,7 +401,7 @@ router.delete('/organizers/:id', async (c) => {
     const id = c.req.param('id');
     try {
         const [updated] = await db.update(organizersTable)
-            .set({ isActive: false, updatedAt: new Date() })
+            .set({ updatedAt: new Date() })
             .where(eq(organizersTable.id, id))
             .returning();
         if (!updated) return c.json({ error: 'Not found' }, 404);

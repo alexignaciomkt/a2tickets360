@@ -15,7 +15,7 @@ router.use('/*', authMiddleware);
  * - eventId (optional)
  */
 router.get('/', async (c: Context) => {
-    const payload = c.get('jwtPayload');
+    const payload = (c.get as any)('jwtPayload');
     if (!payload || !payload.id) {
         return c.json({ error: 'Unauthorized' }, 401);
     }

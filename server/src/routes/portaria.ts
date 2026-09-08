@@ -14,7 +14,7 @@ router.use('/*', authMiddleware);
  */
 router.get('/current-operation', async (c: Context) => {
     try {
-        const payload = c.get('jwtPayload');
+        const payload = (c.get as any)('jwtPayload');
         if (!payload) return c.json({ error: 'Unauthorized' }, 401);
         const userId = payload.id;
 

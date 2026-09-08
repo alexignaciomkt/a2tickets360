@@ -59,7 +59,7 @@ router.post('/events/:eventId/apply', authMiddleware, async (c: Context) => {
 // Dashboard Metrics
 router.get('/dashboard', authMiddleware, async (c: Context) => {
     try {
-        const user = c.get('jwtPayload');
+        const user = (c.get as any)('jwtPayload');
         if (!user || !user.id) {
             return c.json({ error: 'Usuário não autenticado.' }, 401);
         }
@@ -212,7 +212,7 @@ router.get('/dashboard', authMiddleware, async (c: Context) => {
 // Mailing
 router.get('/mailing', authMiddleware, async (c: Context) => {
     try {
-        const user = c.get('jwtPayload');
+        const user = (c.get as any)('jwtPayload');
         if (!user || !user.id) {
             return c.json({ error: 'Usuário não autenticado.' }, 401);
         }

@@ -13,7 +13,7 @@ const router = new Hono();
  */
 router.post('/validate', async (c: Context) => {
     try {
-        const payload = c.get('jwtPayload');
+        const payload = (c.get as any)('jwtPayload');
         if (!payload) return c.json({ error: 'Unauthorized' }, 401);
         const operatorId = payload.id; // User ID do operador
 
@@ -150,7 +150,7 @@ router.post('/validate', async (c: Context) => {
  */
 router.post('/undo', async (c: Context) => {
     try {
-        const payload = c.get('jwtPayload');
+        const payload = (c.get as any)('jwtPayload');
         if (!payload) return c.json({ error: 'Unauthorized' }, 401);
         const adminId = payload.id; // User ID
 

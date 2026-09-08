@@ -1,4 +1,4 @@
-import { Hono } from 'hono';
+import { Hono, Context } from 'hono';
 import { db } from '../db';
 import { 
     events, 
@@ -22,7 +22,7 @@ router.use('/*', authMiddleware);
 
 router.post('/', async (c) => {
     try {
-        const payload = c.get('jwtPayload');
+        const payload = (c.get as any)('jwtPayload');
         if (payload.role !== 'organizer' && payload.role !== 'master') {
             return c.json({ error: 'Acesso negado. Apenas organizadores podem criar eventos.' }, 403);
         }
@@ -181,8 +181,8 @@ router.post('/', async (c) => {
 
     } catch (error: any) {
         console.error('[EVENT API] ERROR at final catch', error);
-        await idempotencyService.setFailed(c.get('jwtPayload').id, c.req.header('X-Idempotency-Key')!, error.message);
-        const payload = c.get('jwtPayload');
+        await idempotencyService.setFailed((c.get as any)('jwtPayload').id, c.req.header('X-Idempotency-Key')!, error.message);
+        const payload = (c.get as any)('jwtPayload');
         const operationId = c.req.header('X-Idempotency-Key');
         if (payload && operationId) {
             await idempotencyService.setFailed(payload.id, operationId, error.message || 'UNKNOWN');
@@ -193,7 +193,7 @@ router.post('/', async (c) => {
 
 router.get('/operations/:operationId', async (c) => {
     try {
-        const payload = c.get('jwtPayload');
+        const payload = (c.get as any)('jwtPayload');
         const userId = payload.id;
         const operationId = c.req.param('operationId');
 
@@ -228,7 +228,7 @@ router.get('/operations/:operationId', async (c) => {
 // Configurar regras do programa de promoters (organizador)
 router.put('/:id/promoter-settings', async (c) => {
     try {
-        const payload = c.get('jwtPayload');
+        const payload = (c.get as any)('jwtPayload');
         if (payload.role !== 'organizer' && payload.role !== 'master') {
             return c.json({ error: 'Acesso negado.' }, 403);
         }
@@ -275,7 +275,7 @@ router.put('/:id/promoter-settings', async (c) => {
 // Aprovar promoter
 router.post('/:eventId/promoters/:id/approve', async (c) => {
     try {
-        const payload = c.get('jwtPayload');
+        const payload = (c.get as any)('jwtPayload');
         if (payload.role !== 'organizer' && payload.role !== 'master') {
             return c.json({ error: 'Acesso negado.' }, 403);
         }
@@ -329,7 +329,7 @@ router.post('/:eventId/promoters/:id/approve', async (c) => {
 // Listar promoters do evento
 router.get('/:eventId/promoters', async (c) => {
     try {
-        const payload = c.get('jwtPayload');
+        const payload = (c.get as any)('jwtPayload');
         const eventId = c.req.param('eventId');
 
         const { eventPromoters, promoters, sales, purchasedTickets } = await import('../db/schema');
@@ -453,7 +453,7 @@ router.get('/:eventId/promoters', async (c) => {
 // Rejeitar promoter
 router.post('/:eventId/promoters/:id/reject', async (c) => {
     try {
-        const payload = c.get('jwtPayload');
+        const payload = (c.get as any)('jwtPayload');
         if (payload.role !== 'organizer' && payload.role !== 'master') {
             return c.json({ error: 'Acesso negado.' }, 403);
         }
@@ -505,7 +505,7 @@ router.post('/:eventId/promoters/:id/reject', async (c) => {
  */
 router.get('/:eventId/staff-applications', async (c) => {
     try {
-        const payload = c.get('jwtPayload');
+        const payload = (c.get as any)('jwtPayload');
         const organizerId = payload.id;
         const { eventId } = c.req.param();
 
@@ -601,7 +601,7 @@ router.get('/:eventId/staff-applications', async (c) => {
  */
 router.get('/:eventId/staff-applications/:id/profile', async (c) => {
     try {
-        const payload = c.get('jwtPayload');
+        const payload = (c.get as any)('jwtPayload');
         const organizerId = payload.id;
         const { eventId, id } = c.req.param();
 
@@ -660,7 +660,7 @@ router.get('/:eventId/staff-applications/:id/profile', async (c) => {
  */
 router.post('/:eventId/staff-applications/:id/reject', async (c) => {
     try {
-        const payload = c.get('jwtPayload');
+        const payload = (c.get as any)('jwtPayload');
         const organizerId = payload.id;
         const { eventId, id } = c.req.param();
 
@@ -692,11 +692,11 @@ router.post('/:eventId/staff-applications/:id/reject', async (c) => {
  */
 router.post('/:eventId/staff-applications/:id/approve', async (c) => {
     try {
-        const payload = c.get('jwtPayload');
+        const payload = (c.get as any)('jwtPayload');
         const organizerId = payload.id;
         const { eventId, id } = c.req.param();
         const body = await c.req.json();
-        const { staffFunctionId, shiftStart, shiftEnd } = body;
+        const { staffFunctionId, shiftDate, shiftStart, shiftEnd } = body;
 
         if (!staffFunctionId) return c.json({ error: 'Função operacional é obrigatória.' }, 400);
 
@@ -779,7 +779,7 @@ router.post('/:eventId/staff-applications/:id/approve', async (c) => {
  */
 router.patch('/:eventId/staff-applications/:id/proposal', async (c) => {
     try {
-        const payload = c.get('jwtPayload');
+        const payload = (c.get as any)('jwtPayload');
         const organizerId = payload.id;
         const { eventId, id } = c.req.param();
         const body = await c.req.json();
@@ -896,7 +896,7 @@ router.patch('/:eventId/staff-applications/:id/proposal', async (c) => {
  */
 router.patch('/:eventId/access-operation', async (c: Context) => {
     try {
-        const payload = c.get('jwtPayload');
+        const payload = (c.get as any)('jwtPayload');
         if (!payload) return c.json({ error: 'Unauthorized' }, 401);
         
         const organizerId = payload.id; // User is the organizer

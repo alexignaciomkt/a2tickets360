@@ -10,7 +10,7 @@ contextsRoutes.use('/*', authMiddleware);
 
 contextsRoutes.get('/', async (c: Context) => {
     try {
-        const user = c.get('jwtPayload');
+        const user = (c.get as any)('jwtPayload');
         if (!user || !user.id) {
             return c.json({ error: 'Unauthorized' }, 401);
         }

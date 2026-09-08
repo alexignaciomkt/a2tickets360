@@ -74,7 +74,7 @@ router.post('/sports/provision-event', async (c: Context) => {
             return c.json({ error: 'event_id é obrigatório.' }, 400);
         }
 
-        const payload = c.get('jwtPayload');
+        const payload = (c.get as any)('jwtPayload');
         const userId = payload.id;
         const userRole = payload.role;
 
@@ -212,7 +212,7 @@ router.post('/sports/open', async (c: Context) => {
             return c.json({ error: 'event_id é obrigatório.' }, 400);
         }
 
-        const payload = c.get('jwtPayload');
+        const payload = (c.get as any)('jwtPayload');
         const userId = payload.id;
         const userRole = payload.role;
 
@@ -286,7 +286,7 @@ router.post('/sports/sync-registrations', async (c: Context) => {
             return c.json({ error: 'event_id é obrigatório.' }, 400);
         }
 
-        const payload = c.get('jwtPayload');
+        const payload = (c.get as any)('jwtPayload');
         const userId = payload.id;
         const userRole = payload.role;
 

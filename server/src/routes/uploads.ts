@@ -22,7 +22,7 @@ router.use('/banner', authMiddleware);
 
 router.post('/presign', async (c: Context) => {
   try {
-    const payload = c.get('jwtPayload');
+    const payload = (c.get as any)('jwtPayload');
     if (!payload || !payload.id) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
@@ -150,7 +150,7 @@ router.put('/direct/:key', async (c: Context) => {
 
 router.post('/banner', async (c: Context) => {
   try {
-    const payload = c.get('jwtPayload');
+    const payload = (c.get as any)('jwtPayload');
     if (!payload || !payload.id) {
       return c.json({ error: 'Unauthorized' }, 401);
     }

@@ -8,7 +8,7 @@ import * as schema from './db/schema';
 import { supabaseAdmin } from './lib/supabaseAdmin';
 
 const {
-    admins, organizers: organizersTable, eventCategories, events, tickets, sales, staff,
+    organizers: organizersTable, eventCategories, events, tickets, sales, staff,
     checkins, supplierCategories, suppliers, supplierContracts, quotes, quoteResponses,
     candidates, staffProposals, sponsorTypes, sponsors, sponsorInstallments, sponsorDeliverables,
     standCategories, stands, visitors, exhibitorStaff, exhibitorLogistics, exhibitorLeads,
@@ -44,7 +44,7 @@ import masterRoutes from './routes/master';
 import eventsRoutes from './routes/events';
 
 import { logger } from 'hono/logger';
-import { authMiddleware, clerkAuthMiddleware } from './middlewares/auth';
+import { authMiddleware } from './middlewares/auth';
 import { calculateFinancialDistribution, deriveBillableUnits } from './domain/financialEngine';
 import { reserveSessionCredit, cancelReservationSession, consumeFeaturedReservation, activateFeaturedCredit, lazyCleanupExpiredReservations } from './services/credits';
 
@@ -137,7 +137,7 @@ app.get('/og/events/:id', async (c: Context) => {
         const title = event?.title || 'A2 Tickets 360º';
         const rawDesc = event?.description || 'Gestão completa de eventos e inteligência de mercado.';
         // Strip HTML tags and limit to 200 chars for OG description
-        const description = rawDesc.replace(/<[^>]*>/g, '').substring(0, 200);
+        const description = String(rawDesc).replace(/<[^>]*>/g, '').substring(0, 200);
         const image = event?.imageUrl || `${SITE_URL}/logo_512x512.png`;
         const eventUrl = `${SITE_URL}/events/${id}`;
 
@@ -149,10 +149,10 @@ app.get('/og/events/:id', async (c: Context) => {
         let dateFormatted = '';
         if (event?.date) {
             try {
-                const d = new Date(event.date);
+                const d = new Date(event.date as string);
                 dateFormatted = d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
                 if (event.time) dateFormatted += ` às ${event.time}`;
-            } catch { dateFormatted = event.date; }
+            } catch { dateFormatted = String(event.date); }
         }
 
         // Build a richer description with date and location
@@ -213,16 +213,11 @@ app.get('/og/events/:id', async (c: Context) => {
 // Storage Config
 const UPLOADS_DIR = join(process.cwd(), 'uploads');
 if (!existsSync(UPLOADS_DIR)) {
-    await mkdir(UPLOADS_DIR, { recursive: true });
+    mkdir(UPLOADS_DIR, { recursive: true }).catch(() => {});
 }
 // Servir arquivos estáticos corretamente
 app.use('/uploads/*', serveStatic({ 
     root: './',
-    getContentType: (path) => {
-        if (path.endsWith('.jpg') || path.endsWith('.jpeg')) return 'image/jpeg';
-        if (path.endsWith('.png')) return 'image/png';
-        return 'application/octet-stream';
-    }
 }));
 
 // --- RESTO DO CÓDIGO (Será modularizado nos próximos dias) ---
@@ -815,7 +810,7 @@ app.post('/api/payments/checkout', async (c: Context) => {
                 buyerTotal: (dist.buyerTotalCents / 100).toString(),
     
                 totalAmount: totalValue.toString(),
-                revenueType,
+                revenueType: revenueType as 'TICKET' | 'REGISTRATION' | 'REPECHAGE',
                 paymentStatus: 'pending',
                 paymentMethod: paymentMethod,
 
@@ -824,7 +819,7 @@ app.post('/api/payments/checkout', async (c: Context) => {
                 eventPromoterId: resolvedEventPromoterId,
                 promoterCommissionRate: resolvedPromoterId ? resolvedPromoterRate.toString() : null,
                 promoterCommissionAmount: resolvedPromoterId ? resolvedPromoterAmount.toString() : null,
-                promoterSettlementMode: resolvedPromoterId ? promoterSettlementMode : null,
+                promoterSettlementMode: resolvedPromoterId ? (promoterSettlementMode as 'MANUAL' | 'ASAAS_SPLIT') : null,
             }).returning({ id: schema.sales.id });
             const saleId = saleResult[0].id;
 
@@ -1592,7 +1587,7 @@ app.post('/api/webhooks/asaas', async (c: Context) => {
                     console.log(`[SERVICE CREDIT WEBHOOK] Success: order ${finalOrder.id} status ${finalOrder.paymentStatus}, ${finalCredits.length} credits created, ${finalLedgerCount} ledger created.`);
 
                     await tx.update(schema.webhookLogs)
-                        .set({ status: 'done', processedAt: new Date() })
+                        .set({ status: 'done', response: new Date().toISOString() })
                         .where(eq(schema.webhookLogs.eventKey, webhookEventId));
 
                     return; // Finaliza processamento deste evento, abortando fallback pra sales
@@ -1724,46 +1719,7 @@ app.post('/api/webhooks/asaas', async (c: Context) => {
 
 // --- Rota de Login (Staff e Organizador) ---
 app.post('/api/auth/login', async (c: Context) => {
-    const { email, password, role } = await c.req.json();
-
-    try {
-        if (role === 'organizer') {
-            const organizer = await db.query.organizers.findFirst({
-                where: eq(organizersTable.email, email),
-            });
-
-            if (!organizer || !organizer.emailVerified) {
-                return c.json({ error: 'Credenciais inválidas ou e-mail não verificado' }, 401);
-            }
-
-            const isPasswordCorrect = await verifyPassword(password, organizer.passwordHash);
-            if (!isPasswordCorrect) return c.json({ error: 'Credenciais inválidas' }, 401);
-
-            const token = 'simulated_organizer_jwt'; // TODO: Sign real JWT
-            return c.json({ token, user: { id: organizer.id, name: organizer.name, role: 'organizer' } });
-        }
-
-        const staffMember = await db.query.staff.findFirst({
-            where: eq(staff.email, email),
-        });
-
-        if (!staffMember || staffMember.isActive === false) {
-            return c.json({ error: 'Credenciais inválidas' }, 401);
-        }
-
-        // Simular verificação (Staff ainda usa mock no seed)
-        if (password !== staffMember.passwordHash && staffMember.passwordHash !== '123456') {
-            const isPasswordCorrect = await verifyPassword(password, staffMember.passwordHash);
-            if (!isPasswordCorrect) return c.json({ error: 'Credenciais inválidas' }, 401);
-        }
-
-        return c.json({
-            token: 'simulated_staff_token',
-            user: { id: staffMember.id, name: staffMember.name, role: staffMember.roleId }
-        });
-    } catch (error: any) {
-        return c.json({ error: error.message }, 400);
-    }
+    return c.json({ error: 'Endpoint descontinuado. A autenticação agora é feita pelo Supabase Auth.' }, 410);
 });
 
 // --- Categorias de Eventos (Banco Global) ---
@@ -1813,7 +1769,7 @@ app.get('/api/organizer/:id/profile', async (c) => {
             return c.json({ error: 'Organizador não encontrado' }, 404);
         }
 
-        const { passwordHash, ...profile } = organizer;
+        const profile = organizer;
         return c.json(profile);
     } catch (error) {
         console.error('Erro ao buscar perfil:', error);
@@ -1832,7 +1788,7 @@ app.get('/api/organizers/:id/profile', async (c) => {
             return c.json({ error: 'Organizador não encontrado' }, 404);
         }
 
-        const { passwordHash, ...profile } = organizer;
+        const profile = organizer;
         return c.json(profile);
     } catch (error) {
         console.error('Erro ao buscar perfil:', error);
@@ -1858,7 +1814,7 @@ app.put('/api/organizer/:id/profile', async (c) => {
             return c.json({ error: 'Organizador não encontrado' }, 404);
         }
 
-        const { passwordHash, ...profile } = updated[0];
+        const profile = updated[0];
         return c.json(profile);
     } catch (error) {
         console.error('Erro ao atualizar perfil:', error);
@@ -1882,7 +1838,7 @@ app.put('/api/organizers/:id/profile', async (c) => {
             return c.json({ error: 'Organizador não encontrado' }, 404);
         }
 
-        const { passwordHash, ...profile } = updated[0];
+        const profile = updated[0];
         return c.json(profile);
     } catch (error) {
         console.error('Erro ao atualizar perfil:', error);
@@ -1895,7 +1851,7 @@ app.put('/api/organizers/:id/complete-profile', async (c) => {
     try {
         const updated = await db.update(organizersTable)
             .set({
-                profileComplete: true,
+                lastStep: 99,
                 updatedAt: new Date(),
             })
             .where(eq(organizersTable.id, id))
@@ -1905,7 +1861,7 @@ app.put('/api/organizers/:id/complete-profile', async (c) => {
             return c.json({ error: 'Organizador não encontrado' }, 404);
         }
 
-        const { passwordHash, ...profile } = updated[0];
+        const profile = updated[0];
         return c.json(profile);
     } catch (error) {
         console.error('Erro ao concluir perfil:', error);
@@ -1927,14 +1883,14 @@ app.post('/api/organizers/:id/asaas-account', async (c) => {
             return c.json({ error: 'Organizador não encontrado' }, 404);
         }
 
-        if (organizer.asaasId) {
+        if ((organizer as any).asaasId) {
             return c.json({ error: 'Este organizador já possui uma subconta vinculada' }, 400);
         }
 
         // Criar Subconta na API Asaas
         const asaasAccount = await asaas.createSubAccount({
-            name: body.companyName || organizer.name,
-            email: organizer.email,
+            name: body.companyName || (organizer as any).name,
+            email: (organizer as any).email,
             cpfCnpj: body.cpfCnpj,
             mobilePhone: body.mobilePhone,
             phone: body.phone || body.mobilePhone,
@@ -1952,9 +1908,9 @@ app.post('/api/organizers/:id/asaas-account', async (c) => {
                 phone: body.mobilePhone,
                 address: body.address,
                 postalCode: body.postalCode,
-                asaasId: asaasAccount.id,
+                asaasKey: asaasAccount.id,
                 walletId: asaasAccount.walletId,
-                asaasApiKey: asaasAccount.apiKey,
+
                 updatedAt: new Date(),
             })
             .where(eq(organizersTable.id, id))
@@ -1997,26 +1953,12 @@ app.post('/api/webhooks/asaas', async (c) => {
                     .set(updateData)
                     .where(eq(schema.sales.id, sale.id));
 
-                // 2. Procurar o User pelo email (ou criar user placeholder)
-                let user = await db.query.users.findFirst({
-                    where: eq(schema.users.email, sale.buyerEmail)
-                });
+                // 2. Atualizar ingressos associados para 'active'
+                await db.update(schema.purchasedTickets)
+                    .set({ status: 'active', purchaseDate: new Date() })
+                    .where(eq(schema.purchasedTickets.parentPurchaseId, sale.id));
                 
-                // 3. Gerar purchased_tickets com QR code criptograficamente seguro
-                const realQrCode = sale.qrCodeData || `TKT_${crypto.randomBytes(16).toString('hex')}`;
-
-                await db.insert(schema.purchasedTickets).values({
-                    userId: user?.id || 'guest',
-                    eventId: sale.eventId,
-                    ticketId: sale.ticketId,
-                    purchaseDate: new Date(),
-                    status: 'active',
-                    qrCodeData: realQrCode,
-                    buyerName: sale.buyerName,
-                    buyerEmail: sale.buyerEmail,
-                });
-                
-                console.log(`[WEBHOOK ASAAS] Venda ${sale.id} confirmada e ingresso gerado!`);
+                console.log(`[WEBHOOK ASAAS] Venda ${sale.id} confirmada e ingressos ativados!`);
             }
         }
         
@@ -2038,7 +1980,7 @@ app.get('/api/organizers/slug/:slug', async (c) => {
             return c.json({ error: 'Organizador não encontrado' }, 404);
         }
 
-        const { passwordHash, asaasApiKey, ...publicProfile } = organizer;
+        const publicProfile = organizer;
         return c.json(publicProfile);
     } catch (error) {
         console.error('Erro ao buscar perfil por slug:', error);
@@ -2059,7 +2001,7 @@ app.post('/api/events', async (c: Context) => {
                 where: eq(organizersTable.id, data.organizerId)
             });
             // If profile is not complete, force status to 'pending' for admin review
-            if (!organizer?.profileComplete) {
+            if (organizer && (organizer.lastStep ?? 0) < 99) {
                 finalStatus = 'pending';
                 console.log(`[EVENTS] Produtor ${data.organizerId} com perfil incompleto. Evento forçado para 'pending'.`);
             }
@@ -2071,17 +2013,16 @@ app.post('/api/events', async (c: Context) => {
             description: data.description,
             category: data.category,
             eventType: data.eventType || 'paid',
-            date: data.date,
+            startDate: data.date ? new Date(data.date) : null,
             time: data.time,
-            duration: data.duration,
             locationName: data.locationName || data.location?.name,
-            locationAddress: data.locationAddress || data.location?.address,
-            locationCity: data.locationCity,
-            locationState: data.locationState,
-            locationPostalCode: data.locationPostalCode,
+            address: data.locationAddress || data.location?.address,
+            city: data.locationCity,
+            state: data.locationState,
+            postalCode: data.locationPostalCode,
             capacity: Number(data.capacity) || 0,
             status: finalStatus,
-            imageUrl: data.imageUrl,
+            bannerUrl: data.imageUrl,
             isFeatured: false, // NEVER accept featured from frontend — only via Asaas webhook or Master toggle
             featuredPaymentStatus: data.featuredPaymentStatus || 'none',
         }).returning();
@@ -2370,7 +2311,10 @@ app.post('/api/events/:eventId/floor-plan', async (c: Context) => {
     const { floorPlanUrl } = await c.req.json();
     try {
         const [updatedEvent] = await db.update(events)
-            .set({ floorPlanUrl, updatedAt: new Date() })
+            .set({ 
+                settings: sql`COALESCE(${events.settings}, '{}'::jsonb) || ${JSON.stringify({ floorPlanUrl })}::jsonb`, 
+                updatedAt: new Date() 
+            })
             .where(eq(events.id, eventId))
             .returning();
         return c.json(updatedEvent);
@@ -2388,62 +2332,9 @@ app.post('/api/candidates', async (c: Context) => {
     return c.json({ error: 'Endpoint descontinuado. Candidatos devem utilizar o Supabase Auth para registro.' }, 410);
 });
 
-        }
-        const appUrl = (process.env.APP_URL || 'http://localhost:5173').replace(/\/$/, '');
-        const verificationUrl = `${appUrl}/auth/verify?token=${token}&type=candidate`;
-
-        await transporter.sendMail({
-            from: process.env.SMTP_FROM || '"A2 Tickets 360º" <noreply@a2tickets360.com.br>',
-            to: data.email,
-            subject: 'Confirme seu e-mail - A2 Tickets 360',
-            html: `
-                <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; background: #050505; color: white; padding: 40px; border-radius: 20px;">
-                    <h1 style="color: #6366f1;">Bem-vindo ao Marketplace Staff!</h1>
-                    <p>Para ativar seu perfil e começar a receber propostas, confirme seu e-mail clicando no botão abaixo:</p>
-                    <a href="${verificationUrl}" style="display: inline-block; background: #6366f1; color: white; padding: 12px 24px; border-radius: 10px; text-decoration: none; font-weight: bold; margin-top: 20px;">CONFIRMAR E-MAIL</a>
-                    <p style="margin-top: 30px; font-size: 12px; color: #666;">Se você não realizou este cadastro, ignore este e-mail.</p>
-                </div>
-            `
-        });
-
-        return c.json({ status: 'success', message: 'E-mail de verificação enviado!' });
-    } catch (error: any) {
-        return c.json({ error: error.message }, 400);
-    }
-});
-
-// 2. Endpoint de Verificação de E-mail
+// DEPRECATED: GET /api/auth/verify
 app.get('/api/auth/verify', async (c: Context) => {
-    const token = c.req.query('token');
-    const type = c.req.query('type');
-
-    try {
-        if (type === 'candidate') {
-            const user = await db.query.candidates.findFirst({
-                where: eq(candidates.verificationToken, token as string)
-            });
-
-            if (!user) return c.json({ error: 'Token inválido' }, 400);
-
-            await db.update(candidates)
-                .set({ emailVerified: true, verificationToken: null })
-                .where(eq(candidates.id, user.id));
-        } else {
-            const user = await db.query.organizers.findFirst({
-                where: eq(organizersTable.verificationToken, token as string)
-            });
-
-            if (!user) return c.json({ error: 'Token inválido' }, 400);
-
-            await db.update(organizersTable)
-                .set({ emailVerified: true, verificationToken: null })
-                .where(eq(organizersTable.id, user.id));
-        }
-
-        return c.json({ status: 'success', message: 'E-mail confirmado com sucesso!' });
-    } catch (error: any) {
-        return c.json({ error: error.message }, 400);
-    }
+    return c.json({ error: 'Endpoint descontinuado. A verificação de e-mail agora é feita via Supabase Auth.' }, 410);
 });
 
 // 2. Recrutador busca talentos
@@ -2838,10 +2729,9 @@ app.get('/api/customer/tickets', async (c: Context) => {
 
     try {
         const tickets = await db.query.sales.findMany({
-            where: eq(sales.buyerEmail, email),
+            where: eq((sales as any).buyerEmail, email),
             with: {
                 event: true,
-                ticket: true
             },
             orderBy: (sales, { desc }) => [desc(sales.createdAt)]
         });
@@ -2869,9 +2759,9 @@ app.get('/api/organizers/:id/stats', async (c: Context) => {
         const nextEvent = await db.query.events.findFirst({
             where: and(
                 eq(events.organizerId, organizerId),
-                gte(events.date, new Date().toISOString().split('T')[0])
+                gte((events as any).date, new Date().toISOString().split('T')[0])
             ),
-            orderBy: (events, { asc }) => [asc(events.date), asc(events.time)]
+            orderBy: (events, { asc }) => [asc((events as any).date), asc(events.time)]
         });
 
         return c.json({

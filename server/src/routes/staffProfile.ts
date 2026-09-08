@@ -10,7 +10,7 @@ router.use('/*', authMiddleware);
 // GET /api/me/staff-profile
 router.get('/', async (c: Context) => {
     try {
-        const payload = c.get('jwtPayload');
+        const payload = (c.get as any)('jwtPayload');
         if (!payload || !payload.id) return c.json({ error: 'Unauthorized' }, 401);
         const userId = payload.id;
 
@@ -49,7 +49,7 @@ router.get('/', async (c: Context) => {
 // PUT /api/me/staff-profile
 router.put('/', async (c: Context) => {
     try {
-        const payload = c.get('jwtPayload');
+        const payload = (c.get as any)('jwtPayload');
         if (!payload || !payload.id) return c.json({ error: 'Unauthorized' }, 401);
         const userId = payload.id;
         

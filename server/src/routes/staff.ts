@@ -10,6 +10,7 @@ import {
     profiles,
     events,
     staffApplications,
+    staffApplicationFunctions,
     staffProfessionalFunctions,
     staffProfileFunctions,
     organizers
@@ -29,11 +30,15 @@ router.use('/*', authMiddleware);
  */
 router.get('/event-staff', async (c: Context) => {
     try {
-        const payload = c.get('jwtPayload');
+        const payload = (c.get as any)('jwtPayload');
         const organizerId = payload.id;
         const eventId = c.req.query('eventId');
 
-        let query = db.select({
+        const condition = eventId 
+            ? and(eq(eventStaff.organizerId, organizerId), eq(eventStaff.eventId, eventId))
+            : eq(eventStaff.organizerId, organizerId);
+
+        const data = await db.select({
             eventStaffId: eventStaff.id,
             eventId: eventStaff.eventId,
             organizerId: eventStaff.organizerId,
@@ -55,13 +60,7 @@ router.get('/event-staff', async (c: Context) => {
         .leftJoin(staffFunctions, eq(eventStaff.staffFunctionId, staffFunctions.id))
         .leftJoin(profiles, eq(eventStaff.userId, profiles.userId))
         .leftJoin(staffProfiles, eq(eventStaff.userId, staffProfiles.userId))
-        .where(eq(eventStaff.organizerId, organizerId));
-
-        if (eventId) {
-            query = query.where(and(eq(eventStaff.organizerId, organizerId), eq(eventStaff.eventId, eventId)));
-        }
-
-        const data = await query;
+        .where(condition);
         
         // Obter os systemRoleIds
         const staffIds = data.map(s => s.eventStaffId);
@@ -93,7 +92,7 @@ router.get('/event-staff', async (c: Context) => {
  */
 router.get('/my-invites', async (c: Context) => {
     try {
-        const payload = c.get('jwtPayload');
+        const payload = (c.get as any)('jwtPayload');
         const userId = payload.id;
 
         const query = db.select({
@@ -138,7 +137,7 @@ router.get('/my-invites', async (c: Context) => {
 router.post('/invite', async (c: Context) => {
     try {
         const t0 = performance.now();
-        const payload = c.get('jwtPayload');
+        const payload = (c.get as any)('jwtPayload');
         const organizerId = payload.id; // Assumes the caller is the owner for simplicity
         
         const body = await c.req.json();
@@ -170,7 +169,7 @@ router.post('/invite', async (c: Context) => {
             return c.json({ error: 'Falha ao validar identidade na plataforma.' }, 500);
         }
 
-        const existingUser = listData.users.find(u => u.email?.toLowerCase() === normalizedEmail);
+        const existingUser = listData.users.find((u: any) => u.email?.toLowerCase() === normalizedEmail);
 
         let tAuthInvite = tAuthList;
 
@@ -348,7 +347,7 @@ router.get('/roles', async (c: Context) => {
  */
 router.get('/functions', async (c: Context) => {
     try {
-        const payload = c.get('jwtPayload');
+        const payload = (c.get as any)('jwtPayload');
         const organizerId = payload.id;
         
         const functions = await db.select().from(staffFunctions)
@@ -366,7 +365,7 @@ router.get('/functions', async (c: Context) => {
  */
 router.post('/functions', async (c: Context) => {
     try {
-        const payload = c.get('jwtPayload');
+        const payload = (c.get as any)('jwtPayload');
         const organizerId = payload.id;
         const body = await c.req.json();
         
@@ -396,7 +395,7 @@ const sendAccessCache = new Map<string, number>();
  */
 router.post('/:eventStaffId/send-access', async (c: Context) => {
     try {
-        const payload = c.get('jwtPayload');
+        const payload = (c.get as any)('jwtPayload');
         const organizerId = payload.id;
         const eventStaffId = c.req.param('eventStaffId');
 
@@ -471,7 +470,7 @@ router.post('/:eventStaffId/send-access', async (c: Context) => {
  */
 router.post('/:eventStaffId/send-access-recovery', async (c: Context) => {
     try {
-        const payload = c.get('jwtPayload');
+        const payload = (c.get as any)('jwtPayload');
         const organizerId = payload.id;
         const eventStaffId = c.req.param('eventStaffId');
 
@@ -509,7 +508,7 @@ router.post('/:eventStaffId/send-access-recovery', async (c: Context) => {
  */
 router.post('/accept/:id', async (c: Context) => {
     try {
-        const payload = c.get('jwtPayload');
+        const payload = (c.get as any)('jwtPayload');
         const userId = payload.id;
         const assignmentId = c.req.param('id');
 
@@ -544,7 +543,7 @@ router.post('/accept/:id', async (c: Context) => {
  */
 router.post('/decline/:id', async (c: Context) => {
     try {
-        const payload = c.get('jwtPayload');
+        const payload = (c.get as any)('jwtPayload');
         const userId = payload.id;
         const assignmentId = c.req.param('id');
 
@@ -585,7 +584,7 @@ router.post('/decline/:id', async (c: Context) => {
  */
 router.get('/events', async (c: Context) => {
     try {
-        const payload = c.get('jwtPayload');
+        const payload = (c.get as any)('jwtPayload');
         const userId = payload.id;
 
         // Eventos published, endDate >= now() or (endDate is null and startDate >= now())
@@ -644,7 +643,7 @@ router.get('/events', async (c: Context) => {
  */
 router.post('/events/:eventId/apply', async (c: Context) => {
     try {
-        const payload = c.get('jwtPayload');
+        const payload = (c.get as any)('jwtPayload');
         const userId = payload.id;
         const { eventId } = c.req.param();
         const { professionalFunctionIds } = await c.req.json();
@@ -705,7 +704,7 @@ router.post('/events/:eventId/apply', async (c: Context) => {
  */
 router.get('/applications', async (c: Context) => {
     try {
-        const payload = c.get('jwtPayload');
+        const payload = (c.get as any)('jwtPayload');
         const userId = payload.id;
 
         const apps = await db.select({
@@ -734,7 +733,7 @@ router.get('/applications', async (c: Context) => {
  */
 router.post('/applications/:id/cancel', async (c: Context) => {
     try {
-        const payload = c.get('jwtPayload');
+        const payload = (c.get as any)('jwtPayload');
         const userId = payload.id;
         const appId = c.req.param('id');
 
@@ -758,7 +757,7 @@ router.post('/applications/:id/cancel', async (c: Context) => {
  */
 router.patch('/event-staff/:id', async (c: Context) => {
     try {
-        const payload = c.get('jwtPayload');
+        const payload = (c.get as any)('jwtPayload');
         const organizerId = payload.id;
         const id = c.req.param('id');
         const body = await c.req.json();

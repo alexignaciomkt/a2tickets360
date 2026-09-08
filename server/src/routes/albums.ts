@@ -25,7 +25,7 @@ const getOrganizer = async (userId: string) => {
 // 1. CREATE ALBUM
 router.post('/', async (c: Context) => {
   try {
-    const payload = c.get('jwtPayload');
+    const payload = (c.get as any)('jwtPayload');
     const userId = payload?.id;
     if (!userId) return c.json({ error: 'Unauthorized' }, 401);
 
@@ -62,7 +62,7 @@ router.post('/', async (c: Context) => {
 // 2. LIST ALBUMS
 router.get('/', async (c: Context) => {
   try {
-    const payload = c.get('jwtPayload');
+    const payload = (c.get as any)('jwtPayload');
     const userId = payload?.id;
     if (!userId) return c.json({ error: 'Unauthorized' }, 401);
 
@@ -94,7 +94,7 @@ router.get('/', async (c: Context) => {
 // 3. GET ALBUM DETAILS
 router.get('/:albumId', async (c: Context) => {
   try {
-    const payload = c.get('jwtPayload');
+    const payload = (c.get as any)('jwtPayload');
     const userId = payload?.id;
     if (!userId) return c.json({ error: 'Unauthorized' }, 401);
 
@@ -122,7 +122,7 @@ router.get('/:albumId', async (c: Context) => {
 // 4. UPDATE ALBUM
 router.put('/:albumId', async (c: Context) => {
   try {
-    const payload = c.get('jwtPayload');
+    const payload = (c.get as any)('jwtPayload');
     const userId = payload?.id;
     if (!userId) return c.json({ error: 'Unauthorized' }, 401);
 
@@ -209,7 +209,7 @@ router.put('/:albumId', async (c: Context) => {
 // 5. DELETE ALBUM
 router.delete('/:albumId', async (c: Context) => {
   try {
-    const payload = c.get('jwtPayload');
+    const payload = (c.get as any)('jwtPayload');
     const userId = payload?.id;
     if (!userId) return c.json({ error: 'Unauthorized' }, 401);
 
@@ -251,7 +251,7 @@ router.delete('/:albumId', async (c: Context) => {
 // 6. ADD PHOTO
 router.post('/:albumId/photos', async (c: Context) => {
   try {
-    const payload = c.get('jwtPayload');
+    const payload = (c.get as any)('jwtPayload');
     const userId = payload?.id;
     if (!userId) return c.json({ error: 'Unauthorized' }, 401);
 
@@ -322,7 +322,7 @@ router.post('/:albumId/photos', async (c: Context) => {
 // 7. EDIT PHOTO
 router.put('/:albumId/photos/:photoId', async (c: Context) => {
   try {
-    const payload = c.get('jwtPayload');
+    const payload = (c.get as any)('jwtPayload');
     const userId = payload?.id;
     if (!userId) return c.json({ error: 'Unauthorized' }, 401);
 
@@ -367,7 +367,7 @@ router.put('/:albumId/photos/:photoId', async (c: Context) => {
 // 8. DELETE PHOTO
 router.delete('/:albumId/photos/:photoId', async (c: Context) => {
   try {
-    const payload = c.get('jwtPayload');
+    const payload = (c.get as any)('jwtPayload');
     const userId = payload?.id;
     if (!userId) return c.json({ error: 'Unauthorized' }, 401);
 
