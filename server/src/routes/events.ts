@@ -289,9 +289,12 @@ router.post('/:eventId/promoters/:id/approve', async (c) => {
         const body = await c.req.json();
         const { commissionRate = '10.00', discountRate = '0.00', settlementMode = 'MANUAL' } = body;
 
-        // Validar ownership
+        // Validar ownership buscando o organizer correspondente ao user
+        const [orgDetails] = await db.select({ id: organizers.id }).from(organizers).where(eq(organizers.userId, payload.id)).limit(1);
+        const organizerIdForCheck = orgDetails ? orgDetails.id : null;
+
         const [orgEvent] = await db.select().from(events).where(
-            and(eq(events.id, eventId), eq(events.organizerId, payload.id))
+            and(eq(events.id, eventId), eq(events.organizerId, organizerIdForCheck!))
         ).limit(1);
         
         if (!orgEvent && payload.role !== 'master') {
@@ -461,9 +464,12 @@ router.post('/:eventId/promoters/:id/reject', async (c) => {
         const eventId = c.req.param('eventId');
         const eventPromoterId = c.req.param('id');
 
-        // Validar ownership
+        // Validar ownership buscando o organizer correspondente ao user
+        const [orgDetails] = await db.select({ id: organizers.id }).from(organizers).where(eq(organizers.userId, payload.id)).limit(1);
+        const organizerIdForCheck = orgDetails ? orgDetails.id : null;
+
         const [orgEvent] = await db.select().from(events).where(
-            and(eq(events.id, eventId), eq(events.organizerId, payload.id))
+            and(eq(events.id, eventId), eq(events.organizerId, organizerIdForCheck!))
         ).limit(1);
         
         if (!orgEvent && payload.role !== 'master') {
