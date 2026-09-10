@@ -87,13 +87,13 @@ router.post('/sports/provision-event', async (c: Context) => {
             return c.json({ error: 'Evento não encontrado.' }, 404);
         }
  
-        // Buscar organizador pelo userId (já que events.organizer_id armazena o user_id do Supabase)
+        // Buscar organizador logado pelo userId
         const organizerData = await db.query.organizers.findFirst({
-            where: eq(organizers.userId, eventData.organizerId)
+            where: eq(organizers.userId, userId)
         });
  
         // 2. Autorização (organizer_id)
-        if (userRole === 'organizer' && organizerData?.userId !== userId) {
+        if (userRole === 'organizer' && (!organizerData || organizerData.id !== eventData.organizerId)) {
             return c.json({ error: 'Você não tem permissão para integrar este evento.' }, 403);
         }
 
