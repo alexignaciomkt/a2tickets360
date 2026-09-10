@@ -136,7 +136,7 @@ router.post('/sports/provision-event', async (c: Context) => {
 
         // 5. Integração com A2Sports360
         const emailResult = await db.execute(sql`
-            SELECT email FROM auth.users WHERE id = ${eventData.organizerId}::uuid
+            SELECT email FROM auth.users WHERE id = ${organizerData.userId}::uuid
         `);
         const organizerEmail = (emailResult[0] as any)?.email || '';
 
