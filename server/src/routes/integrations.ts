@@ -6,6 +6,7 @@ import { authMiddleware, checkRole } from '../middlewares/auth';
 import { sportsIntegrationService } from '../services/sportsIntegrationService';
 import { ticketCacheService } from '../services/ticketCacheService';
 import crypto from 'crypto';
+import { SignJWT } from 'jose';
 
 const router = new Hono();
 
@@ -250,21 +251,31 @@ router.post('/sports/open', async (c: Context) => {
         `);
         const organizerEmail = (emailResult[0] as any)?.email || '';
 
-        // 4. Gerar Login Ticket
-        const ticket = crypto.randomBytes(32).toString('hex');
-        
-        await ticketCacheService.set(ticket, {
-            tickets_user_id: userId,
-            organizer_id: organizerData?.id || eventData.organizerId,
-            tickets_event_id: event_id,
-            sports_championship_id: eventData.externalChampionshipId,
-            organizer_email: organizerEmail,
-            external_tenant_id: eventData.organizerId,
-            expires_at: 0
-        }, 60); // 60 seconds TTL
+        // 4. Gerar Login JWT Stateless
+        const ssoSecret = process.env.A2SPORTS_SSO_SECRET;
+        if (!ssoSecret) {
+            return c.json({ error: 'SSO_SECRET_MISSING', message: 'Configuração de SSO ausente.' }, 500);
+        }
 
-        const browserUrl = process.env.A2SPORTS_BROWSER_URL || 'http://localhost:3000';
-        const ssoUrl = `${browserUrl}/auth/sso?ticket=${ticket}`;
+        const secret = new TextEncoder().encode(ssoSecret);
+        
+        const token = await new SignJWT({
+            email: organizerEmail,
+            tenant_external_id: organizerData?.userId,
+            event_id,
+            championship_id: eventData.externalChampionshipId
+        })
+            .setProtectedHeader({ alg: 'HS256' })
+            .setIssuedAt()
+            .setIssuer('A2TICKETS')
+            .setAudience('A2SPORTS')
+            .setSubject(userId)
+            .setExpirationTime('1m')
+            .setJti(crypto.randomBytes(16).toString('hex'))
+            .sign(secret);
+
+        const browserUrl = process.env.A2SPORTS_BROWSER_URL || 'https://sports.a2tickets360.com.br';
+        const ssoUrl = `${browserUrl}/auth/sso?token=${token}`;
 
         return c.json({ ssoUrl }, 200);
 
