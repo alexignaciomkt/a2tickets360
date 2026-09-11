@@ -722,7 +722,7 @@ app.post('/api/payments/checkout', async (c: Context) => {
         let resolvedPromoterId: string | null = null;
         let resolvedEventPromoterId: string | null = null;
         let resolvedPromoterRate = 0;
-        let resolvedPromoterAmount = 0;
+        let resolvedDiscountRate = 0;
         let promoterWalletId: string | null = null;
         let promoterSettlementMode = 'MANUAL';
 
@@ -739,7 +739,8 @@ app.post('/api/payments/checkout', async (c: Context) => {
                 if (affiliation) {
                     resolvedPromoterId = affiliation.promoterId;
                     resolvedEventPromoterId = affiliation.id;
-                    resolvedPromoterRate = Number(affiliation.commissionRate);
+                    resolvedPromoterRate = Number(affiliation.commissionRate || 0);
+                    resolvedDiscountRate = Number((affiliation as any).discountRate || 0);
                     promoterSettlementMode = affiliation.settlementMode; // Lendo do banco
 
                     if (promoterSettlementMode === 'ASAAS_SPLIT') {
@@ -768,26 +769,25 @@ app.post('/api/payments/checkout', async (c: Context) => {
         // Validar elegibilidade do ticket para o canal Promoter
         if (ticket.promoterEligible === false) {
             resolvedPromoterRate = 0;
-            resolvedPromoterAmount = 0;
+            resolvedDiscountRate = 0;
             // Nota: resolvedPromoterId e resolvedEventPromoterId são mantidos
             // para preservar a attribution (histórico da origem do cliente)
         }
 
+        const unitPriceCents = Math.round(Number(ticket.price) * 100);
+        const baseGrossAmountCents = unitPriceCents * quantity;
+        const discountAmountCents = Math.round(baseGrossAmountCents * (resolvedDiscountRate / 100));
+
         const dist = calculateFinancialDistribution({
-            unitPriceCents: Math.round(Number(ticket.price) * 100),
+            unitPriceCents: unitPriceCents,
             quantity: quantity,
             billableUnits: billableUnits,
-            discountAmountCents: 0,
-            promoterCommissionRate: 0, // mantido zero na prop base para não sujar o valor do produtor, pois quem paga é o produtor da parte dele
+            discountAmountCents: discountAmountCents,
+            promoterCommissionRate: resolvedPromoterRate,
             passPlatformFeeToBuyer: passFeeToBuyer
         });
 
-        // Calcular a comissão estritamente sobre o grossAmount
-        if (resolvedPromoterRate > 0) {
-            resolvedPromoterAmount = (dist.grossAmountCents / 100) * (resolvedPromoterRate / 100);
-            // Arredondamento seguro 2 casas
-            resolvedPromoterAmount = Math.round(resolvedPromoterAmount * 100) / 100;
-        }
+        const resolvedPromoterAmount = dist.promoterCommissionCents / 100;
 
         const totalValue = dist.buyerTotalCents / 100;
         const producerNetValue = dist.producerAmountCents / 100;

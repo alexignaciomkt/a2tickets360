@@ -1,5 +1,5 @@
-export const PLATFORM_PERCENTAGE_BPS = 800; // 8%
-export const PLATFORM_FIXED_FEE_CENTS = 500; // R$5.00
+export const PLATFORM_PERCENTAGE_BPS = 1000; // 10%
+export const PLATFORM_MINIMUM_FEE_CENTS = 500; // R$5.00
 
 export type FinancialInput = {
   unitPriceCents: number;
@@ -41,8 +41,11 @@ export function calculateFinancialDistribution(input: FinancialInput): Financial
   const commercialAmountCents = grossAmountCents - input.discountAmountCents;
 
   const platformPercentageFeeCents = Math.round(grossAmountCents * (PLATFORM_PERCENTAGE_BPS / 10000));
-  const platformFixedFeeCents = Math.round(input.billableUnits * PLATFORM_FIXED_FEE_CENTS);
-  const platformFeeCents = platformPercentageFeeCents + platformFixedFeeCents;
+  
+  let platformFeeCents = 0;
+  if (grossAmountCents > 0) {
+    platformFeeCents = Math.max(platformPercentageFeeCents, PLATFORM_MINIMUM_FEE_CENTS);
+  }
 
   const promoterCommissionCents = Math.round(commercialAmountCents * (input.promoterCommissionRate / 100));
 
@@ -67,7 +70,7 @@ export function calculateFinancialDistribution(input: FinancialInput): Financial
     commercialAmountCents,
     billableUnits: input.billableUnits,
     platformPercentageFeeCents,
-    platformFixedFeeCents,
+    platformFixedFeeCents: 0,
     platformFeeCents,
     promoterCommissionCents,
     producerAmountCents,
