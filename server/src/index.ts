@@ -676,7 +676,7 @@ app.post('/api/payments/checkout', async (c: Context) => {
         }
 
         const organizer = await db.query.organizers.findFirst({
-            where: eq(schema.organizers.userId, ticket.event.organizerId)
+            where: eq(schema.organizers.id, ticket.event.organizerId)
         });
         if (!organizer) throw new Error('Organizador nao encontrado.');
 
