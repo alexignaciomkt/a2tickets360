@@ -52,7 +52,7 @@ import { reserveSessionCredit, cancelReservationSession, consumeFeaturedReservat
 const app = new Hono();
 app.use('*', logger());
 
-import { AsaasService } from './services/asaas';
+import { AsaasService, sanitizeAsaasDescription } from './services/asaas';
 export const asaas = new AsaasService();
 
 // Valor centralizado do destaque de evento na Home
@@ -1001,7 +1001,7 @@ app.post('/api/payments/checkout', async (c: Context) => {
                 billingType: paymentMethod,
                 value: totalValue,
                 dueDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
-                description: humanDescription,
+                description: sanitizeAsaasDescription(humanDescription),
                 externalReference: `sale_${saleId}`,
                 splitValue: producerNetValue,
                 splitWalletId: organizer.walletId,

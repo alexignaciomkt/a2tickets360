@@ -227,5 +227,17 @@ export class AsaasService {
     }
 }
 
-export const asaas =
-    new AsaasService();
+export function sanitizeAsaasDescription(text: string): string {
+    if (!text) return '';
+    return text
+        .normalize('NFD') // Normaliza Unicode, separando acentos
+        .replace(/[\u0300-\u036f]/g, '') // Remove os diacríticos
+        .replace(/[—–]/g, '-') // Converte travessões para hífen
+        .replace(/[ºª]/g, '') // Remove ordinais
+        .replace(/\|/g, ' ') // Converte pipe para espaço
+        .replace(/[^A-Za-z0-9 \.\-]/g, '') // Remove qualquer coisa fora do conjunto
+        .replace(/\s+/g, ' ') // Colapsa múltiplos espaços
+        .trim();
+}
+
+export const asaas = new AsaasService();
