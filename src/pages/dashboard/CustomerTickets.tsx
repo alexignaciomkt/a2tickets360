@@ -245,12 +245,26 @@ const CustomerTickets = () => {
             <div className="space-y-6">
               
               {/* QR Code Mestre do Selecionado */}
-              <QRCodeTicket
-                key={selectedCredential.id}
-                ticket={selectedCredential.rawTicket}
-                userName={selectedCredential.participantName}
-                userPhoto={selectedCredential.participantPhoto || undefined}
-              />
+              {selectedGroup.paymentStatus === 'paid' ? (
+                <QRCodeTicket
+                  key={selectedCredential.id}
+                  ticket={selectedCredential.rawTicket}
+                  userName={selectedCredential.participantName}
+                  userPhoto={selectedCredential.participantPhoto || undefined}
+                />
+              ) : (
+                <div className="bg-white rounded-[2rem] p-10 flex flex-col items-center justify-center text-center border-2 border-dashed border-amber-200">
+                  <div className="p-5 bg-amber-50 rounded-full mb-6">
+                      <Clock className="w-10 h-10 text-amber-500" />
+                  </div>
+                  <h3 className="text-xl font-black uppercase tracking-tight text-amber-900 mb-2">
+                    Credencial aguardando pagamento
+                  </h3>
+                  <p className="text-sm font-medium text-amber-700/80 max-w-md mx-auto">
+                    Seu QR Code será liberado após a confirmação do pagamento.
+                  </p>
+                </div>
+              )}
               
               {/* Lista de Credenciais da Compra */}
               <div className="bg-white rounded-[2rem] p-6 md:p-8 border border-gray-100 shadow-xl">
