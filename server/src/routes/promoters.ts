@@ -228,7 +228,7 @@ router.get('/mailing', authMiddleware, async (c: Context) => {
             return c.json({ error: 'Promoter não encontrado.' }, 403);
         }
 
-        // 2. Fetch paid sales directly attributed to this promoter
+        // 2. Fetch paid and pending sales directly attributed to this promoter
         const mailingSales = await db.select({
             id: schema.sales.id,
             eventId: schema.sales.eventId,
@@ -237,19 +237,20 @@ router.get('/mailing', authMiddleware, async (c: Context) => {
             createdAt: schema.sales.createdAt,
             eventTitle: schema.events.title,
             eventStartDate: schema.events.startDate,
+            paymentStatus: schema.sales.paymentStatus,
         })
         .from(schema.sales)
         .leftJoin(schema.events, eq(schema.sales.eventId, schema.events.id))
         .where(
             and(
                 eq(schema.sales.promoterId, promoter.id),
-                eq(schema.sales.paymentStatus, 'paid')
+                inArray(schema.sales.paymentStatus, ['paid', 'pending'])
             )
         );
 
         if (mailingSales.length === 0) {
              return c.json({
-                  summary: { uniqueCustomers: 0, totalPurchases: 0, totalRevenue: 0 },
+                  summary: { uniqueCustomers: 0, totalPurchases: 0, totalRevenue: 0, pendingPurchases: 0 },
                   customers: []
              });
         }
@@ -273,10 +274,17 @@ router.get('/mailing', authMiddleware, async (c: Context) => {
 
         // 4. Process Data
         let totalRevenue = 0;
+        let totalPurchases = 0;
+        let pendingPurchases = 0;
         const uniqueEmails = new Set<string>();
         
         const customers = mailingSales.map(sale => {
-            totalRevenue += Number(sale.grossAmount || 0);
+            if (sale.paymentStatus === 'paid') {
+                totalRevenue += Number(sale.grossAmount || 0);
+                totalPurchases++;
+            } else if (sale.paymentStatus === 'pending') {
+                pendingPurchases++;
+            }
 
             // Parse buyerInfo
             let parsedInfo: any = {};
@@ -306,15 +314,17 @@ router.get('/mailing', authMiddleware, async (c: Context) => {
                 eventDate: sale.eventStartDate,
                 purchaseDate: sale.createdAt,
                 grossAmount: Number(sale.grossAmount || 0),
-                credentialsCount: credsBySale[sale.id] || 1 // Fallback to 1 if not minted yet
+                paymentStatus: sale.paymentStatus,
+                credentialsCount: credsBySale[sale.id] || 1 // Fallback to 1 se ticket n gerado
             };
         });
 
         return c.json({
              summary: {
                   uniqueCustomers: uniqueEmails.size,
-                  totalPurchases: mailingSales.length,
-                  totalRevenue: totalRevenue
+                  totalPurchases,
+                  pendingPurchases,
+                  totalRevenue
              },
              customers
         });

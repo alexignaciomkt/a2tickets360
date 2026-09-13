@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 interface MailingSummary {
   uniqueCustomers: number;
   totalPurchases: number;
+  pendingPurchases: number;
   totalRevenue: number;
 }
 
@@ -22,6 +23,7 @@ interface MailingCustomer {
   eventDate: string | null;
   purchaseDate: string;
   grossAmount: number;
+  paymentStatus: string;
   credentialsCount: number;
 }
 
@@ -132,14 +134,18 @@ const PromoterMailing = () => {
         </div>
 
         {/* KPIs */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6">
             <div className="bg-slate-50 border border-slate-200 p-6 rounded-3xl shadow-sm">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Clientes Únicos</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Clientes Atribuídos</p>
                 <p className="text-4xl font-black text-slate-900">{data?.summary.uniqueCustomers || 0}</p>
             </div>
             <div className="bg-slate-50 border border-slate-200 p-6 rounded-3xl shadow-sm">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Compras</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Compras Concluídas</p>
                 <p className="text-4xl font-black text-slate-900">{data?.summary.totalPurchases || 0}</p>
+            </div>
+            <div className="bg-slate-50 border border-slate-200 p-6 rounded-3xl shadow-sm">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Pagamentos Pendentes</p>
+                <p className="text-4xl font-black text-slate-900">{data?.summary.pendingPurchases || 0}</p>
             </div>
             <div className="bg-indigo-50 border border-indigo-100 p-6 rounded-3xl shadow-sm">
                 <p className="text-[10px] font-black uppercase tracking-widest text-indigo-800 mb-2">Receita Gerada</p>
@@ -187,6 +193,7 @@ const PromoterMailing = () => {
                      <th className="py-4 px-6 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">Contato</th>
                      <th className="py-4 px-6 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">Evento</th>
                      <th className="py-4 px-6 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">Data</th>
+                     <th className="py-4 px-6 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center">Status</th>
                      <th className="py-4 px-6 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center">Compra</th>
                      <th className="py-4 px-6 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center">Credenciais</th>
                      <th className="py-4 px-6 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-right">Valor</th>
@@ -233,6 +240,17 @@ const PromoterMailing = () => {
                               <span className="text-sm text-slate-600">
                                 {new Date(c.purchaseDate).toLocaleDateString('pt-BR')}
                               </span>
+                           </td>
+                           <td className="py-4 px-6 text-center">
+                               {c.paymentStatus === 'paid' ? (
+                                   <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full text-[10px] font-black tracking-widest uppercase">
+                                     PAGO
+                                   </span>
+                               ) : (
+                                   <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 px-2.5 py-1 rounded-full text-[10px] font-black tracking-widest uppercase">
+                                     PAGAMENTO PENDENTE
+                                   </span>
+                               )}
                            </td>
                            <td className="py-4 px-6 text-center">
                               <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-slate-700 font-bold text-sm">
