@@ -1126,7 +1126,7 @@ app.post('/api/service-credits/activate-featured', authMiddleware, async (c: Con
             return c.json({ error: 'Produtora não encontrada.' }, 403);
         }
 
-        const { activateFeaturedCredit } = await import('./services/credits');
+        const { activateFeaturedCredit } = await import('./services/credits.js');
         
         try {
             const result = await activateFeaturedCredit(eventId, organizer.id, payload.id, payload.id);
