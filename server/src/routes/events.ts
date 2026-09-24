@@ -521,8 +521,15 @@ router.get('/:eventId/staff-applications', async (c) => {
 
         // 1. Validar ownership
         const evt = await db.select().from(events).where(eq(events.id, eventId));
-        if (evt.length === 0 || evt[0].organizerId !== organizerId) {
-            return c.json({ error: 'Proibido' }, 403);
+        if (evt.length === 0) {
+            return c.json({ error: 'Not found' }, 404);
+        }
+        
+        if (payload.role !== 'master') {
+            const orgDetails = await db.select({ id: organizers.id }).from(organizers).where(eq(organizers.userId, organizerId));
+            if (orgDetails.length === 0 || evt[0].organizerId !== orgDetails[0].id) {
+                return c.json({ error: 'Proibido' }, 403);
+            }
         }
         console.log('[STAFF APPS] OWNERSHIP OK');
 
@@ -611,8 +618,15 @@ router.get('/:eventId/staff-applications/:id/profile', async (c) => {
 
         // 1. Validar ownership do evento
         const evt = await db.select().from(events).where(eq(events.id, eventId));
-        if (evt.length === 0 || evt[0].organizerId !== organizerId) {
-            return c.json({ error: 'Proibido' }, 403);
+                if (evt.length === 0) {
+            return c.json({ error: 'Not found' }, 404);
+        }
+        
+        if (payload.role !== 'master') {
+            const orgDetails = await db.select({ id: organizers.id }).from(organizers).where(eq(organizers.userId, organizerId));
+            if (orgDetails.length === 0 || evt[0].organizerId !== orgDetails[0].id) {
+                return c.json({ error: 'Proibido' }, 403);
+            }
         }
 
         // 2. Validar que a application existe e é do evento
@@ -670,8 +684,15 @@ router.post('/:eventId/staff-applications/:id/reject', async (c) => {
 
         // 1. Validar ownership
         const evt = await db.select().from(events).where(eq(events.id, eventId));
-        if (evt.length === 0 || evt[0].organizerId !== organizerId) {
-            return c.json({ error: 'Proibido' }, 403);
+                if (evt.length === 0) {
+            return c.json({ error: 'Not found' }, 404);
+        }
+        
+        if (payload.role !== 'master') {
+            const orgDetails = await db.select({ id: organizers.id }).from(organizers).where(eq(organizers.userId, organizerId));
+            if (orgDetails.length === 0 || evt[0].organizerId !== orgDetails[0].id) {
+                return c.json({ error: 'Proibido' }, 403);
+            }
         }
 
         const app = await db.select().from(staffApplications).where(and(eq(staffApplications.id, id), eq(staffApplications.eventId, eventId)));
@@ -706,8 +727,15 @@ router.post('/:eventId/staff-applications/:id/approve', async (c) => {
 
         // 1. Validar ownership do evento
         const evt = await db.select().from(events).where(eq(events.id, eventId));
-        if (evt.length === 0 || evt[0].organizerId !== organizerId) {
-            return c.json({ error: 'Proibido' }, 403);
+                if (evt.length === 0) {
+            return c.json({ error: 'Not found' }, 404);
+        }
+        
+        if (payload.role !== 'master') {
+            const orgDetails = await db.select({ id: organizers.id }).from(organizers).where(eq(organizers.userId, organizerId));
+            if (orgDetails.length === 0 || evt[0].organizerId !== orgDetails[0].id) {
+                return c.json({ error: 'Proibido' }, 403);
+            }
         }
 
         await db.transaction(async (tx) => {
@@ -797,8 +825,15 @@ router.patch('/:eventId/staff-applications/:id/proposal', async (c) => {
 
         // 1. Validar ownership
         const evt = await db.select().from(events).where(eq(events.id, eventId));
-        if (evt.length === 0 || evt[0].organizerId !== organizerId) {
-            return c.json({ error: 'Proibido' }, 403);
+                if (evt.length === 0) {
+            return c.json({ error: 'Not found' }, 404);
+        }
+        
+        if (payload.role !== 'master') {
+            const orgDetails = await db.select({ id: organizers.id }).from(organizers).where(eq(organizers.userId, organizerId));
+            if (orgDetails.length === 0 || evt[0].organizerId !== orgDetails[0].id) {
+                return c.json({ error: 'Proibido' }, 403);
+            }
         }
 
         // 2. Localizar candidatura
