@@ -222,7 +222,7 @@ export const consumeFeaturedReservation = async (reservationToken: string, event
         // 6. Criar event_featured_cycles
         await tx.execute(sql`
             INSERT INTO event_featured_cycles (id, event_id, credit_id, featured_at, featured_until, planned_end_reason)
-            VALUES (gen_random_uuid(), ${eventId}, ${creditToConsume.id}, ${now.toISOString()}, ${featuredUntil.toISOString()}, ${plannedEndReason})
+            VALUES (gen_random_uuid(), ${eventId}, ${creditToConsume.id}, ${now.toISOString()}, ${featuredUntil.toISOString()}, ${plannedEndReason}::featured_cycle_planned_end_reason)
         `);
 
         // 7. Atualizar events cache
@@ -334,7 +334,7 @@ export const activateFeaturedCredit = async (eventId: string, organizerRecordId:
         // 8. Criar event_featured_cycles
         await tx.execute(sql`
             INSERT INTO event_featured_cycles (id, event_id, credit_id, featured_at, featured_until, planned_end_reason)
-            VALUES (gen_random_uuid(), ${eventId}, ${creditToConsume.id}, ${now.toISOString()}, ${featuredUntil.toISOString()}, ${plannedEndReason})
+            VALUES (gen_random_uuid(), ${eventId}, ${creditToConsume.id}, ${now.toISOString()}, ${featuredUntil.toISOString()}, ${plannedEndReason}::featured_cycle_planned_end_reason)
         `);
 
         // 9. Atualizar events cache
