@@ -260,7 +260,7 @@ class OrganizerService {
   }
 
   async updateEventContent(eventId: string, data: any): Promise<void> {
-    const res = await api.put<{ success: boolean }>(`/api/events/${eventId}/content`, data);
+    const res = await api.put<{ success: boolean }>(`/api/organizer/events/${eventId}/content`, data);
     if (!res.success) {
       throw new Error('Failed to update event content');
     }

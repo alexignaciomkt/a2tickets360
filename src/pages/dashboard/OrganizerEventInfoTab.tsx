@@ -112,8 +112,10 @@ const OrganizerEventInfoTab = ({ eventId }: { eventId: string }) => {
       });
 
       toast({ title: '✅ Salvo com sucesso!', description: 'A página do evento foi atualizada.' });
-    } catch (err) {
-      toast({ title: 'Erro ao salvar', description: 'Verifique sua conexão e tente novamente.', variant: 'destructive' });
+    } catch (err: any) {
+      console.error('Error saving event info:', err);
+      const errorMessage = err?.response?.data?.error || err?.message || 'Não foi possível salvar as alterações. Tente novamente.';
+      toast({ title: 'Erro ao salvar', description: errorMessage, variant: 'destructive' });
     } finally {
       setSaving(false);
     }
