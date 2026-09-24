@@ -570,6 +570,29 @@ const EventDetailPage = () => {
                   </div>
                 </div>
 
+                {/* Staff / Trabalhe Conosco Banner */}
+                {staffBanner?.is_active && (
+                  <div 
+                    className="bg-gradient-to-br from-purple-600 to-purple-800 rounded-[2rem] p-8 shadow-xl shadow-purple-200 group cursor-pointer hover:scale-[1.02] transition-all overflow-hidden relative" 
+                    onClick={() => navigate(`/work-with-us?role=staff&eventId=${event.id}`)}
+                  >
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-16 -mt-16 transition-transform duration-700"></div>
+                    <div className="relative z-10 space-y-2 text-center">
+                      <h3 className="text-xl font-black text-white uppercase tracking-tight leading-tight">
+                        {staffBanner.title || 'Trabalhe Conosco'}
+                      </h3>
+                      <p className="text-white/70 text-[10px] font-bold uppercase tracking-widest">
+                        {staffBanner.subtitle || 'Venha fazer parte do nosso time'}
+                      </p>
+                      <div className="pt-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                         <span className="text-xs text-white font-black uppercase tracking-widest bg-white/20 px-4 py-2 rounded-full">
+                           {staffBanner.cta_text || 'Candidatar-me'}
+                         </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Vertical Sidebar AdSense (Bottom - Image 2 Style) */}
                 <div className="w-full h-[300px] bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400 group hover:border-indigo-200 transition-all">
                   <img src="https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_92x30dp.png" className="w-16 opacity-20 mb-4 grayscale" alt="Google" />
