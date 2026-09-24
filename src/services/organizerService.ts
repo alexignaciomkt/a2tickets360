@@ -259,6 +259,13 @@ class OrganizerService {
     }
   }
 
+  async updateEventContent(eventId: string, data: any): Promise<void> {
+    const res = await api.put<{ success: boolean }>(`/api/events/${eventId}/content`, data);
+    if (!res.success) {
+      throw new Error('Failed to update event content');
+    }
+  }
+
   async updateEvent(eventId: string, eventData: any): Promise<Event> {
     // Map camelCase to snake_case
     const dbData: any = {};

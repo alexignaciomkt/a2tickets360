@@ -44,7 +44,10 @@ const OrganizerEventInfoTab = ({ eventId }: { eventId: string }) => {
         setDescription(data.description || '');
         setBannerUrl(data.banner_url || '');
         setGalleryUrls(data.gallery_urls || []);
-        setFaqs(data.event_faqs || []);
+        
+        const loadedFaqs = data.event_faqs || [];
+        setFaqs(loadedFaqs.sort((a: any, b: any) => (a.sort_order || 0) - (b.sort_order || 0)));
+        
         setSlug(data.slug || '');
       } else {
         console.error('Error loading event:', error);
@@ -102,36 +105,11 @@ const OrganizerEventInfoTab = ({ eventId }: { eventId: string }) => {
   const handleSave = async () => {
     setSaving(true);
     try {
-      // 1. Atualizar evento
-      const { error: eventError } = await supabase
-        .from('events')
-        .update({
-          description,
-          banner_url: bannerUrl,
-          gallery_urls: galleryUrls,
-        })
-        .eq('id', eventId);
-
-      if (eventError) throw eventError;
-
-      // 2. Sincronizar FAQs (Deletar e Inserir)
-      await supabase.from('event_faqs').delete().eq('event_id', eventId);
-      
-      if (faqs.length > 0) {
-        const faqsToInsert = faqs
-          .filter(f => f.question.trim() && f.answer.trim())
-          .map((f, i) => ({
-            event_id: eventId,
-            question: f.question,
-            answer: f.answer,
-            sort_order: i
-          }));
-
-        if (faqsToInsert.length > 0) {
-          const { error: faqError } = await supabase.from('event_faqs').insert(faqsToInsert);
-          if (faqError) throw faqError;
-        }
-      }
+      await organizerService.updateEventContent(eventId, {
+        description,
+        galleryUrls,
+        faqs
+      });
 
       toast({ title: '✅ Salvo com sucesso!', description: 'A página do evento foi atualizada.' });
     } catch (err) {

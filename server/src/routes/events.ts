@@ -937,4 +937,71 @@ router.patch('/:eventId/access-operation', async (c: Context) => {
     }
 });
 
+router.put('/:id/content', async (c) => {
+    try {
+        const payload = (c.get as any)('jwtPayload');
+        const eventId = c.req.param('id');
+        const body = await c.req.json();
+        
+        // Ownership check
+        const evt = await db.select({ organizerId: events.organizerId }).from(events).where(eq(events.id, eventId));
+        if (evt.length === 0) return c.json({ error: 'Event not found' }, 404);
+        
+        if (payload.role !== 'master') {
+            const orgDetails = await db.select({ id: organizers.id }).from(organizers).where(eq(organizers.userId, payload.id));
+            if (orgDetails.length === 0 || evt[0].organizerId !== orgDetails[0].id) {
+                return c.json({ error: 'Forbidden' }, 403);
+            }
+        }
+
+        // Validate payload
+        if (body.galleryUrls && !Array.isArray(body.galleryUrls)) return c.json({ error: 'Invalid galleryUrls' }, 400);
+        if (body.faqs && !Array.isArray(body.faqs)) return c.json({ error: 'Invalid faqs' }, 400);
+
+        // Normalize FAQS
+        const validFaqs: { question: string, answer: string, sort_order: number }[] = [];
+        if (body.faqs) {
+            let idx = 0;
+            for (const f of body.faqs) {
+                if (typeof f.question === 'string' && typeof f.answer === 'string') {
+                    const q = f.question.trim();
+                    const a = f.answer.trim();
+                    if (q && a) {
+                        validFaqs.push({ question: q, answer: a, sort_order: idx++ });
+                    }
+                }
+            }
+        }
+
+        const updateData: any = {};
+        if (body.galleryUrls !== undefined) {
+            updateData.galleryUrls = body.galleryUrls.filter((u: any) => typeof u === 'string');
+        }
+        if (body.description !== undefined) {
+            updateData.description = typeof body.description === 'string' ? body.description.trim() : body.description;
+        }
+
+        await db.transaction(async (tx) => {
+            if (Object.keys(updateData).length > 0) {
+                updateData.updatedAt = new Date();
+                await tx.update(events).set(updateData).where(eq(events.id, eventId));
+            }
+            if (body.faqs !== undefined) {
+                await tx.execute(sql`DELETE FROM event_faqs WHERE event_id = ${eventId}`);
+                for (const faq of validFaqs) {
+                    await tx.execute(sql`
+                        INSERT INTO event_faqs (id, event_id, question, answer, sort_order, created_at, updated_at)
+                        VALUES (gen_random_uuid(), ${eventId}, ${faq.question}, ${faq.answer}, ${faq.sort_order}, now(), now())
+                    `);
+                }
+            }
+        });
+
+        return c.json({ success: true });
+    } catch (error) {
+        console.error('Update content error:', error);
+        return c.json({ error: 'Internal Server Error' }, 500);
+    }
+});
+
 export default router;
