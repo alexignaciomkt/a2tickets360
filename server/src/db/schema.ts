@@ -347,7 +347,7 @@ export const events = pgTable('events', {
     featuredAsaasPaymentId: text('featured_asaas_payment_id'),
     ticketDesign: jsonb('ticket_design'),
     settings: jsonb('settings'),
-    galleryUrls: jsonb('gallery_urls'),
+    galleryUrls: text('gallery_urls').array(),
     acceptsPromoters: boolean('accepts_promoters').default(false),
     promoterCommissionRate: decimal('promoter_commission_rate', { precision: 5, scale: 2 }),
     promoterDiscountRate: decimal('promoter_discount_rate', { precision: 5, scale: 2 }),
