@@ -49,6 +49,7 @@ import EventsPage from '@/pages/EventsPage';
 import EventDetailPage from '@/pages/EventDetailPage';
 import ParaProdutores from '@/pages/ParaProdutores';
 import WorkWithUs from '@/pages/WorkWithUs';
+import PublicStaffProfile from '@/pages/public/PublicStaffProfile';
 import StaffOnboardingPage from '@/pages/staff/StaffOnboardingPage';
 import StaffProfilePage from '@/pages/staff/StaffProfilePage';
 import StaffReaderPage from '@/pages/staff/StaffReaderPage';
@@ -139,6 +140,7 @@ function AppRoutes() {
         <Route path="/privacy" element={<LegalPage slug="privacy" />} />
         <Route path="/para-produtores" element={<ParaProdutores />} />
         <Route path="/work-with-us" element={<WorkWithUs />} />
+        <Route path="/profissionais/:id" element={<PublicStaffProfile />} />
         <Route path="/onboarding/promoter" element={
           <ProtectedRoute allowedRoles={['promoter']}>
             <PromoterOnboardingPage />

@@ -11,6 +11,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Loader2, CheckCircle2, User } from 'lucide-react';
 import { UploadCloud } from 'lucide-react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import { ExternalLink, Share2 } from 'lucide-react';
 
 const COMMON_STATES = ['AC', 'AL', 'AM', 'AP', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MG', 'MS', 'MT', 'PA', 'PB', 'PE', 'PI', 'PR', 'RJ', 'RN', 'RO', 'RR', 'RS', 'SC', 'SE', 'SP', 'TO'];
 
@@ -26,6 +27,7 @@ export default function StaffProfilePage() {
     const { toast } = useToast();
     
     const [loading, setLoading] = useState(true);
+    const [isPublic, setIsPublic] = useState(false);
     const [saving, setSaving] = useState(false);
     const [catalog, setCatalog] = useState<ProfessionalFunction[]>([]);
     
@@ -225,6 +227,35 @@ export default function StaffProfilePage() {
     return (
         <DashboardLayout title="Meu Perfil Staff" icon={User} role="staff">
             <div className="max-w-4xl space-y-8 pb-12">
+                {/* Header Actions */}
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                    <div>
+                        <h2 className="text-lg font-bold text-gray-900">Meu Cartão Profissional</h2>
+                        <p className="text-sm text-gray-500">Seu perfil público visível para produtores.</p>
+                    </div>
+                    {isPublic && (
+                    <div className="flex flex-wrap items-center gap-3">
+                        <Button variant="outline" onClick={() => window.open(`/profissionais/${user?.id}`, "_blank")}>
+                            <ExternalLink className="w-4 h-4 mr-2" />
+                            Ver perfil público
+                        </Button>
+                        <Button onClick={async () => {
+                            const url = `${window.location.origin}/profissionais/${user?.id}`;
+                            try {
+                                if (navigator.share) {
+                                    await navigator.share({ title: "Meu Perfil Profissional", url });
+                                } else {
+                                    await navigator.clipboard.writeText(url);
+                                    toast({ title: "Link copiado!" });
+                                }
+                            } catch (e) {}
+                        }}>
+                            <Share2 className="w-4 h-4 mr-2" />
+                            Compartilhar
+                        </Button>
+                    </div>
+                    )}
+                </div>
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 sm:p-8 space-y-8">
                     
                     <div className="flex flex-col sm:flex-row gap-8 items-start">

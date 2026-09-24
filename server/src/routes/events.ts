@@ -664,6 +664,7 @@ router.get('/:eventId/staff-applications/:id/profile', async (c) => {
             city: profile[0]?.city,
             state: profile[0]?.state,
             birthDate: profile[0]?.birthDate,
+            isPublic: sProfile[0]?.isPublic,
             professionalFunctions: globalFuncs,
             applicationFunctions: appFuncs
         });

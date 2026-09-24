@@ -41,6 +41,7 @@ import uploadsRoutes from './routes/uploads';
 import albumsRoutes from './routes/albums';
 import promotersRoutes from './routes/promoters';
 import publicAlbumsRoutes from './routes/publicAlbums';
+import publicStaffRoutes from './routes/publicStaff';
 import masterRoutes from './routes/master';
 import eventsRoutes from './routes/events';
 
@@ -111,6 +112,7 @@ app.route('/api/organizer/albums', albumsRoutes);
 app.route('/api/organizer/events', eventsRoutes);
 app.route('/api/promoter', promotersRoutes);
 app.route('/api/public/producers', publicAlbumsRoutes);
+app.route('/api/public/staff-profiles', publicStaffRoutes);
 app.route('/api/master', masterRoutes);
 
 app.get('/', (c: Context) => c.text('A2 Tickets 360º API - High Performance Ready'));

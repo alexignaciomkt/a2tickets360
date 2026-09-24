@@ -248,6 +248,11 @@ export default function OrganizerEventStaffApplicationsTab({ eventId, eventStart
                                 </Avatar>
                                 <div>
                                     <h3 className="text-xl font-bold">{selectedProfile.name}</h3>
+                                    {selectedProfile.isPublic && (
+                                        <Button variant="link" size="sm" className="p-0 h-auto text-indigo-500" onClick={() => window.open(`/profissionais/${selectedProfile.userId}`, "_blank")}>
+                                            Ver perfil público <ExternalLink className="w-3 h-3 ml-1" />
+                                        </Button>
+                                    )}
                                     <p className="text-sm text-gray-500">
                                         {selectedProfile.city ? `${selectedProfile.city}/${selectedProfile.state}` : 'Local não informado'}
                                     </p>
