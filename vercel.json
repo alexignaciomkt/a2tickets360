@@ -1,6 +1,10 @@
 {
     "rewrites": [
         {
+            "source": "/evento/:slug",
+            "destination": "/api/og-evento"
+        },
+        {
             "source": "/api/(.*)",
             "destination": "/api/index"
         },
