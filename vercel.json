@@ -1,6 +1,10 @@
 {
     "rewrites": [
         {
+            "source": "/og-test/:slug",
+            "destination": "/api/og-test"
+        },
+        {
             "source": "/evento/:slug",
             "destination": "/api/og-evento"
         },
