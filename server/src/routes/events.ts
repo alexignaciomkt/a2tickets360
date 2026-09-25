@@ -19,6 +19,7 @@ import {
 import { eq, and, sql, inArray } from 'drizzle-orm';
 import { authMiddleware } from '../middlewares/auth';
 import { idempotencyService } from '../services/idempotencyService';
+import { normalizeSlug, validateSlug, isReservedSlug } from '../utils/slugUtils';
 
 const router = new Hono();
 
@@ -40,7 +41,7 @@ router.post('/', async (c) => {
         const body = await c.req.json();
         const {
             title,
-            slug,
+            slug: rawSlug,
             description,
             category,
             category_code,
@@ -62,6 +63,24 @@ router.post('/', async (c) => {
 
         if (!title || !timezone) {
             return c.json({ error: 'Campos obrigatórios ausentes.' }, 400);
+        }
+
+        // Validação e normalização de Slug
+        const candidateSlug = (rawSlug || title || '').trim();
+        const normalizedSlug = normalizeSlug(candidateSlug);
+
+        if (!validateSlug(normalizedSlug)) {
+            return c.json({
+                error: 'INVALID_EVENT_SLUG',
+                message: 'O endereço escolhido para o evento é inválido.'
+            }, 400);
+        }
+
+        if (isReservedSlug(normalizedSlug)) {
+            return c.json({
+                error: 'RESERVED_EVENT_SLUG',
+                message: 'Este endereço é reservado pelo sistema.'
+            }, 400);
         }
 
         // Validação estrita de Ingressos (Tickets)
@@ -130,7 +149,7 @@ router.post('/', async (c) => {
                     id: operationId, // OPERATION ID = EVENT ID
                     organizerId: organizerDetails.id,
                     title,
-                    slug,
+                    slug: normalizedSlug,
                     description,
                     category,
                     categoryCode: category_code,
@@ -175,10 +194,16 @@ router.post('/', async (c) => {
                 const raceEvent = await db.query.events.findFirst({
                     where: eq(events.id, operationId)
                 });
-                if (raceEvent && raceEvent.organizerId === userId) {
+                if (raceEvent && (raceEvent.organizerId === organizerDetails.id || raceEvent.organizerId === userId)) {
                     await idempotencyService.setCompleted(userId, operationId, raceEvent.id);
                     return c.json({ id: raceEvent.id, ...raceEvent }, 200);
                 }
+
+                // Se não for o próprio operationId, é colisão de slug (UNIQUE events.slug)
+                return c.json({
+                    error: 'EVENT_SLUG_TAKEN',
+                    message: 'Este endereço já está em uso.'
+                }, 409);
             }
             throw dbError; // Bubble up para o catch block principal
         }
@@ -226,6 +251,126 @@ router.get('/operations/:operationId', async (c) => {
     } catch (err: any) {
         console.error('[EVENTS_OPERATION] Error:', err);
         return c.json({ error: 'Internal Server Error' }, 500);
+    }
+});
+
+// Atualizar evento (organizador)
+router.put('/:id', async (c) => {
+    try {
+        const payload = (c.get as any)('jwtPayload');
+        if (payload.role !== 'organizer' && payload.role !== 'master') {
+            return c.json({ error: 'Acesso negado.' }, 403);
+        }
+
+        const eventId = c.req.param('id');
+        const body = await c.req.json();
+
+        // 1. Fetch existing event
+        const existingEvent = await db.query.events.findFirst({
+            where: eq(events.id, eventId)
+        });
+        if (!existingEvent) {
+            return c.json({ error: 'Evento não encontrado.' }, 404);
+        }
+
+        // 2. Ownership check
+        if (payload.role !== 'master') {
+            const organizerDetails = await db.query.organizers.findFirst({
+                where: eq(organizers.userId, payload.id)
+            });
+            if (!organizerDetails || existingEvent.organizerId !== organizerDetails.id) {
+                return c.json({ error: 'Acesso negado ao evento.' }, 403);
+            }
+        }
+
+        const updateData: any = {
+            updatedAt: new Date()
+        };
+
+        // 3. Slug handling and lock defense
+        if (body.slug !== undefined) {
+            const candidateSlug = (body.slug || '').trim();
+            const normalizedSlug = normalizeSlug(candidateSlug);
+
+            if (normalizedSlug !== existingEvent.slug) {
+                // REGRA DE PRODUTO: draft = editável. Qualquer outro status (pending, published, etc.) = BLOQUEADO
+                if (existingEvent.status !== 'draft') {
+                    return c.json({
+                        error: 'EVENT_SLUG_LOCKED',
+                        message: 'O endereço público deste evento não pode mais ser alterado.'
+                    }, 400);
+                }
+
+                if (!validateSlug(normalizedSlug)) {
+                    return c.json({
+                        error: 'INVALID_EVENT_SLUG',
+                        message: 'O endereço escolhido para o evento é inválido.'
+                    }, 400);
+                }
+
+                if (isReservedSlug(normalizedSlug)) {
+                    return c.json({
+                        error: 'RESERVED_EVENT_SLUG',
+                        message: 'Este endereço é reservado pelo sistema.'
+                    }, 400);
+                }
+
+                updateData.slug = normalizedSlug;
+            }
+        }
+
+        // Map other fields
+        if (body.title !== undefined) updateData.title = body.title;
+        if (body.description !== undefined) updateData.description = body.description;
+        if (body.category !== undefined) updateData.category = body.category;
+        if (body.category_code !== undefined || body.categoryCode !== undefined) {
+            updateData.categoryCode = body.category_code || body.categoryCode;
+        }
+        if (body.status !== undefined) updateData.status = body.status;
+        if (body.event_type !== undefined || body.eventType !== undefined) {
+            updateData.eventType = body.event_type || body.eventType;
+        }
+        if (body.start_date !== undefined || body.startDate !== undefined) {
+            const sd = body.start_date || body.startDate;
+            updateData.startDate = sd ? new Date(sd) : null;
+        }
+        if (body.end_date !== undefined || body.endDate !== undefined) {
+            const ed = body.end_date || body.endDate;
+            updateData.endDate = ed ? new Date(ed) : null;
+        }
+        if (body.location_name !== undefined || body.locationName !== undefined) {
+            updateData.locationName = body.location_name || body.locationName;
+        }
+        if (body.address !== undefined) updateData.address = body.address;
+        if (body.city !== undefined) updateData.city = body.city;
+        if (body.state !== undefined) updateData.state = body.state;
+        if (body.postal_code !== undefined || body.postalCode !== undefined) {
+            updateData.postalCode = body.postal_code || body.postalCode;
+        }
+        if (body.capacity !== undefined) updateData.capacity = body.capacity;
+        if (body.banner_url !== undefined || body.bannerUrl !== undefined || body.imageUrl !== undefined) {
+            updateData.bannerUrl = body.banner_url || body.bannerUrl || body.imageUrl;
+        }
+
+        try {
+            const [updatedEvent] = await db.update(events)
+                .set(updateData)
+                .where(eq(events.id, eventId))
+                .returning();
+
+            return c.json({ id: updatedEvent.id, ...updatedEvent });
+        } catch (dbError: any) {
+            if (dbError.code === '23505') {
+                return c.json({
+                    error: 'EVENT_SLUG_TAKEN',
+                    message: 'Este endereço já está em uso.'
+                }, 409);
+            }
+            throw dbError;
+        }
+    } catch (err: any) {
+        console.error('[EVENT API] Error updating event:', err);
+        return c.json({ error: 'Erro ao atualizar evento.', detail: err.message }, 500);
     }
 });
 

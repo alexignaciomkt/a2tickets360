@@ -13,9 +13,9 @@ const {
     candidates, staffProposals, sponsorTypes, sponsors, sponsorInstallments, sponsorDeliverables,
     standCategories, stands, visitors, exhibitorStaff, exhibitorLogistics, exhibitorLeads,
     aiChatLogs, syncQueue, legalPages, productCategories, products, productVariants, productOrders,
-    organizerPosts, sportRegistrations, sportRegistrationPlayers, purchasedTickets
+    organizerPosts, sportRegistrations, sportRegistrationPlayers, purchasedTickets, staffProfiles, promoters
 } = schema;
-import { eq, or, and, isNull, isNotNull, sql, inArray, lte, gte, gt } from 'drizzle-orm';
+import { eq, or, and, ne, isNull, isNotNull, sql, inArray, lte, gte, gt } from 'drizzle-orm';
 import Redis from 'ioredis';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { join } from 'node:path';
@@ -2153,6 +2153,7 @@ import { normalizeSlug, validateSlug, isReservedSlug } from './utils/slugUtils';
 app.get('/api/public/slugs/check', async (c: Context) => {
     const type = c.req.query('type');
     const rawSlug = c.req.query('slug');
+    const excludeId = c.req.query('excludeId');
 
     if (!type || !rawSlug) return c.json({ error: 'Missing type or slug' }, 400);
 
@@ -2178,7 +2179,14 @@ app.get('/api/public/slugs/check', async (c: Context) => {
             const existing = await db.query.organizers.findFirst({ where: eq(organizersTable.slug, normalized) });
             if (existing) isTaken = true;
         } else if (type === 'evento') {
-            const existing = await db.query.events.findFirst({ where: eq(events.slug, normalized) });
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+            const validExcludeId = excludeId && uuidRegex.test(excludeId) ? excludeId : null;
+
+            const existing = await db.query.events.findFirst({
+                where: validExcludeId
+                    ? and(eq(events.slug, normalized), ne(events.id, validExcludeId))
+                    : eq(events.slug, normalized)
+            });
             if (existing) isTaken = true;
         } else {
             return c.json({ error: 'Invalid type' }, 400);

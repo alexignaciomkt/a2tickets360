@@ -145,20 +145,19 @@ const OrganizerEventInfoTab = ({ eventId }: { eventId: string }) => {
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
 
       {/* ── Preview link ────────────────────────────────── */}
-      {slug && (
-        <div className="flex items-center gap-3 px-5 py-3 bg-indigo-50 border border-indigo-100 rounded-2xl w-fit">
-          <Globe className="w-4 h-4 text-indigo-500 flex-shrink-0" />
-          <span className="text-xs font-bold text-indigo-700">Prévia pública:</span>
-          <a
-            href={`/events/${eventId}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs font-black text-indigo-600 hover:underline flex items-center gap-1"
-          >
-            Ver página do evento <ExternalLink className="w-3 h-3" />
-          </a>
-        </div>
-      )}
+      <div className="flex flex-wrap items-center gap-3 px-5 py-3 bg-indigo-50 border border-indigo-100 rounded-2xl w-fit">
+        <Globe className="w-4 h-4 text-indigo-500 flex-shrink-0" />
+        <span className="text-xs font-bold text-indigo-700">Endereço público do evento:</span>
+        <a
+          href={slug ? `/evento/${slug}` : `/events/${eventId}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs font-black text-indigo-600 hover:underline flex items-center gap-1 break-all"
+        >
+          {slug ? `a2tickets360.com.br/evento/${slug}` : `a2tickets360.com.br/events/${eventId}`}
+          <ExternalLink className="w-3 h-3 shrink-0" />
+        </a>
+      </div>
 
       {/* ══════════════════════════════════════════════════════
           SECTION 1: CAPA DO EVENTO

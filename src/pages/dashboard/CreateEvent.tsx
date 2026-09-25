@@ -17,6 +17,8 @@ import EventWizardStepper from '@/components/events/EventWizardStepper';
 import CategoryCombobox from '@/components/events/CategoryCombobox';
 import TicketBuilder, { TicketTier } from '@/components/events/TicketBuilder';
 import EventPreviewCard from '@/components/events/EventPreviewCard';
+import EventSlugField from '@/components/events/EventSlugField';
+import { normalizeSlug, validateSlug } from '@/lib/slugUtils';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -130,6 +132,9 @@ const CreateEvent = () => {
   const [category, setCategory] = useState('');
   const [categoryCode, setCategoryCode] = useState<string | undefined>('');
   const [title, setTitle] = useState(() => initialDraft?.title ?? '');
+  const [slug, setSlug] = useState(() => initialDraft?.slug ?? '');
+  const [isCustomSlug, setIsCustomSlug] = useState(() => initialDraft?.isCustomSlug ?? false);
+  const [isSlugTakenConflict, setIsSlugTakenConflict] = useState(false);
   const [description, setDescription] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -161,6 +166,8 @@ const CreateEvent = () => {
           setCategory(eventData.category || '');
           setCategoryCode(eventData.categoryCode || '');
           setTitle(eventData.title || '');
+          setSlug(eventData.slug || '');
+          setIsCustomSlug(true);
           setDescription(eventData.description || '');
           setImageUrl(eventData.bannerUrl || '');
           setPreviewUrl(eventData.bannerUrl || '');
@@ -233,9 +240,9 @@ const CreateEvent = () => {
     if (currentStep === 1 && !title) return;
 
     const key = `a2tickets:event-draft:${orgId}`;
-    localStorage.setItem(key, JSON.stringify({ currentStep, title }));
+    localStorage.setItem(key, JSON.stringify({ currentStep, title, slug, isCustomSlug }));
     setHasDraft(true);
-  }, [currentStep, title, isEditMode]);
+  }, [currentStep, title, slug, isCustomSlug, isEditMode]);
 
   // ===== CLEAR DRAFT =====
   const clearDraft = useCallback(() => {
@@ -254,6 +261,9 @@ const CreateEvent = () => {
     setCategory('');
     setCategoryCode('');
     setTitle('');
+    setSlug('');
+    setIsCustomSlug(false);
+    setIsSlugTakenConflict(false);
     setDescription('');
     setImageUrl('');
     setPreviewUrl(null);
@@ -334,7 +344,11 @@ const CreateEvent = () => {
   const canAdvance = (): boolean => {
     switch (currentStep) {
       case 1: return !!category;
-      case 2: return title.length >= 1 && description.length >= 10;
+      case 2: {
+        const candidateSlug = (slug || (normalizeSlug(title).length <= 40 ? normalizeSlug(title) : '')).trim();
+        const isLegacySlugUnchanged = Boolean(isEditMode && initialEventData?.slug && (candidateSlug === initialEventData.slug || slug === initialEventData.slug));
+        return title.length >= 1 && description.length >= 10 && (isLegacySlugUnchanged || validateSlug(candidateSlug));
+      }
       case 3: return !!date && !!time && !!locationName && !!locationAddress && capacity > 0;
       case 4: {
         const hasValidTickets = tickets.length > 0 && tickets.every(t => t.name.trim().length > 0 && t.quantity > 0);
@@ -396,21 +410,26 @@ const CreateEvent = () => {
       });
       setIsSubmitting(true);
       try {
-        const slug = title
-          .toLowerCase()
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '')
-          .replace(/[^\w\s-]/g, '')
-          .replace(/\s+/g, '-')
-          .replace(/--+/g, '-')
-          .trim();
+        const selectedSlug = (slug || normalizeSlug(title)).trim();
+
+        const isLegacySlugUnchanged = Boolean(isEditMode && initialEventData?.slug && selectedSlug === initialEventData.slug);
+        if (!isLegacySlugUnchanged && !validateSlug(selectedSlug)) {
+          setCurrentStep(2);
+          toast({
+            variant: 'destructive',
+            title: 'Endereço necessário',
+            description: 'O nome do evento é longo. Escolha um endereço entre 3 e 40 caracteres para continuar.'
+          });
+          setIsSubmitting(false);
+          return;
+        }
 
         const finalImageUrl = previewUrl ? imageUrl : 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800';
 
         const eventData: any = {
           organizerId: user.id,
           title, 
-          slug,
+          slug: selectedSlug,
           description, 
           category,
           categoryCode,
@@ -457,6 +476,17 @@ const CreateEvent = () => {
             });
             newEvent = await organizerService.createEvent(eventData, operationIdRef.current);
           } catch (createErr: any) {
+            if (createErr.code === 'EVENT_SLUG_TAKEN' || createErr.message?.includes('EVENT_SLUG_TAKEN') || createErr.response?.data?.error === 'EVENT_SLUG_TAKEN') {
+              setIsSlugTakenConflict(true);
+              setCurrentStep(2);
+              toast({
+                variant: 'destructive',
+                title: 'Endereço já em uso',
+                description: 'Este endereço acabou de ser utilizado. Escolha outro endereço para continuar.'
+              });
+              setIsSubmitting(false);
+              return;
+            }
             if (createErr.isTimeout) {
                // Timeout AMBIGUOUS recovery via endpoint
                try {
@@ -505,9 +535,33 @@ const CreateEvent = () => {
           return;
         } else {
           // Edit Mode
-          await organizerService.updateEvent(eventId!, eventData);
-          toast({ title: 'Sucesso!', description: 'Evento atualizado.' });
-          navigate(`/organizer/event/${eventId}/manage`);
+          try {
+            await organizerService.updateEvent(eventId!, eventData);
+            toast({ title: 'Sucesso!', description: 'Evento atualizado.' });
+            navigate(`/organizer/event/${eventId}/manage`);
+          } catch (updateErr: any) {
+            if (updateErr.code === 'EVENT_SLUG_TAKEN' || updateErr.message?.includes('EVENT_SLUG_TAKEN') || updateErr.response?.data?.error === 'EVENT_SLUG_TAKEN') {
+              setIsSlugTakenConflict(true);
+              setCurrentStep(2);
+              toast({
+                variant: 'destructive',
+                title: 'Endereço já em uso',
+                description: 'Este endereço acabou de ser utilizado. Escolha outro endereço para continuar.'
+              });
+              setIsSubmitting(false);
+              return;
+            }
+            if (updateErr.code === 'EVENT_SLUG_LOCKED' || updateErr.message?.includes('EVENT_SLUG_LOCKED') || updateErr.response?.data?.error === 'EVENT_SLUG_LOCKED') {
+              toast({
+                variant: 'destructive',
+                title: 'Endereço bloqueado',
+                description: 'O endereço público deste evento não pode mais ser alterado.'
+              });
+              setIsSubmitting(false);
+              return;
+            }
+            throw updateErr;
+          }
         }
       } catch (error: any) {
         console.error('[P0.14] EXECUTE_ERROR', error);
@@ -650,6 +704,21 @@ const CreateEvent = () => {
           placeholder="Ex: 1ª Feira de Negócios de São José dos Campos"
           className="bg-white border-gray-300 text-gray-900 text-lg placeholder:text-gray-400 focus:border-indigo-500 h-12" />
       </div>
+
+      <EventSlugField
+        title={title}
+        slug={slug}
+        onChange={(newSlug, custom) => {
+          setSlug(newSlug);
+          if (custom !== undefined) setIsCustomSlug(custom);
+          setIsSlugTakenConflict(false);
+        }}
+        isCustomSlug={isCustomSlug}
+        eventId={eventId}
+        status={initialEventData?.status}
+        isTakenConflict={isSlugTakenConflict}
+      />
+
       <div>
         <label className="text-sm font-medium text-gray-700 mb-2 block">Descrição *</label>
         <Textarea value={description} onChange={(e) => setDescription(e.target.value)}

@@ -158,7 +158,7 @@ class OrganizerService {
     // Map camelCase to snake_case payload
     const dbData: any = {
       title: eventData.title,
-      slug: eventData.slug || uuidv4().substring(0, 8),
+      slug: eventData.slug,
       description: eventData.description,
       category: eventData.category,
       category_code: eventData.categoryCode,
@@ -255,7 +255,10 @@ class OrganizerService {
         throw timeoutError;
       }
       console.error('Erro na API createEvent:', error);
-      throw new Error(error.response?.data?.error || error.message || 'Falha ao criar evento.');
+      const customErr = new Error(error.response?.data?.message || error.response?.data?.error || error.message || 'Falha ao criar evento.');
+      (customErr as any).response = error.response;
+      (customErr as any).code = error.response?.data?.error;
+      throw customErr;
     }
   }
 
@@ -270,6 +273,7 @@ class OrganizerService {
     // Map camelCase to snake_case
     const dbData: any = {};
     if (eventData.title) dbData.title = eventData.title;
+    if (eventData.slug) dbData.slug = eventData.slug;
     if (eventData.description) dbData.description = eventData.description;
     if (eventData.category) dbData.category = eventData.category;
     if (eventData.date || eventData.startDate) dbData.start_date = this.combineDateTime(eventData.date || eventData.startDate, eventData.time);
@@ -284,15 +288,16 @@ class OrganizerService {
     if (eventData.imageUrl || eventData.bannerUrl) dbData.banner_url = eventData.imageUrl || eventData.bannerUrl;
     if (eventData.status) dbData.status = eventData.status;
 
-    const { data, error } = await supabase
-      .from('events')
-      .update(dbData)
-      .eq('id', eventId)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return { id: data.id, ...data } as unknown as Event;
+    try {
+      const response = await api.put<any>(`/api/organizer/events/${eventId}`, dbData);
+      const data = response.data || response;
+      return { id: data.id, ...data } as unknown as Event;
+    } catch (apiError: any) {
+      const customErr = new Error(apiError.response?.data?.message || apiError.response?.data?.error || apiError.message || 'Falha ao atualizar evento.');
+      (customErr as any).response = apiError.response;
+      (customErr as any).code = apiError.response?.data?.error;
+      throw customErr;
+    }
   }
 
   async deleteEvent(eventId: string): Promise<void> {
