@@ -51,15 +51,16 @@ import html2canvas from 'html2canvas';
 import { toast } from 'sonner';
 
 const EventDetailPage = () => {
-  const { id } = useParams();
+  const { id, slug } = useParams();
+  const identifier = id || slug;
   const [searchParams] = useSearchParams();
   const promoterRef = searchParams.get('ref');
 
   useEffect(() => {
-    if (id && promoterRef) {
-      sessionStorage.setItem(`promoter_ref_${id}`, promoterRef);
+    if (identifier && promoterRef) {
+      sessionStorage.setItem(`promoter_ref_${identifier}`, promoterRef);
     }
-  }, [id, promoterRef]);
+  }, [identifier, promoterRef]);
   const navigate = useNavigate();
   const [event, setEvent] = useState<Event | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -72,13 +73,16 @@ const EventDetailPage = () => {
   const cardRef = React.useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!id) return;
+    if (!identifier) {
+      setIsLoading(false);
+      return;
+    }
 
     const fetchAllData = async () => {
       setIsLoading(true);
       try {
         const [eventData, staff, platformPro, adsense] = await Promise.all([
-          eventService.getEventById(id),
+          eventService.getEventById(identifier),
           cmsService.getSectionByKey('staff_section'),
           cmsService.getSectionByKey('platform_pro_banner'),
           cmsService.getGlobalConfig('adsense_settings')
@@ -103,7 +107,7 @@ const EventDetailPage = () => {
 
     fetchAllData();
     window.scrollTo(0, 0);
-  }, [id]);
+  }, [identifier]);
 
   if (isLoading) {
     return (
