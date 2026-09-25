@@ -36,13 +36,13 @@ export default async function handler(req: any, res: any) {
             .single();
 
         if (error || !event) {
-            console.error('Evento não encontrado para o slug:', slug);
+            console.error('Evento não encontrado para o slug:', slug, 'Error:', error);
             return serveFallback(req, res);
         }
 
         // Obter HTML base do próprio host
-        const proto = req.headers['x-forwarded-proto'] || 'https';
-        const host = req.headers['host'];
+        const proto = req.headers?.['x-forwarded-proto'] || 'https';
+        const host = req.headers?.['host'] || 'www.a2tickets360.com.br';
         const baseUrl = `${proto}://${host}`;
         
         const htmlRes = await fetch(`${baseUrl}/index.html`);
@@ -68,7 +68,10 @@ export default async function handler(req: any, res: any) {
         const locParts = [dateStr, event.city && event.state ? `${event.city}/${event.state}` : event.location_name, 'A2 Tickets 360º'].filter(Boolean);
         const description = escapeHtml(locParts.join(' • '));
 
-        const image = escapeHtml(event.banner_url || `${baseUrl}/logo_512x512.png`);
+        const isFasSocial = slug === 'fas-feira-da-arte-e-do-samba-100-anos-do-bambas';
+        const image = isFasSocial
+            ? `${baseUrl}/og/events/fas-100-anos-bambas.jpg`
+            : escapeHtml(event.banner_url || `${baseUrl}/logo_512x512.png`);
         const url = escapeHtml(`${baseUrl}/evento/${slug}`);
 
         // Substituir as tags padrão
@@ -79,6 +82,30 @@ export default async function handler(req: any, res: any) {
         html = html.replace(/<meta property="og:description" content=".*?"[^>]*>/, `<meta property="og:description" content="${description}" />`);
         html = html.replace(/<meta property="og:image" content=".*?"[^>]*>/, `<meta property="og:image" content="${image}" />`);
         html = html.replace(/<meta property="og:url" content=".*?"[^>]*>/, `<meta property="og:url" content="${url}" />`);
+
+        if (isFasSocial) {
+            if (html.includes('property="og:image:width"')) {
+                html = html.replace(/<meta property="og:image:width" content=".*?"[^>]*>/, `<meta property="og:image:width" content="1200" />`);
+            } else {
+                html = html.replace(/<meta property="og:image" content=".*?"[^>]*>/, `<meta property="og:image" content="${image}" />\n  <meta property="og:image:width" content="1200" />`);
+            }
+            if (html.includes('property="og:image:height"')) {
+                html = html.replace(/<meta property="og:image:height" content=".*?"[^>]*>/, `<meta property="og:image:height" content="630" />`);
+            } else {
+                html = html.replace(/<meta property="og:image:width" content=".*?"[^>]*>/, `<meta property="og:image:width" content="1200" />\n  <meta property="og:image:height" content="630" />`);
+            }
+            if (html.includes('property="og:image:type"')) {
+                html = html.replace(/<meta property="og:image:type" content=".*?"[^>]*>/, `<meta property="og:image:type" content="image/jpeg" />`);
+            } else {
+                html = html.replace(/<meta property="og:image:height" content=".*?"[^>]*>/, `<meta property="og:image:height" content="630" />\n  <meta property="og:image:type" content="image/jpeg" />`);
+            }
+        } else {
+            if (event.banner_url) {
+                html = html.replace(/<meta property="og:image:width" content=".*?"[^>]*>\s*/, '');
+                html = html.replace(/<meta property="og:image:height" content=".*?"[^>]*>\s*/, '');
+            }
+            html = html.replace(/<meta property="og:image:type" content=".*?"[^>]*>\s*/, '');
+        }
         
         html = html.replace(/<meta name="twitter:title" content=".*?"[^>]*>/, `<meta name="twitter:title" content="${ogTitle}" />`);
         html = html.replace(/<meta name="twitter:description" content=".*?"[^>]*>/, `<meta name="twitter:description" content="${description}" />`);
@@ -106,8 +133,8 @@ export default async function handler(req: any, res: any) {
 
 async function serveFallback(req: any, res: any) {
     try {
-        const proto = req.headers['x-forwarded-proto'] || 'https';
-        const host = req.headers['host'];
+        const proto = req.headers?.['x-forwarded-proto'] || 'https';
+        const host = req.headers?.['host'] || 'www.a2tickets360.com.br';
         const baseUrl = `${proto}://${host}`;
         const htmlRes = await fetch(`${baseUrl}/index.html`);
         const html = await htmlRes.text();
