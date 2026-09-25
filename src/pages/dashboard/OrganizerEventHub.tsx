@@ -28,6 +28,7 @@ import OrganizerCouponsTab from './OrganizerCouponsTab';
 import OrganizerRulesTab from './OrganizerRulesTab';
 import OrganizerTicketDesignerTab from './OrganizerTicketDesignerTab';
 import OrganizerEventInfoTab from './OrganizerEventInfoTab';
+import { getPublicEventPath } from '@/lib/urlHelpers';
 import OrganizerEventStaffApplicationsTab from './OrganizerEventStaffApplicationsTab';
 import { OrganizerEventHighlightBox } from '@/components/dashboard/OrganizerEventHighlightBox';
 import { useAuth } from '@/contexts/AuthContext';
@@ -284,7 +285,7 @@ const OrganizerEventHub = () => {
             </div>
 
             <div className="flex gap-3">
-              <Link to={`/events/${eventId}`} target="_blank" className="bg-gray-100 text-gray-700 px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-gray-200 transition-all flex items-center gap-2">
+              <Link to={getPublicEventPath(event || { id: eventId })} target="_blank" className="bg-gray-100 text-gray-700 px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-gray-200 transition-all flex items-center gap-2">
                 <Globe className="w-4 h-4" /> Visualizar Página
               </Link>
               <Link to={`/organizer/events/edit/${eventId}`} className="bg-primary text-white px-8 py-3 rounded-2xl text-xs font-black uppercase tracking-widest hover:brightness-110 transition-all shadow-lg shadow-primary/20">

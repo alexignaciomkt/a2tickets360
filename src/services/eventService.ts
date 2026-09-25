@@ -23,10 +23,11 @@ export interface Event {
     organizer?: {
         id: string;
         name: string;
-        email: string;
-        slug: string;
+        email?: string;
+        slug?: string;
         logoUrl?: string;
         description?: string;
+        websiteUrl?: string;
     };
     ticket_design?: {
         template: string;
@@ -81,12 +82,13 @@ class EventService {
                 postalCode: d.postal_code || ''
             },
             organizer: {
-                id: organizer.id,
+                id: organizer.id || d.organizer_id || '',
                 name: details.company_name || organizer.name || 'Organizador',
-                email: organizer.email,
-                slug: details.slug || '',
-                logoUrl: details.logo_url || '',
-                description: details.description || details.bio || organizer.bio || ''
+                email: organizer.email || '',
+                slug: details.slug || organizer.slug || '',
+                logoUrl: details.logo_url || organizer.logoUrl || '',
+                description: details.bio || details.description || organizer.description || organizer.bio || '',
+                websiteUrl: details.website_url || organizer.websiteUrl || ''
             },
             ticket_design: d.ticket_design || {
                 template: 'modern',
@@ -155,17 +157,22 @@ class EventService {
             if (!eventData) return null;
 
             if (eventData.organizer_id) {
-                const [profileRes, detailsRes] = await Promise.all([
-                    supabase.from('profiles').select('*').eq('id', eventData.organizer_id).maybeSingle(),
-                    supabase.from('organizer_details').select('*').eq('user_id', eventData.organizer_id).maybeSingle()
-                ]);
-                
-                if (profileRes.data) {
-                    const profileData = profileRes.data;
-                    if (detailsRes.data) {
-                        profileData.details = detailsRes.data;
-                    }
-                    eventData.organizer = profileData;
+                const { data: detailsData } = await supabase
+                    .from('organizer_details')
+                    .select('*')
+                    .eq('id', eventData.organizer_id)
+                    .maybeSingle();
+
+                if (detailsData) {
+                    eventData.organizer = {
+                        id: detailsData.id,
+                        name: detailsData.company_name || 'Organizador',
+                        slug: detailsData.slug || '',
+                        logoUrl: detailsData.logo_url || '',
+                        description: detailsData.bio || '',
+                        websiteUrl: detailsData.website_url || '',
+                        details: detailsData
+                    };
                 }
             }
 

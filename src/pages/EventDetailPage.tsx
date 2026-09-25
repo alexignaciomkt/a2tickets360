@@ -50,6 +50,19 @@ import SocialShareCard from '@/components/events/SocialShareCard';
 import html2canvas from 'html2canvas';
 import { toast } from 'sonner';
 
+function cleanBioText(rawBio?: string): string {
+  if (!rawBio) return '';
+  return rawBio
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 const EventDetailPage = () => {
   const { id, slug } = useParams();
   const identifier = id || slug;
@@ -246,12 +259,12 @@ const EventDetailPage = () => {
                   </h1>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+                <div className="flex flex-col gap-4 pt-4">
                   <div className="flex items-start gap-4">
-                    <div className="p-3 bg-white/10 backdrop-blur-xl rounded-2xl border border-white/10">
+                    <div className="p-3 bg-white/10 backdrop-blur-xl rounded-2xl border border-white/10 shrink-0">
                       <Calendar className="w-6 h-6 text-indigo-400" />
                     </div>
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Data e Hora</p>
                       <p className="font-black text-lg uppercase tracking-tight">
                         {eventDateRaw.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' })}
@@ -260,15 +273,15 @@ const EventDetailPage = () => {
                     </div>
                   </div>
                   <div className="flex items-start gap-4">
-                    <div className="p-3 bg-white/10 backdrop-blur-xl rounded-2xl border border-white/10">
+                    <div className="p-3 bg-white/10 backdrop-blur-xl rounded-2xl border border-white/10 shrink-0">
                       <MapPin className="w-6 h-6 text-indigo-400" />
                     </div>
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Localização</p>
-                      <p className="font-black text-lg uppercase tracking-tight truncate max-w-[250px]">
+                      <p className="font-black text-lg uppercase tracking-tight break-words leading-snug">
                         {event.location.name}
                       </p>
-                      <p className="text-sm font-bold text-indigo-300 uppercase">{event.location.city}, {event.location.state}</p>
+                      <p className="text-sm font-bold text-indigo-300 uppercase mt-0.5">{event.location.city}, {event.location.state}</p>
                     </div>
                   </div>
                 </div>
@@ -441,38 +454,60 @@ const EventDetailPage = () => {
 
               {/* About Producer (Image 2 Style - Integrated) */}
               <section className="bg-slate-950 rounded-[2rem] p-6 md:p-8 shadow-2xl relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-[80px] -mr-32 -mt-32"></div>
+                <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-[80px] -mr-32 -mt-32 pointer-events-none"></div>
                 
                 {/* Public Page Button (Top Right) */}
                 <div className="absolute top-6 right-6 z-20">
-                  <Button 
-                    size="sm"
-                    className="bg-white text-slate-950 hover:bg-slate-100 rounded-full h-8 px-4 font-black uppercase tracking-widest text-[8px] flex gap-2 shadow-lg"
-                    onClick={() => navigate(`/p/${event.organizer?.slug}`)}
-                  >
-                    Nosso Site <ExternalLink className="w-3 h-3" />
-                  </Button>
+                  {event.organizer?.slug ? (
+                    <Button
+                      size="sm"
+                      className="bg-white text-slate-950 hover:bg-slate-100 rounded-full h-8 px-4 font-black uppercase tracking-widest text-[8px] flex gap-2 shadow-lg"
+                      onClick={() => navigate(`/produtora/${event.organizer?.slug}`)}
+                    >
+                      VER PRODUTORA <ChevronRight className="w-3 h-3" />
+                    </Button>
+                  ) : event.organizer?.websiteUrl ? (
+                    <Button
+                      size="sm"
+                      asChild
+                      className="bg-white text-slate-950 hover:bg-slate-100 rounded-full h-8 px-4 font-black uppercase tracking-widest text-[8px] flex gap-2 shadow-lg"
+                    >
+                      <a href={event.organizer.websiteUrl} target="_blank" rel="noopener noreferrer">
+                        NOSSO SITE <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </Button>
+                  ) : null}
                 </div>
 
                 <div className="relative z-10 flex flex-col md:flex-row gap-8 items-center">
-                  <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-slate-900 shadow-2xl flex-shrink-0">
-                    <img 
-                      src={event.organizer?.logoUrl || "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=400&h=400&fit=crop"} 
-                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
-                      alt={event.organizer?.name} 
-                    />
+                  <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-slate-900 shadow-2xl flex-shrink-0 bg-slate-900">
+                    {event.organizer?.logoUrl ? (
+                      <img
+                        src={event.organizer.logoUrl}
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                        alt={event.organizer.name}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center p-3">
+                        <img
+                          src="/icon-192x192.png"
+                          className="w-full h-full object-contain opacity-80"
+                          alt="A2Tickets360"
+                        />
+                      </div>
+                    )}
                   </div>
 
-                  <div className="space-y-3 flex-grow text-center md:text-left">
+                  <div className="space-y-3 flex-grow text-center md:text-left min-w-0">
                     <div>
                       <p className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.3em] mb-1">Organizador Oficial</p>
-                      <h3 className="text-2xl font-black text-white uppercase tracking-tight">
-                        {event.organizer?.name || 'Produtor Ticketera'}
+                      <h3 className="text-2xl font-black text-white uppercase tracking-tight break-words">
+                        {event.organizer?.name || 'Produtor Oficial'}
                       </h3>
                     </div>
                     
                     <p className="text-slate-400 font-medium text-xs leading-relaxed max-w-xl line-clamp-2">
-                      {event.organizer?.description || 'Produtor verificado e comprometido com a melhor experiência para o público.'}
+                      {cleanBioText(event.organizer?.description) || 'Produtor verificado e comprometido com a melhor experiência para o público.'}
                     </p>
                   </div>
                 </div>

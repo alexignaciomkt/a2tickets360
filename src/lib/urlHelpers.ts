@@ -1,3 +1,8 @@
+export function getPublicEventPath(event: { slug?: string | null; id?: string }): string {
+    if (event.slug) return `/evento/${event.slug}`;
+    return `/events/${event.id || ''}`;
+}
+
 export function getPublicEventUrl(event: { slug?: string | null, id: string }): string {
     if (event.slug) return `${window.location.origin}/evento/${event.slug}`;
     return `${window.location.origin}/events/${event.id}`;
