@@ -166,17 +166,21 @@ function AppRoutes() {
         <Route path="/events" element={<EventsPage />} />
         <Route path="/events/:id" element={<EventDetailPage />} />
         <Route path="/e/:id" element={<EventDetailPage />} />
+        <Route path="/evento/:slug" element={<EventDetailPage />} />
         {import.meta.env.DEV && (
           <>
             <Route path="/dev/setup-password-preview" element={<SetupPasswordPage />} />
           </>
         )}
         <Route path="/p/:slug" element={<ProducerFanPage />} />
+        <Route path="/produtora/:slug" element={<ProducerFanPage />} />
         <Route path="/producer-fan/:slug" element={<ProducerFanPage />} />
         <Route path="/producer-page/:slug" element={<ProducerFanPage />} />
         <Route path="/producer/:slug" element={<ProducerFanPage />} />
         <Route path="/producer/:slug/careers" element={<ProducerCareersPage />} />
         <Route path="/events/:eventId/register" element={<VisitorRegistrationPage />} />
+        <Route path="/profissionais/:id" element={<PublicStaffProfile />} />
+        <Route path="/staff/:id" element={<PublicStaffProfile />} />
 
         {/* ═══ CUSTOMER ROUTES ═══ */}
         <Route path="/dashboard" element={

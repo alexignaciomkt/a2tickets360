@@ -4,8 +4,66 @@ import { db } from '../db/index.js';
 import { profiles, staffProfiles, staffProfessionalFunctions, staffProfileFunctions } from '../db/schema.js';
 import { eq, inArray } from 'drizzle-orm';
 
+import { normalizeSlug, validateSlug, isReservedSlug } from '../utils/slugUtils';
+
 const router = new Hono();
 router.use('/*', authMiddleware);
+
+// PUT /api/me/staff-profile/slug
+router.put('/slug', async (c: Context) => {
+    try {
+        const payload = (c.get as any)('jwtPayload');
+        if (!payload || !payload.id) return c.json({ error: 'Unauthorized' }, 401);
+        const userId = payload.id;
+
+        const body = await c.req.json();
+        const rawSlug = body.slug;
+
+        if (!rawSlug) return c.json({ error: 'Slug is required' }, 400);
+
+        const normalized = normalizeSlug(rawSlug);
+
+        if (!validateSlug(normalized)) {
+            return c.json({ error: 'Slug inválido. Use apenas letras, números e hifens. Min 3 e Max 40 caracteres.' }, 400);
+        }
+
+        if (isReservedSlug(normalized)) {
+            return c.json({ error: 'Este endereço não está disponível (reservado).' }, 400);
+        }
+
+        // Check current profile
+        const currentProfile = await db.query.staffProfiles.findFirst({
+            where: eq(staffProfiles.userId, userId)
+        });
+
+        if (!currentProfile) {
+            return c.json({ error: 'Perfil não encontrado' }, 404);
+        }
+
+        if (currentProfile.slug) {
+            return c.json({ error: 'Você já definiu um endereço público. Alterações não são permitidas nesta versão.' }, 403);
+        }
+
+        // Try to update
+        try {
+            await db.update(staffProfiles)
+                .set({ slug: normalized })
+                .where(eq(staffProfiles.userId, userId));
+
+            return c.json({ success: true, slug: normalized });
+        } catch (dbErr: any) {
+            // Check for Postgres unique violation 23505
+            if (dbErr.code === '23505') {
+                return c.json({ error: 'Este endereço já foi escolhido por outra pessoa.' }, 409);
+            }
+            throw dbErr;
+        }
+
+    } catch (e: any) {
+        console.error('[PUT /api/me/staff-profile/slug]', e);
+        return c.json({ error: 'Internal server error' }, 500);
+    }
+});
 
 // GET /api/me/staff-profile
 router.get('/', async (c: Context) => {
@@ -16,7 +74,7 @@ router.get('/', async (c: Context) => {
 
         // 1. Get Base Profile
         const [profile] = await db.select().from(profiles).where(eq(profiles.userId, userId)).limit(1);
-        
+
         // 2. Get Staff Profile
         const [staffProfile] = await db.select().from(staffProfiles).where(eq(staffProfiles.userId, userId)).limit(1);
 
@@ -52,9 +110,9 @@ router.put('/', async (c: Context) => {
         const payload = (c.get as any)('jwtPayload');
         if (!payload || !payload.id) return c.json({ error: 'Unauthorized' }, 401);
         const userId = payload.id;
-        
+
         const body = await c.req.json();
-        
+
         // 1. Update Base Profile
         await db.update(profiles).set({
             name: body.name,
@@ -68,13 +126,13 @@ router.put('/', async (c: Context) => {
 
         // 2. Clear old functions and insert new ones
         await db.delete(staffProfileFunctions).where(eq(staffProfileFunctions.staffUserId, userId));
-        
+
         if (body.professionalFunctionIds && body.professionalFunctionIds.length > 0) {
             // Verify if all IDs exist and are active
             const activeFunctions = await db.select({ id: staffProfessionalFunctions.id })
                 .from(staffProfessionalFunctions)
                 .where(inArray(staffProfessionalFunctions.id, body.professionalFunctionIds));
-            
+
             const activeIds = activeFunctions.map(f => f.id);
             if (activeIds.length > 0) {
                 const inserts = activeIds.map(funcId => ({
@@ -88,7 +146,7 @@ router.put('/', async (c: Context) => {
         // 3. Determine if profile is complete
         const functionsCount = body.professionalFunctionIds ? body.professionalFunctionIds.length : 0;
         const isComplete = Boolean(
-            body.name && body.cpf && body.phone && body.birthDate && 
+            body.name && body.cpf && body.phone && body.birthDate &&
             body.city && body.state && body.avatarUrl && functionsCount > 0
         );
 

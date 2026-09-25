@@ -158,6 +158,7 @@ export const staffProfiles = pgTable('staff_profiles', {
     bio: text('bio'),
     avatarUrl: text('avatar_url'), // Selfie persistente do credenciamento
     isPublic: boolean('is_public').default(true),
+    slug: text('slug').unique(),
     profileComplete: boolean('profile_complete').default(false).notNull(),
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow(),
@@ -317,7 +318,7 @@ export const events = pgTable('events', {
     id: uuid('id').primaryKey().defaultRandom(),
     organizerId: uuid('organizer_id').references(() => organizers.id).notNull(),
     title: text('title').notNull(),
-    slug: text('slug'),
+    slug: text('slug').unique(),
     description: text('description'),
     category: text('category'),
     categoryCode: text('category_code'),
@@ -406,6 +407,7 @@ export const promoters = pgTable('promoters', {
     isActive: boolean('is_active').default(true).notNull(),
     profileComplete: boolean('profile_complete').default(false).notNull(),
     profileData: jsonb('profile_data'),
+    slug: text('slug').unique(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 

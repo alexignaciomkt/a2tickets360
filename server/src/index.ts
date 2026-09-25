@@ -219,7 +219,7 @@ if (!existsSync(UPLOADS_DIR)) {
     mkdir(UPLOADS_DIR, { recursive: true }).catch(() => {});
 }
 // Servir arquivos estáticos corretamente
-app.use('/uploads/*', serveStatic({ 
+app.use('/uploads/*', serveStatic({
     root: './',
 }));
 
@@ -263,7 +263,7 @@ app.post('/api/upload', async (c: Context) => {
 // --- Rota de Cadastro de Organizador (Com Asaas e Verificação) ---
 app.post('/api/organizers/register', async (c: Context) => {
     const { name, email, password, cpfCnpj, mobilePhone, slug, bannerUrl } = await c.req.json();
-    
+
     try {
         if (!supabaseAdmin) {
             return c.json({ error: 'Supabase Admin não configurado.' }, 500);
@@ -474,7 +474,7 @@ app.get('/api/events/:id/featured-credit-status', authMiddleware, async (c: Cont
 
         const availableCount = credits.filter(c => c.status === 'AVAILABLE').length;
         const reservedCredit = credits.find(c => c.status === 'RESERVED' && c.reservedEventId === eventId) || null;
-        
+
         const activeCycles = await db.query.eventFeaturedCycles.findMany({
             where: and(
                 eq(schema.eventFeaturedCycles.eventId, eventId),
@@ -576,11 +576,11 @@ app.post('/api/payments/checkout', async (c: Context) => {
             quantity = 1;
         } else {
             quantity = Math.max(1, parseInt(quantity as any) || 1);
-            
+
             // Validation for STANDARD tickets
             const eventSettings = ticket.event.settings as any || {};
             const maxTicketsPerCpf = Number(eventSettings.max_tickets_per_cpf || 1);
-            
+
             // Enforce limit checking paid and valid pending tickets for this user
             const cpfStr = normalizeCpf(buyerCpf);
             const userPurchases = await db
@@ -696,7 +696,7 @@ app.post('/api/payments/checkout', async (c: Context) => {
             if (sportData.players.length !== expectedPlayers) {
                 throw new Error(`Quantidade de jogadores inválida. Esperado: ${expectedPlayers}, Recebido: ${sportData.players.length}.`);
             }
-            
+
             const cpfSet = new Set();
             for (let i = 0; i < sportData.players.length; i++) {
                 const p = sportData.players[i];
@@ -800,7 +800,7 @@ app.post('/api/payments/checkout', async (c: Context) => {
             const saleResult = await tx.insert(schema.sales).values({
                 eventId: ticket.eventId,
                 buyerInfo: { name: buyerName, email: buyerEmail, cpf: normalizeCpf(buyerCpf), phone: normalizedBuyerPhone },
-                
+
                 unitPrice: (Math.round(Number(ticket.price) * 100) / 100).toString(),
                 quantity: quantity,
                 billableUnits: dist.billableUnits,
@@ -811,7 +811,7 @@ app.post('/api/payments/checkout', async (c: Context) => {
                 producerAmount: (dist.producerAmountCents / 100).toString(),
                 feePassedToBuyer: passFeeToBuyer,
                 buyerTotal: (dist.buyerTotalCents / 100).toString(),
-    
+
                 totalAmount: totalValue.toString(),
                 revenueType: revenueType as 'TICKET' | 'REGISTRATION' | 'REPECHAGE',
                 paymentStatus: 'pending',
@@ -843,7 +843,7 @@ app.post('/api/payments/checkout', async (c: Context) => {
                     originalRegistrationId: originalRegistrationId,
                     status: 'pending',
                 };
-    
+
                 const srResult = await tx.insert(sportRegistrations).values(srValues).returning({ id: sportRegistrations.id });
                 sportRegId = srResult[0].id;
 
@@ -853,9 +853,9 @@ app.post('/api/payments/checkout', async (c: Context) => {
                     const p = sportData.players[idx];
                     const normCpf = p.cpf ? normalizeCpf(p.cpf) : null;
                     const phone = p.phone?.replace(/\D/g, '') || null;
-                    
+
                     let eventParticipantId: string | null = null;
-                    
+
                     // Upsert EventParticipant
                     if (normCpf) {
                         const existingParts = await tx.select().from(schema.eventParticipants).where(
@@ -864,7 +864,7 @@ app.post('/api/payments/checkout', async (c: Context) => {
                                 eq(schema.eventParticipants.cpf, normCpf)
                             )
                         ).limit(1);
-                        
+
                         if (existingParts.length > 0) {
                             eventParticipantId = existingParts[0].id;
                             const newName = p.name?.trim();
@@ -874,7 +874,7 @@ app.post('/api/payments/checkout', async (c: Context) => {
                             const hasNewPhoto = newPhoto && newPhoto !== existingParts[0].photoUrl;
                             const newEmail = p.email?.trim();
                             const hasNewEmail = newEmail && newEmail !== existingParts[0].email;
-                            
+
                             if (hasNewName || hasNewPhone || hasNewPhoto || hasNewEmail) {
                                 await tx.update(schema.eventParticipants)
                                     .set({
@@ -887,7 +887,7 @@ app.post('/api/payments/checkout', async (c: Context) => {
                             }
                         }
                     }
-                    
+
                     if (!eventParticipantId) {
                         const newPart = await tx.insert(schema.eventParticipants).values({
                             eventId: ticket.eventId,
@@ -911,9 +911,9 @@ app.post('/api/payments/checkout', async (c: Context) => {
                         qrCodeData: qrCode,
                         participantId: eventParticipantId
                     }).returning({ id: purchasedTickets.id });
-                    
+
                     if (idx === 0) purchasedTicketId = ptResult[0].id; // Retorno pro frontend (legacy)
-                    
+
                     playerInserts.push({
                         registrationId: sportRegId,
                         eventId: ticket.eventId,
@@ -924,7 +924,7 @@ app.post('/api/payments/checkout', async (c: Context) => {
                         phone: phone,
                     });
                 }
-                
+
                 await tx.insert(sportRegistrationPlayers).values(playerInserts);
 
             } else {
@@ -933,7 +933,7 @@ app.post('/api/payments/checkout', async (c: Context) => {
                 if (revenueType === 'TICKET') {
                     numberOfTicketsToCreate = quantity * (ticket.capacityPerUnit || 1);
                 }
-                
+
                 const ptInserts = [];
                 for (let i = 0; i < numberOfTicketsToCreate; i++) {
                     const qrCode = `TKT_${crypto.randomBytes(16).toString('hex')}`;
@@ -946,10 +946,10 @@ app.post('/api/payments/checkout', async (c: Context) => {
                         qrCodeData: qrCode
                     });
                 }
-                
+
                 const ptResult = await tx.insert(purchasedTickets).values(ptInserts).returning({ id: purchasedTickets.id });
                 purchasedTicketId = ptResult[0].id;
-                
+
                 if (revenueType === 'REPECHAGE') {
                     const srValues: any = {
                         eventId: ticket.eventId,
@@ -983,13 +983,13 @@ app.post('/api/payments/checkout', async (c: Context) => {
                 cpfCnpj: normalizeCpf(buyerCpf),
                 mobilePhone: normalizedBuyerPhone
             });
-            
+
             let humanDescription = `Ingresso ${ticket.name} | ${ticket.event.title}`;
             if (revenueType === 'REGISTRATION') humanDescription = `Inscrição | ${ticket.event.title}`;
             else if (revenueType === 'REPECHAGE') humanDescription = `Repescagem | ${ticket.event.title}`;
 
             const additionalSplits: any[] = [];
-            
+
             // Adicionar split do promoter, se aplicável
             if (promoterSettlementMode === 'ASAAS_SPLIT' && promoterWalletId && resolvedPromoterAmount > 0) {
                 additionalSplits.push({
@@ -1129,10 +1129,10 @@ app.post('/api/service-credits/activate-featured', authMiddleware, async (c: Con
         }
 
         const { activateFeaturedCredit } = await import('./services/credits.js');
-        
+
         try {
             const result = await activateFeaturedCredit(eventId, organizer.id, payload.id, payload.id);
-            
+
             // Buscar saldo atualizado para o frontend
             const credits = await db.query.organizerServiceCredits.findMany({
                 where: eq(schema.organizerServiceCredits.organizerId, organizer.id)
@@ -1183,12 +1183,12 @@ app.post('/api/service-credits/reserve-session', authMiddleware, async (c: Conte
         }
 
         const result = await reserveSessionCredit(reservationToken, organizer.id, payload.id);
-        
+
         // Retornar summary atualizado
         const credits = await db.query.organizerServiceCredits.findMany({
             where: eq(schema.organizerServiceCredits.organizerId, organizer.id)
         });
-        
+
         let available = 0, reserved = 0, consumed = 0, cancelled = 0;
         credits.forEach(credit => {
             if (credit.status === 'AVAILABLE') available++;
@@ -1230,7 +1230,7 @@ app.post('/api/service-credits/cancel-reservation', authMiddleware, async (c: Co
         const credits = await db.query.organizerServiceCredits.findMany({
             where: eq(schema.organizerServiceCredits.organizerId, organizer.id)
         });
-        
+
         let available = 0, reserved = 0, consumed = 0, cancelled = 0;
         credits.forEach(credit => {
             if (credit.status === 'AVAILABLE') available++;
@@ -1267,12 +1267,12 @@ app.post('/api/service-credits/consume-reservation', authMiddleware, async (c: C
         }
 
         const result = await consumeFeaturedReservation(reservationToken, eventId, organizer.id, payload.id, payload.id);
-        
+
         // Opcionalmente podemos retornar summary aqui também, mas não é estritamente usado pelo flow atual.
         const credits = await db.query.organizerServiceCredits.findMany({
             where: eq(schema.organizerServiceCredits.organizerId, organizer.id)
         });
-        
+
         let available = 0, reserved = 0, consumed = 0, cancelled = 0;
         credits.forEach(credit => {
             if (credit.status === 'AVAILABLE') available++;
@@ -1360,20 +1360,20 @@ app.post('/api/service-credits/buy', authMiddleware, async (c: Context) => {
             // FASE 6 - Proteção: se customerId existir mas não for válido ('cus_...'), forçar recriação
             if (!customerId || !customerId.startsWith('cus_')) {
                 console.log(`[SERVICE-CREDITS] Customer inválido ou ausente (${customerId}). Criando novo no Asaas...`);
-                const customer = await asaas.createCustomer({ 
-                    name: producerName, 
-                    email: producerEmail, 
-                    cpfCnpj: producerDocument 
+                const customer = await asaas.createCustomer({
+                    name: producerName,
+                    email: producerEmail,
+                    cpfCnpj: producerDocument
                 });
                 customerId = customer.id;
-                
+
                 // Salvar o customerId gerado no organizer_details.asaas_key
                 await db.update(schema.organizers)
                     .set({ asaasKey: customerId })
                     .where(eq(schema.organizers.id, organizer.id));
             }
 
-            const description = originEventId && body.eventTitle 
+            const description = originEventId && body.eventTitle
                 ? `[A2 Tickets] ${quantity} Crédito(s) de Destaque — ${body.eventTitle}`
                 : `[A2 Tickets] ${quantity} Crédito(s) de Destaque de Evento`;
 
@@ -1397,10 +1397,10 @@ app.post('/api/service-credits/buy', authMiddleware, async (c: Context) => {
             return c.json({ error: 'Falha ao processar pagamento com Asaas. O pedido foi registrado mas a cobrança falhou.' }, 500);
         }
 
-        return c.json({ 
-            status: 'success', 
-            orderId, 
-            invoiceUrl, 
+        return c.json({
+            status: 'success',
+            orderId,
+            invoiceUrl,
             asaasPaymentId,
             externalReference
         });
@@ -1430,9 +1430,9 @@ app.post('/api/payments/promote-event', async (c: Context) => {
 
         // 3. Atualizar o Evento com o ID do Pagamento
         await db.update(schema.events)
-            .set({ 
-                featuredAsaasPaymentId: payment.id, 
-                featuredPaymentStatus: 'pending' 
+            .set({
+                featuredAsaasPaymentId: payment.id,
+                featuredPaymentStatus: 'pending'
             })
             .where(eq(schema.events.id, eventId));
 
@@ -1478,7 +1478,7 @@ app.post('/api/webhooks/asaas', async (c: Context) => {
                         eq(schema.webhookLogs.status, 'failed')
                     ));
             }
-            
+
             // Simulação de erro intermediário (Apenas para Teste)
             if (data.simulateError) {
                 throw new Error('SIMULATED_TRANSACTION_ERROR');
@@ -1495,8 +1495,8 @@ app.post('/api/webhooks/asaas', async (c: Context) => {
             if (event === 'PAYMENT_CONFIRMED' || event === 'PAYMENT_RECEIVED') {
                 const asaasId = payment.id;
                 const externalReference = payment.externalReference;
-                
-                
+
+
                 // --- SERVICE CREDIT ORDER BRANCH ---
                 let isServiceCredit = false;
                 let creditOrder: any = null;
@@ -1542,7 +1542,7 @@ app.post('/api/webhooks/asaas', async (c: Context) => {
                         }
                     } else if (creditOrder.paymentStatus === 'PENDING') {
                         console.log(`[SERVICE CREDIT WEBHOOK] Processing order ${creditOrder.id}, quantity ${creditOrder.quantity}`);
-                        
+
                         for (let i = 1; i <= creditOrder.quantity; i++) {
                             const creditRes = await tx.insert(schema.organizerServiceCredits).values({
                                 organizerId: creditOrder.organizerId,
@@ -1575,7 +1575,7 @@ app.post('/api/webhooks/asaas', async (c: Context) => {
                     const finalCredits = await tx.query.organizerServiceCredits.findMany({
                         where: eq(schema.organizerServiceCredits.orderId, creditOrder.id)
                     });
-                    
+
                     const creditIdsArray = finalCredits.map(c => c.id);
                     let finalLedgerCount = 0;
                     if (creditIdsArray.length > 0) {
@@ -1619,10 +1619,10 @@ app.post('/api/webhooks/asaas', async (c: Context) => {
                             .set({ asaasPaymentId: asaasId })
                             .where(eq(schema.sales.id, saleRecord.id));
                     }
-                    
+
                     if (saleRecord.paymentStatus === 'pending') {
                         const updateData: any = { paymentStatus: 'paid' };
-                        
+
                         // Consolidação da comissão do promoter
                         if (saleRecord.promoterId && !saleRecord.payoutStatus) {
                             if (saleRecord.promoterSettlementMode === 'ASAAS_SPLIT') {
@@ -1699,7 +1699,7 @@ app.post('/api/webhooks/asaas', async (c: Context) => {
         }
 
         console.error('[WEBHOOK] Real processing error:', err.message);
-        
+
         // Logar a falha em nova transação/operação separada, pois a anterior sofreu ROLLBACK
         if (webhookEventId) {
             try {
@@ -1876,7 +1876,7 @@ app.put('/api/organizers/:id/complete-profile', async (c) => {
 app.post('/api/organizers/:id/asaas-account', async (c) => {
     const id = c.req.param('id');
     const body = await c.req.json();
-    
+
     try {
         const organizer = await db.query.organizers.findFirst({
             where: eq(organizersTable.id, id),
@@ -1930,12 +1930,12 @@ app.post('/api/organizers/:id/asaas-account', async (c) => {
 app.post('/api/webhooks/asaas', async (c) => {
     try {
         const payload = await c.req.json();
-        
+
         console.log('[WEBHOOK ASAAS] Recebido:', payload.event, payload.payment?.id);
 
         if (payload.event === 'PAYMENT_RECEIVED' || payload.event === 'PAYMENT_CONFIRMED') {
             const paymentId = payload.payment.id;
-            
+
             // 1. Procurar a venda associada a este pagamento
             const sale = await db.query.sales.findFirst({
                 where: eq(schema.sales.asaasPaymentId, paymentId)
@@ -1960,11 +1960,11 @@ app.post('/api/webhooks/asaas', async (c) => {
                 await db.update(schema.purchasedTickets)
                     .set({ status: 'active', purchaseDate: new Date() })
                     .where(eq(schema.purchasedTickets.parentPurchaseId, sale.id));
-                
+
                 console.log(`[WEBHOOK ASAAS] Venda ${sale.id} confirmada e ingressos ativados!`);
             }
         }
-        
+
         return c.json({ received: true });
     } catch (error) {
         console.error('[WEBHOOK ASAAS] Erro:', error);
@@ -2120,8 +2120,10 @@ app.get('/api/events/organizers/:organizerId', getEventsByOrganizer);
 // 3. Detalhes de um Evento
 app.get('/api/events/:id', async (c: Context) => {
     const id = c.req.param('id');
+    const isUuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id);
+
     const result = await db.query.events.findFirst({
-        where: eq(events.id, id),
+        where: isUuid ? eq(events.id, id) : eq(events.slug, id),
         with: {
             tickets: true,
             organizer: true
@@ -2144,6 +2146,53 @@ app.get('/api/events/:id', async (c: Context) => {
     };
 
     return c.json(transformed);
+});
+
+import { normalizeSlug, validateSlug, isReservedSlug } from './utils/slugUtils';
+
+app.get('/api/public/slugs/check', async (c: Context) => {
+    const type = c.req.query('type');
+    const rawSlug = c.req.query('slug');
+
+    if (!type || !rawSlug) return c.json({ error: 'Missing type or slug' }, 400);
+
+    const normalized = normalizeSlug(rawSlug);
+
+    if (!validateSlug(normalized)) {
+        return c.json({ normalized, available: false, reason: 'invalid' });
+    }
+
+    if (isReservedSlug(normalized)) {
+        return c.json({ normalized, available: false, reason: 'reserved' });
+    }
+
+    let isTaken = false;
+    try {
+        if (type === 'staff') {
+            const existing = await db.query.staffProfiles.findFirst({ where: eq(staffProfiles.slug, normalized) });
+            if (existing) isTaken = true;
+        } else if (type === 'promoter') {
+            const existing = await db.query.promoters.findFirst({ where: eq(promoters.slug, normalized) });
+            if (existing) isTaken = true;
+        } else if (type === 'produtora') {
+            const existing = await db.query.organizers.findFirst({ where: eq(organizersTable.slug, normalized) });
+            if (existing) isTaken = true;
+        } else if (type === 'evento') {
+            const existing = await db.query.events.findFirst({ where: eq(events.slug, normalized) });
+            if (existing) isTaken = true;
+        } else {
+            return c.json({ error: 'Invalid type' }, 400);
+        }
+    } catch (err) {
+        console.error('Error checking slug:', err);
+        return c.json({ error: 'Internal server error' }, 500);
+    }
+
+    if (isTaken) {
+        return c.json({ normalized, available: false, reason: 'taken' });
+    }
+
+    return c.json({ normalized, available: true, reason: null });
 });
 
 // 3.5 Listar todos os eventos públicos
@@ -2314,9 +2363,9 @@ app.post('/api/events/:eventId/floor-plan', async (c: Context) => {
     const { floorPlanUrl } = await c.req.json();
     try {
         const [updatedEvent] = await db.update(events)
-            .set({ 
-                settings: sql`COALESCE(${events.settings}, '{}'::jsonb) || ${JSON.stringify({ floorPlanUrl })}::jsonb`, 
-                updatedAt: new Date() 
+            .set({
+                settings: sql`COALESCE(${events.settings}, '{}'::jsonb) || ${JSON.stringify({ floorPlanUrl })}::jsonb`,
+                updatedAt: new Date()
             })
             .where(eq(events.id, eventId))
             .returning();

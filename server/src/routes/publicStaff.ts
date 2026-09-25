@@ -16,27 +16,31 @@ router.get('/:id', async (c: Context) => {
     try {
         const id = c.req.param('id');
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-        if (!uuidRegex.test(id)) return c.json({ error: 'Profile not found' }, 404);
+        const isUuid = uuidRegex.test(id);
         
-        // 1. Fetch Profile & StaffProfile
+        // 1. Fetch StaffProfile First (to resolve slug to userId)
+        const userStaffProfile = await db.select({
+            userId: staffProfiles.userId,
+            isPublic: staffProfiles.isPublic,
+            bio: staffProfiles.bio,
+            slug: staffProfiles.slug
+        }).from(staffProfiles).where(isUuid ? eq(staffProfiles.userId, id) : eq(staffProfiles.slug, id)).limit(1);
+
+        if (userStaffProfile.length === 0 || !userStaffProfile[0].isPublic) {
+            return c.json({ error: 'Profile not found' }, 404);
+        }
+
+        const realUserId = userStaffProfile[0].userId;
+
         const userProfile = await db.select({
             id: profiles.userId,
             fullName: profiles.name,
             avatarUrl: profiles.avatarUrl,
             city: profiles.city,
             state: profiles.state
-        }).from(profiles).where(eq(profiles.userId, id));
+        }).from(profiles).where(eq(profiles.userId, realUserId));
 
-        const userStaffProfile = await db.select({
-            isPublic: staffProfiles.isPublic,
-            bio: staffProfiles.bio
-        }).from(staffProfiles).where(eq(staffProfiles.userId, id));
-
-        if (userProfile.length === 0 || userStaffProfile.length === 0) {
-            return c.json({ error: 'Profile not found' }, 404);
-        }
-
-        if (!userStaffProfile[0].isPublic) {
+        if (userProfile.length === 0) {
             return c.json({ error: 'Profile not found' }, 404);
         }
 
@@ -46,7 +50,7 @@ router.get('/:id', async (c: Context) => {
             name: staffProfessionalFunctions.name
         }).from(staffProfileFunctions)
         .innerJoin(staffProfessionalFunctions, eq(staffProfileFunctions.professionalFunctionId, staffProfessionalFunctions.id))
-        .where(eq(staffProfileFunctions.staffUserId, id));
+        .where(eq(staffProfileFunctions.staffUserId, realUserId));
 
         // 3. Fetch Event History (ACTIVE or COMPLETED)
         const history = await db.select({
@@ -60,7 +64,7 @@ router.get('/:id', async (c: Context) => {
         .innerJoin(events, eq(eventStaff.eventId, events.id))
         .where(
             and(
-                eq(eventStaff.userId, id),
+                eq(eventStaff.userId, realUserId),
                 inArray(eventStaff.status, ['ACTIVE', 'COMPLETED'])
             )
         ).orderBy(desc(events.startDate));
@@ -77,6 +81,7 @@ router.get('/:id', async (c: Context) => {
 
         return c.json({
             id: userProfile[0].id,
+            slug: userStaffProfile[0].slug,
             fullName: userProfile[0].fullName,
             avatarUrl: userProfile[0].avatarUrl,
             city: userProfile[0].city,

@@ -1,3 +1,5 @@
+import { normalizeSlug } from '@/lib/slugUtils';
+import { getPublicStaffUrl } from '@/lib/urlHelpers';
 import { API_BASE_URL } from '@/services/api';
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -29,6 +31,10 @@ export default function StaffProfilePage() {
     const [loading, setLoading] = useState(true);
     const [isPublic, setIsPublic] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [slugInput, setSlugInput] = useState('');
+    const [slugStatus, setSlugStatus] = useState<'idle'|'checking'|'available'|'taken'|'reserved'|'invalid'>('idle');
+    const [savedSlug, setSavedSlug] = useState<string | null>(null);
+    const [isReserving, setIsReserving] = useState(false);
     const [catalog, setCatalog] = useState<ProfessionalFunction[]>([]);
     
     const [formData, setFormData] = useState({
@@ -94,7 +100,10 @@ export default function StaffProfilePage() {
             }
 
             // 3. Atualiza estado
-            setFormData(prev => ({ ...prev, avatarUrl: publicUrl }));
+            if (pData.profile && !pData.staffProfile?.slug) {
+                        setSlugInput(normalizeSlug(pData.profile.name || ''));
+                    }
+                    setFormData(prev => ({ ...prev, avatarUrl: publicUrl }));
             
             toast({
                 title: "Foto enviada",
@@ -149,6 +158,7 @@ export default function StaffProfilePage() {
                 }
                 
                 if (pData.staffProfile) {
+                    if (pData.staffProfile.slug) setSavedSlug(pData.staffProfile.slug);
                     setFormData(prev => ({
                         ...prev,
                         bio: pData.staffProfile.bio || ''
@@ -166,6 +176,45 @@ export default function StaffProfilePage() {
             toast({ title: 'Erro ao carregar perfil', variant: 'destructive' });
         } finally {
             setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (!slugInput || savedSlug) return;
+        const check = async () => {
+            setSlugStatus('checking');
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/public/slugs/check?type=staff&slug=${slugInput}`);
+                const data = await res.json();
+                setSlugStatus(data.available ? 'available' : (data.reason || 'taken'));
+            } catch (e) {
+                setSlugStatus('invalid');
+            }
+        };
+        const timeoutId = setTimeout(check, 500);
+        return () => clearTimeout(timeoutId);
+    }, [slugInput, savedSlug]);
+
+    const handleReserveSlug = async () => {
+        setIsReserving(true);
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const res = await fetch(`${API_BASE_URL}/api/me/staff-profile/slug`, {
+                method: 'PUT',
+                headers: { 'Authorization': `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ slug: slugInput })
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                toast({ title: 'Endereço reservado com sucesso!' });
+                setSavedSlug(data.slug);
+            } else {
+                toast({ title: data.error || 'Erro ao reservar', variant: 'destructive' });
+            }
+        } catch (e) {
+            toast({ title: 'Erro de conexão', variant: 'destructive' });
+        } finally {
+            setIsReserving(false);
         }
     };
 
@@ -235,12 +284,12 @@ export default function StaffProfilePage() {
                     </div>
                     {isPublic && (
                     <div className="flex flex-wrap items-center gap-3">
-                        <Button variant="outline" onClick={() => window.open(`/profissionais/${user?.id}`, "_blank")}>
+                        <Button variant="outline" onClick={() => window.open(getPublicStaffUrl({ slug: savedSlug, userId: user?.id || "" }), "_blank")}>
                             <ExternalLink className="w-4 h-4 mr-2" />
                             Ver perfil público
                         </Button>
                         <Button onClick={async () => {
-                            const url = `${window.location.origin}/profissionais/${user?.id}`;
+                            const url = getPublicStaffUrl({ slug: savedSlug, userId: user?.id || "" });
                             try {
                                 if (navigator.share) {
                                     await navigator.share({ title: "Meu Perfil Profissional", url });
