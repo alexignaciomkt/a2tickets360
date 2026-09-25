@@ -16,6 +16,8 @@ export default function handler(req: any, res: any) {
   <title>${title}</title>
   <meta name="description" content="${description}" />
   <meta name="robots" content="noindex,nofollow" />
+  <link rel="icon" href="/favicon.ico" sizes="any" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="A2 Tickets 360º" />

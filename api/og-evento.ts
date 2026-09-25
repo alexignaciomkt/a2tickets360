@@ -84,8 +84,15 @@ export default async function handler(req: any, res: any) {
         html = html.replace(/<meta name="twitter:description" content=".*?"[^>]*>/, `<meta name="twitter:description" content="${description}" />`);
         html = html.replace(/<meta name="twitter:image" content=".*?"[^>]*>/, `<meta name="twitter:image" content="${image}" />`);
 
-        // Inserir Canonical antes de fechar o head
-        html = html.replace('</head>', `  <link rel="canonical" href="${url}" />\n</head>`);
+        // Inserir Canonical e favicons antes de fechar o head
+        let headInjections = `  <link rel="canonical" href="${url}" />\n`;
+        if (!html.includes('rel="icon"')) {
+            headInjections += `  <link rel="icon" href="/favicon.ico" sizes="any" />\n`;
+        }
+        if (!html.includes('rel="apple-touch-icon"')) {
+            headInjections += `  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />\n`;
+        }
+        html = html.replace('</head>', `${headInjections}</head>`);
 
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
         res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
