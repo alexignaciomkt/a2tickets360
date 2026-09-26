@@ -220,6 +220,65 @@ export default function StaffOnboardingPage() {
         }
     };
 
+    const isStep1Valid = Boolean(
+        formData.name?.trim() &&
+        formData.cpf?.trim() &&
+        formData.phone?.trim() &&
+        formData.birthDate?.trim() &&
+        formData.state?.trim() &&
+        formData.city?.trim()
+    );
+
+    const isStep2Valid = !catalogError && formData.professionalFunctionIds.length > 0;
+    const isStep3Valid = Boolean(formData.avatarUrl);
+
+    const canAdvance = () => {
+        if (step === 1) return isStep1Valid;
+        if (step === 2) return isStep2Valid;
+        if (step === 3) return isStep3Valid;
+        return true;
+    };
+
+    const handleNextStep = () => {
+        if (step === 1) {
+            if (!isStep1Valid) {
+                toast({
+                    title: "Campos obrigatórios",
+                    description: "Preencha todos os dados pessoais obrigatórios para avançar.",
+                    variant: "destructive"
+                });
+                return;
+            }
+        } else if (step === 2) {
+            if (catalogError) {
+                toast({
+                    title: "Erro ao carregar catálogo",
+                    description: "Não é possível avançar sem carregar as funções profissionais. Tente novamente mais tarde.",
+                    variant: "destructive"
+                });
+                return;
+            }
+            if (formData.professionalFunctionIds.length === 0) {
+                toast({
+                    title: "Função obrigatória",
+                    description: "Selecione pelo menos uma função em que você trabalha.",
+                    variant: "destructive"
+                });
+                return;
+            }
+        } else if (step === 3) {
+            if (!isStep3Valid) {
+                toast({
+                    title: "Foto obrigatória",
+                    description: "Envie uma foto de perfil nítida para identificação em eventos.",
+                    variant: "destructive"
+                });
+                return;
+            }
+        }
+        setStep(s => s + 1);
+    };
+
     const handleFunctionToggle = (id: string) => {
         setFormData(prev => {
             const exists = prev.professionalFunctionIds.includes(id);
@@ -237,7 +296,6 @@ export default function StaffOnboardingPage() {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return;
             
-            
             const res = await fetch(`${API_BASE_URL}/api/me/staff-profile`, {
                 method: 'PUT',
                 headers: { 
@@ -250,14 +308,43 @@ export default function StaffOnboardingPage() {
             const data = await res.json();
             
             if (data.success) {
-                toast({ title: 'Perfil concluído com sucesso!' });
                 await refreshCapabilities();
                 if (!data.profileComplete) {
-                     toast({ title: 'Perfil salvo, porém incompleto. Preencha os campos obrigatórios.', variant: 'destructive' });
-                     setStep(1);
+                     if (!formData.name?.trim() || !formData.cpf?.trim() || !formData.phone?.trim() || !formData.birthDate?.trim() || !formData.state?.trim() || !formData.city?.trim()) {
+                         toast({
+                             title: 'Perfil salvo, porém incompleto',
+                             description: 'Preencha todos os dados pessoais obrigatórios para concluir.',
+                             variant: 'destructive'
+                         });
+                         setStep(1);
+                     } else if (formData.professionalFunctionIds.length === 0) {
+                         toast({
+                             title: 'Perfil salvo, porém incompleto',
+                             description: 'Selecione pelo menos uma função em que trabalha para concluir seu cadastro.',
+                             variant: 'destructive'
+                         });
+                         setStep(2);
+                     } else if (!formData.avatarUrl) {
+                         toast({
+                             title: 'Perfil salvo, porém incompleto',
+                             description: 'Envie uma foto profissional para concluir seu cadastro.',
+                             variant: 'destructive'
+                         });
+                         setStep(3);
+                     } else {
+                         toast({
+                             title: 'Perfil salvo, porém incompleto',
+                             description: 'Preencha os campos obrigatórios pendentes.',
+                             variant: 'destructive'
+                         });
+                         setStep(1);
+                     }
+                } else {
+                     toast({ title: 'Perfil concluído com sucesso!' });
+                     navigate('/dashboard/staff/invites');
                 }
             } else {
-                toast({ title: 'Erro ao salvar perfil', variant: 'destructive' });
+                toast({ title: data.error || 'Erro ao salvar perfil', variant: 'destructive' });
             }
         } catch (e) {
             toast({ title: 'Erro de conexão', variant: 'destructive' });
@@ -471,7 +558,11 @@ export default function StaffOnboardingPage() {
                         ) : <div />}
                         
                         {step < 4 ? (
-                            <Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => setStep(s => s + 1)} disabled={step === 3 && !formData.avatarUrl}>
+                            <Button
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                                onClick={handleNextStep}
+                                disabled={!canAdvance()}
+                            >
                                 Continuar <ArrowRight className="ml-2 h-4 w-4" />
                             </Button>
                         ) : (

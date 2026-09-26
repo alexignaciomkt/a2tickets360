@@ -23,7 +23,37 @@ import { supabaseAuthClient } from '../lib/supabaseAuthClient';
 import { StaffAssignmentService } from '../services/staffAssignmentService';
 
 const router = new Hono();
-router.use('/*', authMiddleware);
+
+/**
+ * GET /api/staff/professional-functions
+ * Retorna o catálogo público de funções profissionais (somente leitura)
+ */
+router.get('/professional-functions', async (c: Context) => {
+    try {
+        const catalog = await db.select({
+            id: staffProfessionalFunctions.id,
+            name: staffProfessionalFunctions.name,
+            slug: staffProfessionalFunctions.slug,
+            category: staffProfessionalFunctions.category,
+            description: staffProfessionalFunctions.description
+        })
+        .from(staffProfessionalFunctions)
+        .where(eq(staffProfessionalFunctions.isActive, true))
+        .orderBy(staffProfessionalFunctions.category, staffProfessionalFunctions.name);
+
+        return c.json(catalog);
+    } catch (err: any) {
+        console.error('[GET /professional-functions]', err);
+        return c.json({ error: err.message }, 500);
+    }
+});
+
+router.use('/*', async (c: Context, next) => {
+    if (c.req.path.endsWith('/professional-functions')) {
+        return await next();
+    }
+    return authMiddleware(c, next);
+});
 
 /**
  * GET /api/staff/event-staff
