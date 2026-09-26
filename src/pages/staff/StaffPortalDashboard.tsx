@@ -19,7 +19,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 const StaffPortalDashboard = () => {
     const { toast } = useToast();
-    const { user, refreshCapabilities } = useAuth();
+    const { user, refreshCapabilities, staffProfileComplete } = useAuth();
     const [proposals, setProposals] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -64,7 +64,7 @@ const StaffPortalDashboard = () => {
     // Filtros
     const pendingInvites = proposals.filter(p => p.status === 'PENDING_ACCEPTANCE');
     const activeJobs = proposals.filter(p => p.status === 'ACTIVE');
-    
+
     // Ordena os trabalhos ativos por data (mais próximo primeiro)
     const sortedActiveJobs = [...activeJobs].sort((a, b) => {
         if (!a.shiftStart) return 1;
@@ -91,7 +91,7 @@ const StaffPortalDashboard = () => {
                             Trabalho em Eventos
                         </h1>
                         <p className="text-slate-500 font-medium mt-1">
-                            {user?.name ? `Olá, ${user.name.split(' ')[0]}. ` : ''} 
+                            {user?.name ? `Olá, ${user.name.split(' ')[0]}. ` : ''}
                             Organize seus convites e próximos trabalhos.
                         </p>
                     </div>
@@ -145,7 +145,7 @@ const StaffPortalDashboard = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* COLUNA ESQUERDA (70%) */}
                     <div className="lg:col-span-2 space-y-10">
-                        
+
                         {/* CONVITES PARA TRABALHAR */}
                         <section className="space-y-4">
                             <h2 className="text-lg font-black text-slate-900 uppercase tracking-tight flex items-center gap-2">
@@ -177,7 +177,7 @@ const StaffPortalDashboard = () => {
                                                         <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">{prop.eventName || 'Evento'}</h3>
                                                         <p className="text-sm text-slate-500 font-semibold">{prop.organizerName}</p>
                                                     </div>
-                                                    
+
                                                     <div className="flex flex-wrap gap-x-6 gap-y-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
                                                         <div className="flex flex-col">
                                                             <span className="text-[10px] font-bold text-slate-400 uppercase">Função</span>
@@ -209,15 +209,15 @@ const StaffPortalDashboard = () => {
                                                         Aguardando sua resposta
                                                     </Badge>
                                                     <div className="flex gap-2 w-full sm:w-auto">
-                                                        <Button 
-                                                            onClick={() => handleDecline(prop.id)} 
-                                                            variant="outline" 
+                                                        <Button
+                                                            onClick={() => handleDecline(prop.id)}
+                                                            variant="outline"
                                                             className="flex-1 md:flex-none border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 font-bold uppercase text-xs"
                                                         >
                                                             Recusar
                                                         </Button>
-                                                        <Button 
-                                                            onClick={() => handleAccept(prop.id)} 
+                                                        <Button
+                                                            onClick={() => handleAccept(prop.id)}
                                                             className="flex-1 md:flex-none bg-primary hover:bg-primary/90 text-white font-bold uppercase text-xs"
                                                         >
                                                             Aceitar Convite
@@ -258,7 +258,7 @@ const StaffPortalDashboard = () => {
                                                         <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">{prop.eventName || 'Evento'}</h3>
                                                         <p className="text-sm text-slate-500 font-semibold">{prop.organizerName}</p>
                                                     </div>
-                                                    
+
                                                     <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 shrink-0 min-w-[200px]">
                                                         <div className="flex flex-col space-y-2">
                                                             <span className="text-[10px] font-bold text-slate-400 uppercase">Função</span>
@@ -318,7 +318,7 @@ const StaffPortalDashboard = () => {
 
                     {/* COLUNA DIREITA (30%) */}
                     <div className="space-y-6">
-                        
+
                         {/* PRÓXIMO TRABALHO */}
                         <Card className="bg-white border border-slate-200 shadow-sm rounded-2xl overflow-hidden">
                             <CardHeader className="bg-slate-50 border-b border-slate-100 pb-4">
@@ -367,24 +367,50 @@ const StaffPortalDashboard = () => {
                         </Card>
 
                         {/* PERFIL PROFISSIONAL */}
-                        <Card className="bg-white border border-slate-200 shadow-sm rounded-2xl overflow-hidden">
-                            <CardHeader className="bg-slate-50 border-b border-slate-100 pb-4">
-                                <CardTitle className="text-sm font-black text-slate-900 uppercase tracking-tight flex items-center gap-2">
-                                    <UserCircle className="w-4 h-4 text-slate-500" />
-                                    Seu Perfil Profissional
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="p-5 text-center space-y-4">
-                                <p className="text-sm text-slate-600 font-medium">
-                                    Complete seu perfil profissional para estar preparado para novas oportunidades.
-                                </p>
-                                <Link to="/dashboard/staff/profile" className="block">
-                                    <Button className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold uppercase text-xs">
-                                        Completar Perfil
-                                    </Button>
-                                </Link>
-                            </CardContent>
-                        </Card>
+                        {staffProfileComplete ? (
+                            <Card className="bg-white border border-slate-200 shadow-sm rounded-2xl overflow-hidden">
+                                <CardHeader className="bg-slate-50 border-b border-slate-100 pb-4">
+                                    <CardTitle className="text-sm font-black text-slate-900 uppercase tracking-tight flex items-center justify-between">
+                                        <span className="flex items-center gap-2">
+                                            <UserCircle className="w-4 h-4 text-emerald-600" />
+                                            Seu Perfil Profissional
+                                        </span>
+                                        <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 font-bold text-[10px]">
+                                            100% Completo
+                                        </Badge>
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="p-5 text-center space-y-4">
+                                    <p className="text-sm text-slate-600 font-medium">
+                                        Seu perfil está completo e visível para produtores durante os processos de seleção.
+                                    </p>
+                                    <Link to="/dashboard/staff/profile" className="block">
+                                        <Button variant="outline" className="w-full border-slate-200 hover:bg-slate-50 text-slate-800 font-bold uppercase text-xs">
+                                            Visualizar / Editar Perfil
+                                        </Button>
+                                    </Link>
+                                </CardContent>
+                            </Card>
+                        ) : (
+                            <Card className="bg-white border border-slate-200 shadow-sm rounded-2xl overflow-hidden">
+                                <CardHeader className="bg-slate-50 border-b border-slate-100 pb-4">
+                                    <CardTitle className="text-sm font-black text-slate-900 uppercase tracking-tight flex items-center gap-2">
+                                        <UserCircle className="w-4 h-4 text-amber-500" />
+                                        Seu Perfil Profissional
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="p-5 text-center space-y-4">
+                                    <p className="text-sm text-slate-600 font-medium">
+                                        Complete seu perfil profissional para estar preparado para novas oportunidades.
+                                    </p>
+                                    <Link to="/dashboard/staff/profile" className="block">
+                                        <Button className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold uppercase text-xs">
+                                            Completar Perfil
+                                        </Button>
+                                    </Link>
+                                </CardContent>
+                            </Card>
+                        )}
 
                     </div>
                 </div>

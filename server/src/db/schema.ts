@@ -188,11 +188,26 @@ export const staffProfileFunctions = pgTable('staff_profile_functions', {
     unqStaffProfileFunction: unique('unq_staff_profile_function').on(t.staffUserId, t.professionalFunctionId)
 }));
 
+// Vagas de Staff por Evento (Necessidades do Evento)
+export const eventStaffVacancies = pgTable('event_staff_vacancies', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    eventId: uuid('event_id').references(() => events.id, { onDelete: 'cascade' }).notNull(),
+    professionalFunctionId: uuid('professional_function_id').references(() => staffProfessionalFunctions.id, { onDelete: 'restrict' }).notNull(),
+    quantity: integer('quantity').notNull(),
+    status: text('status', { enum: ['OPEN', 'PAUSED', 'CLOSED'] }).notNull().default('OPEN'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (t) => ({
+    unqEventFunction: unique('unq_event_staff_vacancies_event_function').on(t.eventId, t.professionalFunctionId),
+    idxEventStatus: index('idx_event_staff_vacancies_event_status').on(t.eventId, t.status)
+}));
+
 // Candidaturas de Staff
 export const staffApplications = pgTable('staff_applications', {
     id: uuid('id').primaryKey().defaultRandom(),
     eventId: uuid('event_id').references(() => events.id, { onDelete: 'cascade' }).notNull(),
     userId: uuid('user_id').notNull(),
+    vacancyId: uuid('vacancy_id').references(() => eventStaffVacancies.id, { onDelete: 'set null' }),
     status: text('status', { enum: ['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'] }).notNull().default('PENDING'),
     reviewedAt: timestamp('reviewed_at'),
     reviewedBy: uuid('reviewed_by'),
@@ -230,6 +245,7 @@ export const eventStaff = pgTable('event_staff', {
     userId: uuid('user_id').notNull(), // Identidade
     organizerId: uuid('organizer_id').notNull(), // Contexto Cross-Tenant
     staffFunctionId: uuid('staff_function_id').references(() => staffFunctions.id, { onDelete: 'set null' }),
+    vacancyId: uuid('vacancy_id').references(() => eventStaffVacancies.id, { onDelete: 'set null' }),
     status: text('status', { enum: ['PENDING_PROFILE', 'PENDING_ACCEPTANCE', 'ACTIVE', 'DECLINED', 'CANCELLED', 'COMPLETED'] }).notNull().default('PENDING_PROFILE'),
     shiftStart: timestamp('shift_start'),
     shiftEnd: timestamp('shift_end'),

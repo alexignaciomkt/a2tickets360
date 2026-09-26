@@ -2,8 +2,8 @@ import { Hono, Context } from 'hono';
 import { authMiddleware } from '../middlewares/auth';
 import { db } from '../db';
 import {
-    eventStaff, 
-    staffProfiles, 
+    eventStaff,
+    staffProfiles,
     staffFunctions,
     eventStaffRoles,
     roles,
@@ -13,7 +13,8 @@ import {
     staffApplicationFunctions,
     staffProfessionalFunctions,
     staffProfileFunctions,
-    organizers
+    organizers,
+    eventStaffVacancies
 } from '../db/schema';
 import { eq, and, or, sql, lt, gt, inArray, isNull } from 'drizzle-orm';
 import crypto from 'node:crypto';
@@ -65,7 +66,7 @@ router.get('/event-staff', async (c: Context) => {
         const organizerId = payload.id;
         const eventId = c.req.query('eventId');
 
-        const condition = eventId 
+        const condition = eventId
             ? and(eq(eventStaff.organizerId, organizerId), eq(eventStaff.eventId, eventId))
             : eq(eventStaff.organizerId, organizerId);
 
@@ -92,7 +93,7 @@ router.get('/event-staff', async (c: Context) => {
         .leftJoin(profiles, eq(eventStaff.userId, profiles.userId))
         .leftJoin(staffProfiles, eq(eventStaff.userId, staffProfiles.userId))
         .where(condition);
-        
+
         // Obter os systemRoleIds
         const staffIds = data.map(s => s.eventStaffId);
         let rolesData: any[] = [];
@@ -170,7 +171,7 @@ router.post('/invite', async (c: Context) => {
         const t0 = performance.now();
         const payload = (c.get as any)('jwtPayload');
         const organizerId = payload.id; // Assumes the caller is the owner for simplicity
-        
+
         const body = await c.req.json();
         const { eventId, email, name, phone, staffFunctionId, shiftStart, shiftEnd, systemRoleIds } = body;
 
@@ -194,7 +195,7 @@ router.post('/invite', async (c: Context) => {
         // Currently, listUsers() returns paginated users. Let's fetch all (up to 1000 is fine for v1)
         const { data: listData, error: listError } = await supabaseAdmin.auth.admin.listUsers();
         const tAuthList = performance.now();
-        
+
         if (listError) {
             console.error('[SUPABASE ADMIN] Falha ao listar usuários:', listError);
             return c.json({ error: 'Falha ao validar identidade na plataforma.' }, 500);
@@ -213,12 +214,12 @@ router.post('/invite', async (c: Context) => {
             const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(normalizedEmail, {
                 redirectTo: redirectUrl
             });
-            
+
             if (error || !data.user) {
                 console.error('[SUPABASE ADMIN] Falha ao convidar usuário:', error);
                 return c.json({ error: 'Falha ao convidar o usuário na plataforma de identidade.' }, 500);
             }
-            
+
             userId = data.user.id;
             tAuthInvite = performance.now();
         }
@@ -226,7 +227,7 @@ router.post('/invite', async (c: Context) => {
         const tProfileStart = performance.now();
         // 2. Verificar se o usuário já possui um profile no nosso banco relacional
         const existingProfiles = await db.select().from(profiles).where(eq(profiles.userId, userId));
-        
+
         let currentRole = 'customer';
         if (existingProfiles.length > 0) {
             currentRole = existingProfiles[0].role || 'customer';
@@ -269,7 +270,7 @@ router.post('/invite', async (c: Context) => {
         // 2. Validate Staff Function exists and belongs to this Organizer
         const sFunc = await db.select().from(staffFunctions)
             .where(and(eq(staffFunctions.id, staffFunctionId), eq(staffFunctions.organizerId, organizerId)));
-            
+
         if (sFunc.length === 0) {
             return c.json({ error: 'Invalid Staff Function' }, 400);
         }
@@ -279,7 +280,7 @@ router.post('/invite', async (c: Context) => {
         // 3. Prevent Duplicates for the same Event + User
         const existingAssignment = await db.select().from(eventStaff)
             .where(and(eq(eventStaff.eventId, eventId), eq(eventStaff.userId, userId)));
-            
+
         if (existingAssignment.length > 0) {
             return c.json({ error: 'User is already assigned to this event' }, 409);
         }
@@ -336,7 +337,7 @@ router.post('/invite', async (c: Context) => {
         }
 
         const tTotalEnd = performance.now();
-        
+
         console.log(`[STAFF INVITE PERF] auth lookup (listUsers): ${(tAuthList - tAuthStart).toFixed(2)}ms`);
         if (!existingUser) {
             console.log(`[STAFF INVITE PERF] supabase invite: ${(tAuthInvite - tAuthList).toFixed(2)}ms`);
@@ -380,10 +381,10 @@ router.get('/functions', async (c: Context) => {
     try {
         const payload = (c.get as any)('jwtPayload');
         const organizerId = payload.id;
-        
+
         const functions = await db.select().from(staffFunctions)
             .where(and(eq(staffFunctions.organizerId, organizerId), eq(staffFunctions.isActive, true)));
-            
+
         return c.json(functions);
     } catch (err: any) {
         return c.json({ error: err.message }, 500);
@@ -399,7 +400,7 @@ router.post('/functions', async (c: Context) => {
         const payload = (c.get as any)('jwtPayload');
         const organizerId = payload.id;
         const body = await c.req.json();
-        
+
         if (!body.name) {
             return c.json({ error: 'Name is required' }, 400);
         }
@@ -458,7 +459,7 @@ router.post('/:eventStaffId/send-access', async (c: Context) => {
 
         // 3. Obter status real do usuário no Supabase
         const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(userId);
-        
+
         let flow = '';
         if (userError || !userData.user) {
             // Cenário A: Usuário não existe no Auth
@@ -476,7 +477,7 @@ router.post('/:eventStaffId/send-access', async (c: Context) => {
                 // Cenário C: Conta existe e está ativa. Enviar Magic Link com o client público.
                 flow = 'MAGIC_LINK';
                 const redirectUrl = process.env.APP_URL ? `${process.env.APP_URL}/dashboard/staff/invites` : 'http://localhost:8081/dashboard/staff/invites';
-                const { error } = await supabaseAuthClient.auth.signInWithOtp({ 
+                const { error } = await supabaseAuthClient.auth.signInWithOtp({
                     email,
                     options: {
                         shouldCreateUser: false,
@@ -517,7 +518,7 @@ router.post('/:eventStaffId/send-access-recovery', async (c: Context) => {
 
         const profile = await db.select().from(profiles).where(eq(profiles.userId, staffRec[0].userId));
         if (profile.length === 0) return c.json({ error: 'Profile not found' }, 404);
-        
+
         const email = profile[0].email;
         if (!email) return c.json({ error: 'No email found' }, 400);
 
@@ -545,9 +546,9 @@ router.post('/accept/:id', async (c: Context) => {
 
         const assignments = await db.select().from(eventStaff).where(eq(eventStaff.id, assignmentId));
         if (assignments.length === 0) return c.json({ error: 'Not found' }, 404);
-        
+
         const assignment = assignments[0];
-        
+
         // Security check
         if (assignment.userId !== userId) {
             return c.json({ error: 'Forbidden' }, 403);
@@ -580,9 +581,9 @@ router.post('/decline/:id', async (c: Context) => {
 
         const assignments = await db.select().from(eventStaff).where(eq(eventStaff.id, assignmentId));
         if (assignments.length === 0) return c.json({ error: 'Not found' }, 404);
-        
+
         const assignment = assignments[0];
-        
+
         // Security check
         if (assignment.userId !== userId) {
             return c.json({ error: 'Forbidden' }, 403);
@@ -593,9 +594,9 @@ router.post('/decline/:id', async (c: Context) => {
         }
 
         await db.update(eventStaff)
-            .set({ 
-                status: 'DECLINED', 
-                declinedAt: new Date() 
+            .set({
+                status: 'DECLINED',
+                declinedAt: new Date()
             })
             .where(eq(eventStaff.id, assignmentId));
 
@@ -611,14 +612,27 @@ router.post('/decline/:id', async (c: Context) => {
 
 /**
  * GET /api/staff/events
- * Lista eventos elegíveis para candidatura
+ * Lista eventos elegíveis para candidatura (apenas eventos com pelo menos 1 vaga OPEN)
  */
 router.get('/events', async (c: Context) => {
     try {
         const payload = (c.get as any)('jwtPayload');
         const userId = payload.id;
 
-        // Eventos published, endDate >= now() or (endDate is null and startDate >= now())
+        // 1. Buscar IDs de eventos que possuem pelo menos uma vaga com status 'OPEN'
+        const openEvents = await db.select({
+            eventId: eventStaffVacancies.eventId
+        })
+        .from(eventStaffVacancies)
+        .where(eq(eventStaffVacancies.status, 'OPEN'))
+        .groupBy(eventStaffVacancies.eventId);
+
+        const openEventIds = openEvents.map(o => o.eventId);
+        if (openEventIds.length === 0) {
+            return c.json([]);
+        }
+
+        // 2. Eventos published, endDate >= now() or (endDate is null and startDate >= now()) com vagas OPEN
         const eligibleEvents = await db.select({
             id: events.id,
             title: events.title,
@@ -636,6 +650,7 @@ router.get('/events', async (c: Context) => {
         .leftJoin(profiles, eq(organizers.userId, profiles.userId))
         .where(
             and(
+                inArray(events.id, openEventIds),
                 eq(events.status, 'published'),
                 or(
                     gt(events.endDate, new Date()),
@@ -669,57 +684,118 @@ router.get('/events', async (c: Context) => {
 });
 
 /**
+ * GET /api/staff/events/:eventId/vacancies
+ * Retorna as vagas abertas (OPEN) de um evento para o Staff escolher
+ */
+router.get('/events/:eventId/vacancies', async (c: Context) => {
+    try {
+        const { eventId } = c.req.param();
+
+        // 1. Validar elegibilidade do evento
+        const [evt] = await db.select().from(events).where(eq(events.id, eventId));
+        if (!evt || evt.status !== 'published') {
+            return c.json({ error: 'Evento não encontrado ou indisponível.' }, 404);
+        }
+
+        // 2. Buscar vagas OPEN para este evento
+        const vacancies = await db.select({
+            id: eventStaffVacancies.id,
+            eventId: eventStaffVacancies.eventId,
+            professionalFunctionId: eventStaffVacancies.professionalFunctionId,
+            quantity: eventStaffVacancies.quantity,
+            status: eventStaffVacancies.status,
+            functionName: staffProfessionalFunctions.name,
+            functionCategory: staffProfessionalFunctions.category,
+            functionDescription: staffProfessionalFunctions.description
+        })
+        .from(eventStaffVacancies)
+        .innerJoin(staffProfessionalFunctions, eq(eventStaffVacancies.professionalFunctionId, staffProfessionalFunctions.id))
+        .where(and(
+            eq(eventStaffVacancies.eventId, eventId),
+            eq(eventStaffVacancies.status, 'OPEN')
+        ))
+        .orderBy(staffProfessionalFunctions.name);
+
+        return c.json(vacancies);
+    } catch (err: any) {
+        console.error('[GET /staff/events/:eventId/vacancies]', err);
+        return c.json({ error: err.message }, 500);
+    }
+});
+
+/**
  * POST /api/staff/events/:eventId/apply
- * Envia uma candidatura
+ * Envia uma candidatura para uma vaga aberta do evento
+ * NÃO restringe pelas funções declaradas no perfil do profissional.
  */
 router.post('/events/:eventId/apply', async (c: Context) => {
     try {
         const payload = (c.get as any)('jwtPayload');
         const userId = payload.id;
         const { eventId } = c.req.param();
-        const { professionalFunctionIds } = await c.req.json();
+        const body = await c.req.json();
+        const { vacancyId, professionalFunctionIds } = body;
 
-        if (!professionalFunctionIds || !Array.isArray(professionalFunctionIds) || professionalFunctionIds.length === 0) {
-            return c.json({ error: 'É necessário selecionar pelo menos uma função.' }, 400);
+        let targetVacancy: any = null;
+
+        if (vacancyId) {
+            const [v] = await db.select().from(eventStaffVacancies).where(and(
+                eq(eventStaffVacancies.id, vacancyId),
+                eq(eventStaffVacancies.eventId, eventId)
+            ));
+            if (!v) {
+                return c.json({ error: 'Vaga não encontrada para este evento.' }, 404);
+            }
+            if (v.status !== 'OPEN') {
+                return c.json({ error: 'Esta vaga não está mais aberta para novas candidaturas.' }, 400);
+            }
+            targetVacancy = v;
+        } else if (Array.isArray(professionalFunctionIds) && professionalFunctionIds.length > 0) {
+            // Compatibilidade regressiva: encontrar vaga OPEN correspondente
+            const [v] = await db.select().from(eventStaffVacancies).where(and(
+                eq(eventStaffVacancies.eventId, eventId),
+                eq(eventStaffVacancies.professionalFunctionId, professionalFunctionIds[0]),
+                eq(eventStaffVacancies.status, 'OPEN')
+            ));
+            if (!v) {
+                return c.json({ error: 'Não há vaga aberta para a função selecionada neste evento.' }, 400);
+            }
+            targetVacancy = v;
+        } else {
+            return c.json({ error: 'É necessário selecionar uma vaga aberta.' }, 400);
         }
 
         // 1. Validar se o evento é elegível
-        const evt = await db.select().from(events).where(eq(events.id, eventId));
-        if (evt.length === 0 || evt[0].status !== 'published') {
+        const [evt] = await db.select().from(events).where(eq(events.id, eventId));
+        if (!evt || evt.status !== 'published') {
             return c.json({ error: 'Evento não elegível para candidatura.' }, 400);
         }
 
-        // 2. Validar perfil completo e se as funções pertencem ao perfil global do Staff
-        const myProfileFunctions = await db.select().from(staffProfileFunctions).where(eq(staffProfileFunctions.staffUserId, userId));
-        const myFuncIds = myProfileFunctions.map(f => f.professionalFunctionId);
-        
-        for (const funcId of professionalFunctionIds) {
-            if (!myFuncIds.includes(funcId)) {
-                return c.json({ error: 'Uma das funções selecionadas não pertence ao seu perfil profissional.' }, 400);
-            }
-        }
-
-        // 3. Checar unique/existência de candidatura ativa
+        // 2. Checar duplicidade (não permitir duplicata para mesma vaga/evento em andamento)
         const existingApp = await db.select().from(staffApplications)
-            .where(and(eq(staffApplications.eventId, eventId), eq(staffApplications.userId, userId), inArray(staffApplications.status, ['PENDING', 'APPROVED', 'REJECTED'])));
+            .where(and(
+                eq(staffApplications.eventId, eventId),
+                eq(staffApplications.userId, userId),
+                inArray(staffApplications.status, ['PENDING', 'APPROVED'])
+            ));
         if (existingApp.length > 0) {
-            return c.json({ error: 'Você já possui uma candidatura ativa ou recusada para este evento.' }, 409);
+            return c.json({ error: 'Você já possui uma candidatura em andamento para este evento.' }, 409);
         }
 
-        // 4. Inserir Candidatura
+        // 3. Inserir Candidatura vinculada à vaga
         await db.transaction(async (tx) => {
             const [newApp] = await tx.insert(staffApplications).values({
                 eventId,
                 userId,
+                vacancyId: targetVacancy.id,
                 status: 'PENDING'
             }).returning();
 
-            const appFunctions = professionalFunctionIds.map(fid => ({
+            // Gravar também na tabela associativa para compatibilidade total
+            await tx.insert(staffApplicationFunctions).values({
                 staffApplicationId: newApp.id,
-                professionalFunctionId: fid
-            }));
-            
-            await tx.insert(staffApplicationFunctions).values(appFunctions);
+                professionalFunctionId: targetVacancy.professionalFunctionId
+            });
         });
 
         return c.json({ message: 'Candidatura enviada com sucesso.' });
@@ -807,11 +883,11 @@ router.patch('/event-staff/:id', async (c: Context) => {
             // 2. Atualizar eventStaff ONLY with valid schema fields
             const updateData: any = {};
             if (body.staffFunctionId !== undefined) updateData.staffFunctionId = body.staffFunctionId;
-            
+
             // Se a data for passada, injetar o 'Z'
             if (body.shiftStart) updateData.shiftStart = new Date(body.shiftStart);
             if (body.shiftEnd) updateData.shiftEnd = new Date(body.shiftEnd);
-            
+
             // Explicitly clear if null passed
             if (body.shiftStart === null) updateData.shiftStart = null;
             if (body.shiftEnd === null) updateData.shiftEnd = null;

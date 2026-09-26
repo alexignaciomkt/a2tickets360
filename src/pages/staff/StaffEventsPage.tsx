@@ -5,26 +5,25 @@ import { Badge } from '@/components/ui/badge';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { staffService } from '@/services/staffService';
 import { useToast } from '@/hooks/use-toast';
-import { Calendar, MapPin, Building2, UserCircle, Briefcase } from 'lucide-react';
+import { Calendar, MapPin, UserCircle, Briefcase, CheckCircle2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
 
 const StaffEventsPage = () => {
     const { toast } = useToast();
     const [events, setEvents] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    // Modal de Vagas do Evento
     const [selectedEvent, setSelectedEvent] = useState<any | null>(null);
-    const [profileFunctions, setProfileFunctions] = useState<any[]>([]);
-    const [functionsLoading, setFunctionsLoading] = useState(true);
-    const [functionsError, setFunctionsError] = useState<string | null>(null);
-    const [selectedFunctionIds, setSelectedFunctionIds] = useState<string[]>([]);
+    const [eventVacancies, setEventVacancies] = useState<any[]>([]);
+    const [vacanciesLoading, setVacanciesLoading] = useState(false);
+    const [vacanciesError, setVacanciesError] = useState<string | null>(null);
+    const [selectedVacancyId, setSelectedVacancyId] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
         loadEvents();
-        loadProfileFunctions();
     }, []);
 
     const loadEvents = async () => {
@@ -42,31 +41,32 @@ const StaffEventsPage = () => {
         }
     };
 
-    const loadProfileFunctions = async () => {
+    const handleApplyClick = async (evt: any) => {
+        setSelectedEvent(evt);
+        setSelectedVacancyId(null);
+        setVacanciesLoading(true);
+        setVacanciesError(null);
+
         try {
-            setFunctionsLoading(true);
-            setFunctionsError(null);
-            const { api } = await import('@/services/api');
-            const data = await api.get('/api/me/staff-profile');
-            setProfileFunctions(data.professionalFunctions || []);
-        } catch (error) {
-            console.error(error);
-            setFunctionsError('Não foi possível carregar suas áreas profissionais.');
+            const data = await staffService.getEventOpenVacancies(evt.id);
+            setEventVacancies(data);
+            if (data.length === 1) {
+                // Se houver apenas 1 vaga aberta, já pré-seleciona para agilizar
+                setSelectedVacancyId(data[0].id);
+            }
+        } catch (err) {
+            console.error(err);
+            setVacanciesError('Não foi possível carregar as vagas abertas deste evento.');
         } finally {
-            setFunctionsLoading(false);
+            setVacanciesLoading(false);
         }
     };
 
-    const handleApplyClick = (evt: any) => {
-        setSelectedEvent(evt);
-        setSelectedFunctionIds([]);
-    };
-
     const submitApplication = async () => {
-        if (!selectedEvent || selectedFunctionIds.length === 0) return;
+        if (!selectedEvent || !selectedVacancyId) return;
         try {
             setSubmitting(true);
-            await staffService.applyForEvent(selectedEvent.id, selectedFunctionIds);
+            await staffService.applyForEvent(selectedEvent.id, selectedVacancyId);
             toast({ title: 'Sucesso', description: 'Candidatura enviada com sucesso!' });
             setSelectedEvent(null);
             await loadEvents();
@@ -88,44 +88,50 @@ const StaffEventsPage = () => {
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                     <div>
                         <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tight">Eventos para Trabalhar</h1>
-                        <p className="text-slate-500 font-medium mt-1">Encontre eventos e demonstre seu interesse em fazer parte da equipe.</p>
+                        <p className="text-slate-500 font-medium mt-1">
+                            Confira os eventos que estão recrutando equipe e candidate-se para as vagas abertas.
+                        </p>
                     </div>
                 </div>
 
                 {loading ? (
-                    <div className="text-center py-20 text-slate-500 font-medium">Carregando eventos...</div>
+                    <div className="text-center py-20 text-slate-500 font-medium">Carregando eventos em recrutamento...</div>
                 ) : error ? (
                     <div className="text-center py-20 bg-red-50 rounded-xl border border-red-100">
                         <h3 className="text-lg font-semibold text-red-700">Erro ao carregar</h3>
                         <p className="text-red-500 mt-1">{error}</p>
-                        <Button variant="outline" className="mt-4 border-red-200 text-red-600 hover:bg-red-50" onClick={loadEvents}>Tentar novamente</Button>
+                        <Button variant="outline" className="mt-4 border-red-200 text-red-600 hover:bg-red-50" onClick={loadEvents}>
+                            Tentar novamente
+                        </Button>
                     </div>
                 ) : events.length === 0 ? (
-                    <div className="text-center py-20 bg-slate-50 rounded-xl border border-slate-100">
+                    <div className="text-center py-20 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
                         <Briefcase className="h-12 w-12 text-slate-300 mx-auto mb-4" />
-                        <h3 className="text-lg font-semibold text-slate-700">Nenhum evento disponível</h3>
-                        <p className="text-slate-500">Nenhum evento disponível no momento.</p>
+                        <h3 className="text-lg font-bold text-slate-700">Nenhum evento com vagas abertas no momento</h3>
+                        <p className="text-slate-500 max-w-md mx-auto mt-1">
+                            Novas oportunidades surgirão assim que os produtores abrirem vagas de Staff para seus eventos.
+                        </p>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {events.map((evt) => (
-                            <Card key={evt.id} className="overflow-hidden flex flex-col border-slate-200">
-                                <div className="h-40 bg-slate-100 relative">
+                            <Card key={evt.id} className="overflow-hidden flex flex-col border-slate-200 shadow-sm rounded-2xl hover:border-slate-300 transition-colors">
+                                <div className="h-44 bg-slate-100 relative">
                                     {evt.bannerUrl ? (
                                         <img src={evt.bannerUrl} alt={evt.title} className="w-full h-full object-cover" />
                                     ) : (
-                                        <div className="w-full h-full flex items-center justify-center text-slate-400">Sem Imagem</div>
+                                        <div className="w-full h-full flex items-center justify-center text-slate-400 font-medium">Sem Imagem</div>
                                     )}
                                 </div>
                                 <CardHeader className="pb-3">
-                                    <CardTitle className="text-lg font-bold line-clamp-1">{evt.title}</CardTitle>
-                                    <div className="flex items-center gap-2 text-sm text-slate-500 mt-2">
-                                        <UserCircle className="h-4 w-4" />
+                                    <CardTitle className="text-lg font-bold text-slate-900 line-clamp-1">{evt.title}</CardTitle>
+                                    <div className="flex items-center gap-2 text-sm text-slate-500 mt-1 font-medium">
+                                        <UserCircle className="h-4 w-4 text-slate-400" />
                                         <span className="truncate">{evt.organizerName || 'Produtor'}</span>
                                     </div>
                                 </CardHeader>
                                 <CardContent className="space-y-3 pb-4 flex-1">
-                                    <div className="flex items-center gap-2 text-sm text-slate-600">
+                                    <div className="flex items-center gap-2 text-sm text-slate-600 font-medium">
                                         <Calendar className="h-4 w-4 text-slate-400 shrink-0" />
                                         <span>{formatDate(evt.startDate)}</span>
                                     </div>
@@ -139,14 +145,20 @@ const StaffEventsPage = () => {
                                 </CardContent>
                                 <CardFooter className="pt-0 pb-6 px-6">
                                     {evt.applicationStatus === 'PENDING' ? (
-                                        <Button variant="outline" className="w-full" disabled>Candidatura enviada</Button>
+                                        <Button variant="outline" className="w-full bg-amber-50 text-amber-700 border-amber-200 font-semibold" disabled>
+                                            Candidatura enviada
+                                        </Button>
                                     ) : evt.applicationStatus === 'APPROVED' ? (
-                                        <Button className="w-full bg-green-600 hover:bg-green-700 text-white" disabled>Você foi selecionado</Button>
+                                        <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold" disabled>
+                                            Proposta recebida
+                                        </Button>
                                     ) : evt.applicationStatus === 'REJECTED' ? (
-                                        <Button variant="outline" className="w-full text-red-600 border-red-200" disabled>Candidatura não aprovada</Button>
+                                        <Button variant="outline" className="w-full text-red-600 border-red-200 font-semibold" disabled>
+                                            Candidatura não selecionada
+                                        </Button>
                                     ) : (
-                                        <Button 
-                                            className="w-full bg-primary hover:bg-primary/90 text-white uppercase text-xs font-bold" 
+                                        <Button
+                                            className="w-full bg-primary hover:bg-primary/90 text-white uppercase text-xs font-bold"
                                             onClick={() => handleApplyClick(evt)}
                                         >
                                             {evt.applicationStatus === 'CANCELLED' ? 'Demonstrar interesse novamente' : 'Quero trabalhar neste evento'}
@@ -159,63 +171,79 @@ const StaffEventsPage = () => {
                 )}
             </div>
 
+            {/* MODAL: ESCOLHER VAGA DO EVENTO */}
             <Dialog open={!!selectedEvent} onOpenChange={(open) => !open && setSelectedEvent(null)}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle>Quero trabalhar neste evento</DialogTitle>
+                        <DialogTitle className="text-slate-900 font-bold">Vagas Disponíveis</DialogTitle>
                         <DialogDescription>
-                            Selecione em quais funções você gostaria de trabalhar. Estas opções vêm do seu perfil profissional.
+                            Escolha a vaga para a qual deseja se candidatar neste evento.
                         </DialogDescription>
                     </DialogHeader>
-                    
-                    <div className="space-y-4 py-4">
-                        {functionsLoading ? (
-                            <div className="text-center py-6 text-slate-500 text-sm">
-                                Carregando suas funções...
+
+                    <div className="space-y-4 py-3">
+                        {vacanciesLoading ? (
+                            <div className="text-center py-8 text-slate-500 text-sm font-medium">
+                                Carregando vagas abertas...
                             </div>
-                        ) : functionsError ? (
-                            <div className="p-4 bg-red-50 text-red-600 rounded-md text-sm text-center">
-                                <p>{functionsError}</p>
-                                <Button variant="outline" size="sm" onClick={loadProfileFunctions} className="mt-3 text-red-600 border-red-200 hover:bg-red-50">
+                        ) : vacanciesError ? (
+                            <div className="p-4 bg-red-50 text-red-600 rounded-xl text-sm text-center">
+                                <p>{vacanciesError}</p>
+                                <Button variant="outline" size="sm" onClick={() => selectedEvent && handleApplyClick(selectedEvent)} className="mt-3 text-red-600 border-red-200 hover:bg-red-50">
                                     Tentar novamente
                                 </Button>
                             </div>
-                        ) : profileFunctions.length === 0 ? (
-                            <div className="p-4 bg-yellow-50 text-yellow-800 rounded-md text-sm text-center">
-                                Você ainda não cadastrou nenhuma função no seu perfil profissional.
+                        ) : eventVacancies.length === 0 ? (
+                            <div className="p-4 bg-amber-50 text-amber-800 rounded-xl text-sm text-center font-medium">
+                                Não há vagas abertas para este evento no momento.
                             </div>
                         ) : (
-                            <div className="space-y-3">
-                                {profileFunctions.map(func => (
-                                    <div key={func.id} className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-slate-50">
-                                        <Checkbox 
-                                            id={`func-${func.id}`}
-                                            checked={selectedFunctionIds.includes(func.id)}
-                                            onCheckedChange={(checked) => {
-                                                if (checked) {
-                                                    setSelectedFunctionIds([...selectedFunctionIds, func.id]);
-                                                } else {
-                                                    setSelectedFunctionIds(selectedFunctionIds.filter(id => id !== func.id));
-                                                }
-                                            }}
-                                        />
-                                        <Label htmlFor={`func-${func.id}`} className="flex-1 cursor-pointer font-medium">
-                                            {func.name}
-                                        </Label>
-                                    </div>
-                                ))}
+                            <div className="space-y-2.5">
+                                {eventVacancies.map(vac => {
+                                    const isSelected = selectedVacancyId === vac.id;
+                                    return (
+                                        <div
+                                            key={vac.id}
+                                            onClick={() => setSelectedVacancyId(vac.id)}
+                                            className={`flex items-center justify-between p-3.5 rounded-xl border cursor-pointer transition-all ${
+                                                isSelected
+                                                    ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                                                    : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                                            }`}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${
+                                                    isSelected ? 'border-primary bg-primary text-white' : 'border-slate-300'
+                                                }`}>
+                                                    {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
+                                                </div>
+                                                <div>
+                                                    <p className="font-bold text-slate-900 text-sm">{vac.functionName}</p>
+                                                    <p className="text-xs text-slate-500 font-medium">
+                                                        {vac.quantity} {vac.quantity === 1 ? 'vaga' : 'vagas'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <Badge variant="outline" className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border-emerald-200">
+                                                ABERTA
+                                            </Badge>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         )}
                     </div>
 
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setSelectedEvent(null)}>Cancelar</Button>
-                        <Button 
-                            onClick={submitApplication} 
-                            disabled={selectedFunctionIds.length === 0 || submitting}
-                            className="bg-primary text-white"
+                        <Button variant="outline" onClick={() => setSelectedEvent(null)} disabled={submitting}>
+                            Cancelar
+                        </Button>
+                        <Button
+                            onClick={submitApplication}
+                            disabled={!selectedVacancyId || submitting || vacanciesLoading || eventVacancies.length === 0}
+                            className="bg-primary hover:bg-primary/90 text-white font-bold"
                         >
-                            {submitting ? 'Enviando...' : 'Enviar Interesse'}
+                            {submitting ? 'Enviando...' : 'Confirmar Candidatura'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

@@ -1,22 +1,24 @@
 import { Hono, Context } from 'hono';
 import { db } from '../db';
-import { 
-    events, 
-    tickets, 
-    organizers, 
-    staffApplications, 
-    staffApplicationFunctions, 
-    staffProfessionalFunctions, 
-    profiles, 
+import {
+    events,
+    tickets,
+    organizers,
+    staffApplications,
+    staffApplicationFunctions,
+    staffProfessionalFunctions,
+    profiles,
     staffProfiles,
     eventStaff,
     staffProfileFunctions,
     eventPromoters,
     promoters,
     sales,
-    purchasedTickets
+    purchasedTickets,
+    eventStaffVacancies,
+    staffFunctions
 } from '../db/schema';
-import { eq, and, sql, inArray } from 'drizzle-orm';
+import { eq, and, sql, inArray, ne, desc } from 'drizzle-orm';
 import { authMiddleware } from '../middlewares/auth';
 import { idempotencyService } from '../services/idempotencyService';
 import { normalizeSlug, validateSlug, isReservedSlug } from '../utils/slugUtils';
@@ -96,7 +98,7 @@ router.post('/', async (c) => {
                 if (regType && !['INDIVIDUAL', 'DOUBLE', 'TEAM'].includes(regType)) {
                     return c.json({ error: `Tipo de inscrição inválido: ${regType}` }, 400);
                 }
-                
+
                 if (purpose === 'REGISTRATION') {
                     if (!regType || !participants) {
                         return c.json({ error: 'Ingressos de inscrição esportiva exigem registrationType e participantsPerRegistration.' }, 400);
@@ -187,7 +189,7 @@ router.post('/', async (c) => {
             });
             await idempotencyService.setCompleted(userId, operationId, eventResult.id);
             return c.json({ id: eventResult.id, ...eventResult }, 201);
-            
+
         } catch (dbError: any) {
             // Em caso de unique_violation inesperado durante a transaction (race condition super extrema)
             if (dbError.code === '23505') { // Postgres unique violation
@@ -228,7 +230,7 @@ router.get('/operations/:operationId', async (c) => {
 
         // Consulta Redis
         const status = await idempotencyService.getStatus(userId, operationId);
-        
+
         if (status) {
             return c.json(status);
         }
@@ -389,11 +391,11 @@ router.put('/:id/promoter-settings', async (c) => {
         const organizerData = await db.query.organizers.findFirst({
             where: (org, { eq }) => eq(org.userId, payload.id)
         });
-        
+
         if (!organizerData && payload.role !== 'master') {
             return c.json({ error: 'Produtor não encontrado.' }, 404);
         }
-        
+
         const organizerRecordId = organizerData?.id;
 
         // Validar ownership do evento
@@ -441,7 +443,7 @@ router.post('/:eventId/promoters/:id/approve', async (c) => {
         const [orgEvent] = await db.select().from(events).where(
             and(eq(events.id, eventId), eq(events.organizerId, organizerIdForCheck!))
         ).limit(1);
-        
+
         if (!orgEvent && payload.role !== 'master') {
             return c.json({ error: 'Não autorizado.' }, 403);
         }
@@ -541,7 +543,7 @@ router.get('/:eventId/promoters', async (c) => {
                 grossRevenue += Number(s.grossAmount || 0);
                 const comm = Number(s.promoterCommissionAmount || 0);
                 commissionGenerated += comm;
-                
+
                 if (s.payoutStatus === 'payable' || !s.payoutStatus) {
                     commissionPayable += comm;
                 } else if (s.payoutStatus === 'paid' || s.payoutStatus === 'processed') {
@@ -578,7 +580,7 @@ router.get('/:eventId/promoters', async (c) => {
             )
         );
         const totalEventPaidSales = Number(totalSalesQuery[0].count);
-        
+
         const promoterSalesShare = totalEventPaidSales > 0 ? (promoterPaidSales / totalEventPaidSales) * 100 : 0;
 
         const summary = {
@@ -616,7 +618,7 @@ router.post('/:eventId/promoters/:id/reject', async (c) => {
         const [orgEvent] = await db.select().from(events).where(
             and(eq(events.id, eventId), eq(events.organizerId, organizerIdForCheck!))
         ).limit(1);
-        
+
         if (!orgEvent && payload.role !== 'master') {
             return c.json({ error: 'Não autorizado.' }, 403);
         }
@@ -640,6 +642,197 @@ router.post('/:eventId/promoters/:id/reject', async (c) => {
 
         return c.json(updated[0], 200);
     } catch (e: any) {
+        return c.json({ error: e.message }, 500);
+    }
+});
+
+// ============================================================================
+// STAFF VACANCIES (VAGAS DE STAFF DO EVENTO)
+// ============================================================================
+
+/**
+ * GET /api/organizer/events/:eventId/staff-vacancies
+ * Lista todas as vagas configuradas para o evento com estatísticas de preenchimento
+ */
+router.get('/:eventId/staff-vacancies', async (c) => {
+    try {
+        const payload = (c.get as any)('jwtPayload');
+        const organizerId = payload.id;
+        const { eventId } = c.req.param();
+
+        // 1. Validar ownership do evento
+        const evt = await db.select().from(events).where(eq(events.id, eventId));
+        if (evt.length === 0) return c.json({ error: 'Evento não encontrado' }, 404);
+
+        if (payload.role !== 'master') {
+            const orgDetails = await db.select({ id: organizers.id }).from(organizers).where(eq(organizers.userId, organizerId));
+            if (orgDetails.length === 0 || evt[0].organizerId !== orgDetails[0].id) {
+                return c.json({ error: 'Proibido' }, 403);
+            }
+        }
+
+        // 2. Buscar vagas com dados da função profissional
+        const vacancies = await db.select({
+            id: eventStaffVacancies.id,
+            eventId: eventStaffVacancies.eventId,
+            professionalFunctionId: eventStaffVacancies.professionalFunctionId,
+            quantity: eventStaffVacancies.quantity,
+            status: eventStaffVacancies.status,
+            createdAt: eventStaffVacancies.createdAt,
+            updatedAt: eventStaffVacancies.updatedAt,
+            functionName: staffProfessionalFunctions.name,
+            functionSlug: staffProfessionalFunctions.slug,
+            functionCategory: staffProfessionalFunctions.category,
+        })
+        .from(eventStaffVacancies)
+        .innerJoin(staffProfessionalFunctions, eq(eventStaffVacancies.professionalFunctionId, staffProfessionalFunctions.id))
+        .where(eq(eventStaffVacancies.eventId, eventId))
+        .orderBy(staffProfessionalFunctions.name);
+
+        // 3. Contar event_staff confirmados (ACTIVE) vinculados a cada vaga
+        const activeStaff = await db.select({
+            vacancyId: eventStaff.vacancyId,
+            count: sql<number>`cast(count(*) as integer)`
+        })
+        .from(eventStaff)
+        .where(and(
+            eq(eventStaff.eventId, eventId),
+            eq(eventStaff.status, 'ACTIVE')
+        ))
+        .groupBy(eventStaff.vacancyId);
+
+        const confirmedMap = new Map<string, number>();
+        for (const row of activeStaff) {
+            if (row.vacancyId) confirmedMap.set(row.vacancyId, row.count);
+        }
+
+        const result = vacancies.map(v => {
+            const confirmed = confirmedMap.get(v.id) || 0;
+            return {
+                ...v,
+                confirmed,
+                remaining: Math.max(0, v.quantity - confirmed)
+            };
+        });
+
+        return c.json(result);
+    } catch (e: any) {
+        console.error('[GET /staff-vacancies] Error:', e);
+        return c.json({ error: e.message }, 500);
+    }
+});
+
+/**
+ * POST /api/organizer/events/:eventId/staff-vacancies
+ * Cria uma nova vaga para o evento
+ */
+router.post('/:eventId/staff-vacancies', async (c) => {
+    try {
+        const payload = (c.get as any)('jwtPayload');
+        const organizerId = payload.id;
+        const { eventId } = c.req.param();
+        const body = await c.req.json();
+        const { professionalFunctionId, quantity, status = 'OPEN' } = body;
+
+        if (!professionalFunctionId) {
+            return c.json({ error: 'Função profissional é obrigatória.' }, 400);
+        }
+        const numQty = Number(quantity);
+        if (!numQty || numQty <= 0) {
+            return c.json({ error: 'Quantidade de vagas deve ser maior que zero.' }, 400);
+        }
+        if (!['OPEN', 'PAUSED', 'CLOSED'].includes(status)) {
+            return c.json({ error: 'Status inválido. Use OPEN, PAUSED ou CLOSED.' }, 400);
+        }
+
+        // Validar ownership
+        const evt = await db.select().from(events).where(eq(events.id, eventId));
+        if (evt.length === 0) return c.json({ error: 'Evento não encontrado' }, 404);
+
+        if (payload.role !== 'master') {
+            const orgDetails = await db.select({ id: organizers.id }).from(organizers).where(eq(organizers.userId, organizerId));
+            if (orgDetails.length === 0 || evt[0].organizerId !== orgDetails[0].id) {
+                return c.json({ error: 'Proibido' }, 403);
+            }
+        }
+
+        // Validar existência da função profissional
+        const [profFunc] = await db.select().from(staffProfessionalFunctions).where(eq(staffProfessionalFunctions.id, professionalFunctionId));
+        if (!profFunc) {
+            return c.json({ error: 'Função profissional não encontrada no catálogo.' }, 404);
+        }
+
+        // Validar unicidade (não permitir duplicidade da mesma função ativa para o evento)
+        const existing = await db.select().from(eventStaffVacancies).where(and(
+            eq(eventStaffVacancies.eventId, eventId),
+            eq(eventStaffVacancies.professionalFunctionId, professionalFunctionId)
+        ));
+        if (existing.length > 0) {
+            return c.json({ error: 'Já existe uma vaga cadastrada para esta função neste evento.' }, 409);
+        }
+
+        const [newVacancy] = await db.insert(eventStaffVacancies).values({
+            eventId,
+            professionalFunctionId,
+            quantity: numQty,
+            status
+        }).returning();
+
+        return c.json(newVacancy, 201);
+    } catch (e: any) {
+        console.error('[POST /staff-vacancies] Error:', e);
+        return c.json({ error: e.message }, 500);
+    }
+});
+
+/**
+ * PATCH /api/organizer/events/:eventId/staff-vacancies/:vacancyId
+ * Atualiza quantidade ou status de uma vaga
+ */
+router.patch('/:eventId/staff-vacancies/:vacancyId', async (c) => {
+    try {
+        const payload = (c.get as any)('jwtPayload');
+        const organizerId = payload.id;
+        const { eventId, vacancyId } = c.req.param();
+        const body = await c.req.json();
+        const { quantity, status } = body;
+
+        // Validar ownership
+        const evt = await db.select().from(events).where(eq(events.id, eventId));
+        if (evt.length === 0) return c.json({ error: 'Evento não encontrado' }, 404);
+
+        if (payload.role !== 'master') {
+            const orgDetails = await db.select({ id: organizers.id }).from(organizers).where(eq(organizers.userId, organizerId));
+            if (orgDetails.length === 0 || evt[0].organizerId !== orgDetails[0].id) {
+                return c.json({ error: 'Proibido' }, 403);
+            }
+        }
+
+        const updateData: any = { updatedAt: new Date() };
+        if (quantity !== undefined) {
+            const numQty = Number(quantity);
+            if (!numQty || numQty <= 0) {
+                return c.json({ error: 'Quantidade de vagas deve ser maior que zero.' }, 400);
+            }
+            updateData.quantity = numQty;
+        }
+        if (status !== undefined) {
+            if (!['OPEN', 'PAUSED', 'CLOSED'].includes(status)) {
+                return c.json({ error: 'Status inválido. Use OPEN, PAUSED ou CLOSED.' }, 400);
+            }
+            updateData.status = status;
+        }
+
+        const [updated] = await db.update(eventStaffVacancies)
+            .set(updateData)
+            .where(and(eq(eventStaffVacancies.id, vacancyId), eq(eventStaffVacancies.eventId, eventId)))
+            .returning();
+
+        if (!updated) return c.json({ error: 'Vaga não encontrada.' }, 404);
+
+        return c.json(updated);
+    } catch (e: any) {
+        console.error('[PATCH /staff-vacancies] Error:', e);
         return c.json({ error: e.message }, 500);
     }
 });
@@ -669,7 +862,7 @@ router.get('/:eventId/staff-applications', async (c) => {
         if (evt.length === 0) {
             return c.json({ error: 'Not found' }, 404);
         }
-        
+
         if (payload.role !== 'master') {
             const orgDetails = await db.select({ id: organizers.id }).from(organizers).where(eq(organizers.userId, organizerId));
             if (orgDetails.length === 0 || evt[0].organizerId !== orgDetails[0].id) {
@@ -680,6 +873,7 @@ router.get('/:eventId/staff-applications', async (c) => {
 
         const apps = await db.select({
             applicationId: staffApplications.id,
+            vacancyId: staffApplications.vacancyId,
             status: staffApplications.status,
             createdAt: staffApplications.createdAt,
             userId: staffApplications.userId,
@@ -713,6 +907,7 @@ router.get('/:eventId/staff-applications', async (c) => {
             if (!groupedApps.has(row.applicationId)) {
                 groupedApps.set(row.applicationId, {
                     applicationId: row.applicationId,
+                    vacancyId: row.vacancyId,
                     status: row.status,
                     createdAt: row.createdAt,
                     eventStaffStatus: row.eventStaffStatus,
@@ -753,7 +948,9 @@ router.get('/:eventId/staff-applications', async (c) => {
 
 /**
  * GET /api/events/:eventId/staff-applications/:id/profile
- * Detalhes do candidato, incluindo PII (telefone)
+ * Detalhes do candidato para o produtor tomar decisão operacional
+ * Exibe foto, nome, cidade/UF, WhatsApp, bio, funções do perfil, vaga e eventos trabalhados.
+ * NÃO expõe CPF, data de nascimento ou dados bancários/financeiros.
  */
 router.get('/:eventId/staff-applications/:id/profile', async (c) => {
     try {
@@ -763,10 +960,10 @@ router.get('/:eventId/staff-applications/:id/profile', async (c) => {
 
         // 1. Validar ownership do evento
         const evt = await db.select().from(events).where(eq(events.id, eventId));
-                if (evt.length === 0) {
+        if (evt.length === 0) {
             return c.json({ error: 'Not found' }, 404);
         }
-        
+
         if (payload.role !== 'master') {
             const orgDetails = await db.select({ id: organizers.id }).from(organizers).where(eq(organizers.userId, organizerId));
             if (orgDetails.length === 0 || evt[0].organizerId !== orgDetails[0].id) {
@@ -780,18 +977,38 @@ router.get('/:eventId/staff-applications/:id/profile', async (c) => {
 
         const userId = app[0].userId;
 
-        // 3. Buscar Perfil e PII
+        // 3. Buscar Perfil e Contato (WhatsApp/Bio)
         const profile = await db.select().from(profiles).where(eq(profiles.userId, userId));
         const sProfile = await db.select().from(staffProfiles).where(eq(staffProfiles.userId, userId));
 
-        // 4. Buscar funções globais e da candidatura
+        // 4. Buscar funções declaradas no perfil profissional
         const globalFuncs = await db.select({
             id: staffProfessionalFunctions.id,
-            name: staffProfessionalFunctions.name
+            name: staffProfessionalFunctions.name,
+            category: staffProfessionalFunctions.category
         }).from(staffProfileFunctions)
         .leftJoin(staffProfessionalFunctions, eq(staffProfileFunctions.professionalFunctionId, staffProfessionalFunctions.id))
         .where(eq(staffProfileFunctions.staffUserId, userId));
 
+        // 5. Buscar vaga associada à candidatura
+        let vacancyDetails: any = null;
+        if (app[0].vacancyId) {
+            const vRows = await db.select({
+                id: eventStaffVacancies.id,
+                quantity: eventStaffVacancies.quantity,
+                status: eventStaffVacancies.status,
+                functionName: staffProfessionalFunctions.name,
+                functionCategory: staffProfessionalFunctions.category
+            })
+            .from(eventStaffVacancies)
+            .innerJoin(staffProfessionalFunctions, eq(eventStaffVacancies.professionalFunctionId, staffProfessionalFunctions.id))
+            .where(eq(eventStaffVacancies.id, app[0].vacancyId));
+            if (vRows.length > 0) {
+                vacancyDetails = vRows[0];
+            }
+        }
+
+        // Funções associadas via tabela associativa de candidatura (compatibilidade)
         const appFuncs = await db.select({
             id: staffProfessionalFunctions.id,
             name: staffProfessionalFunctions.name
@@ -799,19 +1016,46 @@ router.get('/:eventId/staff-applications/:id/profile', async (c) => {
         .leftJoin(staffProfessionalFunctions, eq(staffApplicationFunctions.professionalFunctionId, staffProfessionalFunctions.id))
         .where(eq(staffApplicationFunctions.staffApplicationId, id));
 
+        // 6. Buscar histórico de eventos trabalhados na A2 (ACTIVE ou COMPLETED)
+        const history = await db.select({
+            eventId: events.id,
+            title: events.title,
+            startDate: events.startDate,
+            roleName: staffFunctions.name
+        }).from(eventStaff)
+        .innerJoin(events, eq(eventStaff.eventId, events.id))
+        .leftJoin(staffFunctions, eq(eventStaff.staffFunctionId, staffFunctions.id))
+        .where(
+            and(
+                eq(eventStaff.userId, userId),
+                inArray(eventStaff.status, ['ACTIVE', 'COMPLETED'])
+            )
+        ).orderBy(desc(events.startDate));
+
+        const seenEvt = new Set<string>();
+        const workedEvents: any[] = [];
+        for (const h of history) {
+            if (!seenEvt.has(h.eventId)) {
+                seenEvt.add(h.eventId);
+                workedEvents.push(h);
+            }
+        }
+
         return c.json({
             applicationId: id,
             userId: userId,
+            status: app[0].status,
             name: profile[0]?.name,
             avatarUrl: profile[0]?.avatarUrl,
             phone: sProfile[0]?.phone,
             bio: sProfile[0]?.bio,
             city: profile[0]?.city,
             state: profile[0]?.state,
-            birthDate: profile[0]?.birthDate,
             isPublic: sProfile[0]?.isPublic,
+            vacancy: vacancyDetails,
             professionalFunctions: globalFuncs,
-            applicationFunctions: appFuncs
+            applicationFunctions: appFuncs,
+            workedEvents
         });
     } catch (e: any) {
         return c.json({ error: e.message }, 500);
@@ -833,7 +1077,7 @@ router.post('/:eventId/staff-applications/:id/reject', async (c) => {
                 if (evt.length === 0) {
             return c.json({ error: 'Not found' }, 404);
         }
-        
+
         if (payload.role !== 'master') {
             const orgDetails = await db.select({ id: organizers.id }).from(organizers).where(eq(organizers.userId, organizerId));
             if (orgDetails.length === 0 || evt[0].organizerId !== orgDetails[0].id) {
@@ -876,7 +1120,7 @@ router.post('/:eventId/staff-applications/:id/approve', async (c) => {
                 if (evt.length === 0) {
             return c.json({ error: 'Not found' }, 404);
         }
-        
+
         if (payload.role !== 'master') {
             const orgDetails = await db.select({ id: organizers.id }).from(organizers).where(eq(organizers.userId, organizerId));
             if (orgDetails.length === 0 || evt[0].organizerId !== orgDetails[0].id) {
@@ -889,16 +1133,16 @@ router.post('/:eventId/staff-applications/:id/approve', async (c) => {
             const apps = await tx.select().from(staffApplications)
                 .where(and(eq(staffApplications.id, id), eq(staffApplications.eventId, eventId)))
                 .for('update');
-                
+
             if (apps.length === 0) throw new Error('Candidatura não encontrada');
             const app = apps[0];
-            
+
             if (app.status !== 'PENDING') throw new Error('Candidatura não está pendente');
 
             // Prevent duplicate event_staff for this user and event
             const existingAssignment = await tx.select().from(eventStaff)
                 .where(and(eq(eventStaff.eventId, eventId), eq(eventStaff.userId, app.userId)));
-            
+
             if (existingAssignment.length > 0) {
                 throw new Error('Este Staff já possui um vínculo com este evento.');
             }
@@ -919,7 +1163,7 @@ router.post('/:eventId/staff-applications/:id/approve', async (c) => {
                     endStr = `${nextDay}T${shiftEnd}:00`;
                 }
 
-                // Inserir os horários locais diretamente como string. 
+                // Inserir os horários locais diretamente como string.
                 // O driver enviará para o Postgres como timestamp literal.
                 finalStartDate = startStr;
                 finalEndDate = endStr;
@@ -931,6 +1175,7 @@ router.post('/:eventId/staff-applications/:id/approve', async (c) => {
                 userId: app.userId,
                 organizerId,
                 staffFunctionId,
+                vacancyId: app.vacancyId,
                 status: 'PENDING_ACCEPTANCE',
                 shiftStart: finalStartDate ? new Date(finalStartDate + 'Z') : null,
                 shiftEnd: finalEndDate ? new Date(finalEndDate + 'Z') : null,
@@ -974,7 +1219,7 @@ router.patch('/:eventId/staff-applications/:id/proposal', async (c) => {
                 if (evt.length === 0) {
             return c.json({ error: 'Not found' }, 404);
         }
-        
+
         if (payload.role !== 'master') {
             const orgDetails = await db.select({ id: organizers.id }).from(organizers).where(eq(organizers.userId, organizerId));
             if (orgDetails.length === 0 || evt[0].organizerId !== orgDetails[0].id) {
@@ -985,7 +1230,7 @@ router.patch('/:eventId/staff-applications/:id/proposal', async (c) => {
         // 2. Localizar candidatura
         const app = await db.select().from(staffApplications).where(and(eq(staffApplications.id, id), eq(staffApplications.eventId, eventId)));
         if (app.length === 0) return c.json({ error: 'Candidatura não encontrada' }, 404);
-        
+
         console.log('[PROPOSAL PATCH] APPLICATION OK');
 
         await db.transaction(async (tx) => {
@@ -996,9 +1241,9 @@ router.patch('/:eventId/staff-applications/:id/proposal', async (c) => {
                 .for('update');
 
             if (assignments.length === 0) throw new Error('Vínculo não encontrado.');
-            
+
             const assignment = assignments[0];
-            
+
             console.log('[PROPOSAL PATCH] EVENT STAFF', {
                 eventStaffId: assignment?.id,
                 status: assignment?.status
@@ -1044,7 +1289,7 @@ router.patch('/:eventId/staff-applications/:id/proposal', async (c) => {
                 updatedAt: new Date()
             };
 
-            console.log('[PROPOSAL PATCH] BEFORE UPDATE', { 
+            console.log('[PROPOSAL PATCH] BEFORE UPDATE', {
                 payload: {
                     ...updatePayload,
                     shiftStartType: updatePayload.shiftStart ? updatePayload.shiftStart.constructor.name : null,
@@ -1054,7 +1299,7 @@ router.patch('/:eventId/staff-applications/:id/proposal', async (c) => {
 
             // 6. Atualizar SOMENTE a proposta
             await tx.update(eventStaff).set(updatePayload).where(and(eq(eventStaff.id, assignment.id), eq(eventStaff.status, 'PENDING_ACCEPTANCE')));
-            
+
             console.log('[PROPOSAL PATCH] UPDATE OK');
         });
 
@@ -1083,7 +1328,7 @@ router.patch('/:eventId/access-operation', async (c: Context) => {
     try {
         const payload = (c.get as any)('jwtPayload');
         if (!payload) return c.json({ error: 'Unauthorized' }, 401);
-        
+
         const organizerId = payload.id; // User is the organizer
         const eventId = c.req.param('eventId');
         const body = await c.req.json();
@@ -1098,7 +1343,7 @@ router.patch('/:eventId/access-operation', async (c: Context) => {
         if (eventRows.length === 0) {
             return c.json({ error: 'Event not found' }, 404);
         }
-        
+
         const event = eventRows[0];
         // TODO: In a more complex RBAC, check if user has permission to manage event settings
         // For V1, we strictly enforce ownership
@@ -1106,7 +1351,7 @@ router.patch('/:eventId/access-operation', async (c: Context) => {
             return c.json({ error: 'Forbidden. You do not own this event.' }, 403);
         }
 
-        await db.update(events).set({ 
+        await db.update(events).set({
             operationStatus,
             updatedAt: new Date()
         }).where(eq(events.id, eventId));
@@ -1123,11 +1368,11 @@ router.put('/:id/content', async (c) => {
         const payload = (c.get as any)('jwtPayload');
         const eventId = c.req.param('id');
         const body = await c.req.json();
-        
+
         // Ownership check
         const evt = await db.select({ organizerId: events.organizerId }).from(events).where(eq(events.id, eventId));
         if (evt.length === 0) return c.json({ error: 'Event not found' }, 404);
-        
+
         if (payload.role !== 'master') {
             const orgDetails = await db.select({ id: organizers.id }).from(organizers).where(eq(organizers.userId, payload.id));
             if (orgDetails.length === 0 || evt[0].organizerId !== orgDetails[0].id) {

@@ -60,9 +60,9 @@ class StaffService {
    */
   async getFinancialSummary(eventId: string): Promise<any> {
     try {
-      // Como determinado pela auditoria P0.3, a estrutura financeira 
+      // Como determinado pela auditoria P0.3, a estrutura financeira
       // (cachê, valor, horas) ainda não existe em event_staff ou functions.
-      // Retornamos os counts REAIS de pessoas por evento, 
+      // Retornamos os counts REAIS de pessoas por evento,
       // mas custos como nulos para mostrar os empty states corretos.
       let query = supabase
         .from('event_staff')
@@ -70,24 +70,24 @@ class StaffService {
           id,
           staff_functions(name)
         `);
-      
+
       if (eventId !== 'all') {
         query = query.eq('event_id', eventId);
       }
-      
+
       const { data, error } = await query;
       if (error) throw error;
-      
+
       const staffList = data || [];
       const totalStaff = staffList.length;
-      
+
       // Agrupar por função
       const rolesMap: Record<string, number> = {};
       staffList.forEach((st: any) => {
         const functionName = st.staff_functions?.name || 'Sem Função';
         rolesMap[functionName] = (rolesMap[functionName] || 0) + 1;
       });
-      
+
       const roleBreakdown = Object.entries(rolesMap).map(([name, count], index) => {
         const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#64748b'];
         return {
@@ -114,7 +114,7 @@ class StaffService {
     try {
       const { api } = await import('@/services/api');
       const data = await api.get<any[]>(`/api/staff/event-staff?eventId=${eventId === 'all' ? '' : eventId}`);
-      
+
       return data.map(s => ({
         id: s.eventStaffId, // Mapeamos o id real do event_staff
         organizerId: s.organizerId,
@@ -146,7 +146,7 @@ class StaffService {
   async createStaffMember(eventId: string, data: any): Promise<any> {
     try {
       const { api } = await import('@/services/api');
-      
+
       const payload = {
         eventId: eventId === 'all' || eventId === '' ? null : eventId,
         name: data.name,
@@ -159,7 +159,7 @@ class StaffService {
       };
 
       const response = await api.post<{ eventStaffId: string, status: string, success: boolean, accessDelivery: string }>('/api/staff/invite', payload);
-      
+
       return response;
     } catch (e) {
       console.error('[STAFF_SERVICE] Erro ao criar staff:', e);
@@ -277,7 +277,7 @@ class StaffService {
       }));
 
       // Limpa ingressos antigos do mesmo evento e insere os novos
-      // Nota: Em um sistema real, faríamos um merge inteligente. 
+      // Nota: Em um sistema real, faríamos um merge inteligente.
       // Para este MVP, vamos sobrescrever para garantir integridade.
       await db.tickets.bulkPut(localTickets);
 
@@ -291,11 +291,11 @@ class StaffService {
   /**
    * Valida um ingresso (Online primeiro, fallback para Offline).
    */
-  async validateTicket(qrCode: string): Promise<{ 
-    success: boolean; 
-    message: string; 
-    ticket?: Partial<LocalTicket>; 
-    alreadyUsed?: boolean 
+  async validateTicket(qrCode: string): Promise<{
+    success: boolean;
+    message: string;
+    ticket?: Partial<LocalTicket>;
+    alreadyUsed?: boolean
   }> {
     const isOnline = navigator.onLine;
 
@@ -322,12 +322,12 @@ class StaffService {
           profiles:user_id(name),
           tickets(name)
         `);
-        
+
       if (cleanCode.startsWith('TICKET-')) {
         const idMatch = cleanCode.replace('TICKET-', '');
         // Verifica se é um UUID válido (ingressos antigos)
         const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idMatch);
-        
+
         if (isUuid) {
           ticketQuery = ticketQuery.or(`id.eq.${idMatch},qr_code_data.eq.${cleanCode}`);
         } else {
@@ -346,9 +346,9 @@ class StaffService {
       }
 
       if (ticket.status === 'used') {
-        return { 
-          success: false, 
-          message: 'Este ingresso já foi utilizado!', 
+        return {
+          success: false,
+          message: 'Este ingresso já foi utilizado!',
           alreadyUsed: true,
           ticket: {
             buyer_name: ticket.profiles?.name || 'Participante',
@@ -368,8 +368,8 @@ class StaffService {
       // 3. Atualiza cache local
       await db.tickets.update(ticket.id, { status: 'used', synced: true });
 
-      return { 
-        success: true, 
+      return {
+        success: true,
         message: 'Check-in realizado com sucesso!',
         ticket: {
           buyer_name: ticket.profiles?.name || 'Participante',
@@ -391,25 +391,25 @@ class StaffService {
     }
 
     if (localTicket.status === 'used') {
-      return { 
-        success: false, 
-        message: 'Atenção: Já utilizado (Validação Offline)!', 
+      return {
+        success: false,
+        message: 'Atenção: Já utilizado (Validação Offline)!',
         alreadyUsed: true,
-        ticket: localTicket 
+        ticket: localTicket
       };
     }
 
     // Marca como usado localmente e pendente de sincronização
-    await db.tickets.update(localTicket.id, { 
-      status: 'used', 
+    await db.tickets.update(localTicket.id, {
+      status: 'used',
       synced: false,
       check_in_at: new Date().toISOString()
     });
 
-    return { 
-      success: true, 
-      message: 'Validado Offline! (Sincronização pendente)', 
-      ticket: localTicket 
+    return {
+      success: true,
+      message: 'Validado Offline! (Sincronização pendente)',
+      ticket: localTicket
     };
   }
 
@@ -438,7 +438,7 @@ class StaffService {
   // ==========================================
   // STAFF APPLICATIONS
   // ==========================================
-  
+
   async getAvailableEvents(): Promise<any[]> {
     try {
       const { api } = await import('@/services/api');
@@ -449,10 +449,63 @@ class StaffService {
     }
   }
 
-  async applyForEvent(eventId: string, professionalFunctionIds: string[]): Promise<any> {
+  async getEventOpenVacancies(eventId: string): Promise<any[]> {
     try {
       const { api } = await import('@/services/api');
-      return await api.post(`/api/staff/events/${eventId}/apply`, { professionalFunctionIds });
+      return await api.get(`/api/staff/events/${eventId}/vacancies`);
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
+  }
+
+  async getEventVacancies(eventId: string): Promise<any[]> {
+    try {
+      const { api } = await import('@/services/api');
+      return await api.get(`/api/organizer/events/${eventId}/staff-vacancies`);
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
+  }
+
+  async createEventVacancy(eventId: string, data: { professionalFunctionId: string, quantity: number, status?: 'OPEN' | 'PAUSED' | 'CLOSED' }): Promise<any> {
+    try {
+      const { api } = await import('@/services/api');
+      return await api.post(`/api/organizer/events/${eventId}/staff-vacancies`, data);
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
+  }
+
+  async updateEventVacancy(eventId: string, vacancyId: string, data: { quantity?: number, status?: 'OPEN' | 'PAUSED' | 'CLOSED' }): Promise<any> {
+    try {
+      const { api } = await import('@/services/api');
+      return await api.patch(`/api/organizer/events/${eventId}/staff-vacancies/${vacancyId}`, data);
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
+  }
+
+  async getProfessionalFunctions(): Promise<any[]> {
+    try {
+      const { api } = await import('@/services/api');
+      return await api.get('/api/staff/professional-functions');
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
+  }
+
+  async applyForEvent(eventId: string, vacancyIdOrFunctionIds: string | string[]): Promise<any> {
+    try {
+      const { api } = await import('@/services/api');
+      const payload = typeof vacancyIdOrFunctionIds === 'string'
+        ? { vacancyId: vacancyIdOrFunctionIds }
+        : { professionalFunctionIds: vacancyIdOrFunctionIds };
+      return await api.post(`/api/staff/events/${eventId}/apply`, payload);
     } catch (e) {
       console.error(e);
       throw e;
