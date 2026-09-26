@@ -32,20 +32,40 @@ export interface StaffMember {
   eventFunction: string; // Função específica desta pessoa no evento
 
   // Dados Contratuais (Fase 2)
-  contractType?: 'daily' | 'clt' | 'freelance' | 'volunteer';
+  contractType?: 'daily' | 'clt' | 'freelance' | 'volunteer' | string;
   paymentValue?: number; // Valor (R$)
-  paymentType?: 'hourly' | 'fixed'; // Por hora ou Valor fixo
+  paymentType?: 'hourly' | 'fixed' | string; // Por hora ou Valor fixo
+  compensationAmount?: number | string;
+  compensationType?: string;
+  currency?: string;
 
   // Escala e Horário
   shiftStart?: string; // Horário de início (ex: "18:00")
   shiftEnd?: string; // Horário de fim (ex: "02:00")
   breakDuration?: number; // Pausa em minutos (ex: 60)
+  shifts?: EventStaffShift[];
+
+  status?: string;
+  staffFunctionId?: string;
+  systemRoleIds?: string[];
+  organizerId?: string;
 
   isActive: boolean;
   sendCredentials: boolean;
   photoUrl?: string;
   createdAt: string;
   lastLogin?: string;
+}
+
+export interface EventStaffShift {
+  id: string;
+  eventStaffId: string;
+  shiftDate: string;
+  startTime: string;
+  endTime: string;
+  breakDurationMinutes: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface StaffAuth {

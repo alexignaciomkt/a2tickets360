@@ -1,6 +1,32 @@
 import { supabase } from '@/lib/supabase';
 import { db, LocalTicket } from '@/lib/offline-db';
-import { StaffMember, StaffRole } from '@/interfaces/staff';
+import { StaffMember, StaffRole, EventStaffShift } from '@/interfaces/staff';
+
+export interface StaffVacancyData {
+  professionalFunctionId: string;
+  quantity: number;
+  status?: 'OPEN' | 'PAUSED' | 'CLOSED';
+  workDate?: string | null;
+  startTime?: string | null;
+  expectedEndTime?: string | null;
+  compensationAmount?: number | string | null;
+  compensationType?: string;
+  currency?: string;
+  publicNotes?: string | null;
+}
+
+export interface StaffProposalData {
+  staffFunctionId: string;
+  shiftDate?: string;
+  shiftStart?: string | null;
+  shiftEnd?: string | null;
+  contractType?: string;
+  compensationAmount?: number | string | null;
+  compensationType?: string;
+  currency?: string;
+  breakDuration?: number;
+  systemRoleIds?: string[];
+}
 
 class StaffService {
   /**
@@ -130,6 +156,13 @@ class StaffService {
         phone: s.telefone,
         photoUrl: s.avatarUrl,
         createdAt: s.createdAt,
+        contractType: s.contractType,
+        paymentValue: s.compensationAmount ? Number(s.compensationAmount) : undefined,
+        compensationAmount: s.compensationAmount,
+        compensationType: s.compensationType,
+        paymentType: s.compensationType,
+        currency: s.currency,
+        shifts: s.shifts || [],
         shiftStart: s.shiftStart ? s.shiftStart.replace('Z', '') : null,
         shiftEnd: s.shiftEnd ? s.shiftEnd.replace('Z', '') : null,
       } as any));
@@ -155,7 +188,12 @@ class StaffService {
         staffFunctionId: data.staffFunctionId,
         shiftStart: data.shiftStart,
         shiftEnd: data.shiftEnd,
-        systemRoleIds: data.systemRoleIds
+        systemRoleIds: data.systemRoleIds,
+        contractType: data.contractType,
+        paymentValue: data.paymentValue,
+        paymentType: data.paymentType,
+        shiftDate: data.shiftDate,
+        breakDuration: data.breakDuration
       };
 
       const response = await api.post<{ eventStaffId: string, status: string, success: boolean, accessDelivery: string }>('/api/staff/invite', payload);
@@ -227,7 +265,13 @@ class StaffService {
         staffFunctionId: data.staffFunctionId,
         shiftStart: data.shiftStart,
         shiftEnd: data.shiftEnd,
-        systemRoleIds: data.systemRoleIds
+        systemRoleIds: data.systemRoleIds,
+        contractType: data.contractType,
+        paymentValue: data.paymentValue,
+        compensationAmount: data.paymentValue !== undefined ? data.paymentValue : data.compensationAmount,
+        compensationType: data.paymentType !== undefined ? data.paymentType : data.compensationType,
+        paymentType: data.paymentType,
+        currency: data.currency
       });
     } catch (e) {
       console.error('[STAFF_SERVICE] Erro ao atualizar staff:', e);
@@ -469,7 +513,7 @@ class StaffService {
     }
   }
 
-  async createEventVacancy(eventId: string, data: { professionalFunctionId: string, quantity: number, status?: 'OPEN' | 'PAUSED' | 'CLOSED' }): Promise<any> {
+  async createEventVacancy(eventId: string, data: StaffVacancyData): Promise<any> {
     try {
       const { api } = await import('@/services/api');
       return await api.post(`/api/organizer/events/${eventId}/staff-vacancies`, data);
@@ -479,7 +523,7 @@ class StaffService {
     }
   }
 
-  async updateEventVacancy(eventId: string, vacancyId: string, data: { quantity?: number, status?: 'OPEN' | 'PAUSED' | 'CLOSED' }): Promise<any> {
+  async updateEventVacancy(eventId: string, vacancyId: string, data: Partial<StaffVacancyData>): Promise<any> {
     try {
       const { api } = await import('@/services/api');
       return await api.patch(`/api/organizer/events/${eventId}/staff-vacancies/${vacancyId}`, data);
@@ -562,7 +606,7 @@ class StaffService {
     }
   }
 
-  async approveApplication(eventId: string, applicationId: string, data: { staffFunctionId: string, shiftDate: string, shiftStart: string | null, shiftEnd: string | null }): Promise<any> {
+  async approveApplication(eventId: string, applicationId: string, data: StaffProposalData): Promise<any> {
     try {
       const { api } = await import('@/services/api');
       return await api.post(`/api/organizer/events/${eventId}/staff-applications/${applicationId}/approve`, data);
@@ -572,20 +616,57 @@ class StaffService {
     }
   }
 
-  async updateApplicationProposal(eventId: string, applicationId: string, data: { staffFunctionId: string, shiftDate: string, shiftStart: string | null, shiftEnd: string | null }): Promise<any> {
+  async updateApplicationProposal(eventId: string, applicationId: string, data: StaffProposalData): Promise<any> {
     try {
-      console.log('[PROPOSAL SERVICE] START', {
-        eventId,
-        applicationId,
-        data
-      });
       const { api } = await import('@/services/api');
-      console.log('[PROPOSAL SERVICE] BEFORE API');
       const response = await api.patch(`/api/organizer/events/${eventId}/staff-applications/${applicationId}/proposal`, data);
-      console.log('[PROPOSAL SERVICE] API OK');
       return response;
     } catch (e) {
       console.error('[PROPOSAL SERVICE] ERROR', e);
+      throw e;
+    }
+  }
+
+  // ==========================================
+  // SHIFTS CRUD (OPERATIONAL STAFF V1)
+  // ==========================================
+
+  async getEventStaffShifts(eventStaffId: string): Promise<EventStaffShift[]> {
+    try {
+      const { api } = await import('@/services/api');
+      return await api.get<EventStaffShift[]>(`/api/staff/event-staff/${eventStaffId}/shifts`);
+    } catch (e) {
+      console.error('[STAFF_SERVICE] Erro ao buscar turnos:', e);
+      return [];
+    }
+  }
+
+  async createEventStaffShift(eventStaffId: string, data: { shiftDate: string, startTime: string, endTime: string, breakDurationMinutes?: number }): Promise<EventStaffShift> {
+    try {
+      const { api } = await import('@/services/api');
+      return await api.post<EventStaffShift>(`/api/staff/event-staff/${eventStaffId}/shifts`, data);
+    } catch (e) {
+      console.error('[STAFF_SERVICE] Erro ao criar turno:', e);
+      throw e;
+    }
+  }
+
+  async updateEventStaffShift(eventStaffId: string, shiftId: string, data: { shiftDate?: string, startTime?: string, endTime?: string, breakDurationMinutes?: number }): Promise<EventStaffShift> {
+    try {
+      const { api } = await import('@/services/api');
+      return await api.patch<EventStaffShift>(`/api/staff/event-staff/${eventStaffId}/shifts/${shiftId}`, data);
+    } catch (e) {
+      console.error('[STAFF_SERVICE] Erro ao atualizar turno:', e);
+      throw e;
+    }
+  }
+
+  async deleteEventStaffShift(eventStaffId: string, shiftId: string): Promise<{ success: boolean }> {
+    try {
+      const { api } = await import('@/services/api');
+      return await api.delete<{ success: boolean }>(`/api/staff/event-staff/${eventStaffId}/shifts/${shiftId}`);
+    } catch (e) {
+      console.error('[STAFF_SERVICE] Erro ao excluir turno:', e);
       throw e;
     }
   }

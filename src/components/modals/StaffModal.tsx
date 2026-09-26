@@ -122,6 +122,9 @@ export const StaffModal = ({
          endStr = staff.shiftEnd;
       }
 
+      const hasShifts = Array.isArray(staff.shifts) && staff.shifts.length > 0;
+      const firstShift = hasShifts ? staff.shifts[0] : null;
+
       setFormData({
         name: staff.name,
         email: staff.email,
@@ -131,12 +134,16 @@ export const StaffModal = ({
         staffFunctionId: staff.staffFunctionId || '',
         isActive: staff.isActive,
         contractType: staff.contractType || 'daily',
-        paymentValue: staff.paymentValue || 0,
-        paymentType: staff.paymentType || 'fixed',
-        shiftDate: dateStr,
-        shiftStart: startStr,
-        shiftEnd: endStr,
-        breakDuration: staff.breakDuration || 60,
+        paymentValue: staff.compensationAmount !== undefined && staff.compensationAmount !== null
+          ? Number(staff.compensationAmount)
+          : (staff.paymentValue || 0),
+        paymentType: staff.compensationType
+          ? (staff.compensationType.toLowerCase() === 'hourly' ? 'hourly' : 'fixed')
+          : (staff.paymentType || 'fixed'),
+        shiftDate: firstShift ? firstShift.shiftDate : dateStr,
+        shiftStart: firstShift ? firstShift.startTime : startStr,
+        shiftEnd: firstShift ? firstShift.endTime : endStr,
+        breakDuration: firstShift ? (firstShift.breakDurationMinutes ?? 60) : (staff.breakDuration || 60),
         photoUrl: staff.photoUrl || ''
       });
       setPreviews({ photo: staff.photoUrl || '' });

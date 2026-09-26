@@ -34,15 +34,47 @@ const AgendaPage = () => {
             const data = await staffService.getMyInvites();
             // Filter only active jobs for the agenda
             const activeJobs = data.filter(item => item.status === 'ACTIVE');
-            
-            // Sort by upcoming date
-            const sortedJobs = activeJobs.sort((a, b) => {
-                if (!a.shiftStart) return 1;
-                if (!b.shiftStart) return -1;
-                return new Date(a.shiftStart).getTime() - new Date(b.shiftStart).getTime();
-            });
+            const items: any[] = [];
 
-            setAgendaItems(sortedJobs);
+            for (const job of activeJobs) {
+                if (Array.isArray(job.shifts) && job.shifts.length > 0) {
+                    for (const sh of job.shifts) {
+                        const cleanDate = sh.shiftDate ? (sh.shiftDate.includes('T') ? sh.shiftDate.split('T')[0] : sh.shiftDate) : '';
+                        const dateParts = cleanDate.split('-').map(Number);
+                        const jsDate = dateParts.length === 3 ? new Date(dateParts[0], dateParts[1] - 1, dateParts[2]) : null;
+
+                        items.push({
+                            ...job,
+                            shiftId: sh.id,
+                            shiftDate: cleanDate,
+                            startTime: sh.startTime,
+                            endTime: sh.endTime,
+                            breakDurationMinutes: sh.breakDurationMinutes,
+                            dateObj: jsDate,
+                            sortKey: `${cleanDate}T${sh.startTime}`
+                        });
+                    }
+                } else {
+                    // Fallback legado para shiftStart / shiftEnd
+                    const startDate = job.shiftStart ? new Date(job.shiftStart) : null;
+                    const cleanDate = job.shiftStart ? job.shiftStart.split('T')[0] : '';
+                    const startTimeClean = job.shiftStart && job.shiftStart.includes('T') ? job.shiftStart.split('T')[1]?.substring(0, 5) : '';
+                    const endTimeClean = job.shiftEnd && job.shiftEnd.includes('T') ? job.shiftEnd.split('T')[1]?.substring(0, 5) : '';
+                    items.push({
+                        ...job,
+                        shiftId: job.id,
+                        shiftDate: cleanDate,
+                        startTime: startTimeClean,
+                        endTime: endTimeClean,
+                        breakDurationMinutes: job.breakDuration || 0,
+                        dateObj: startDate,
+                        sortKey: job.shiftStart || ''
+                    });
+                }
+            }
+
+            items.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+            setAgendaItems(items);
         } catch (error) {
             console.error('Failed to load agenda', error);
         } finally {
@@ -79,28 +111,22 @@ const AgendaPage = () => {
                 ) : (
                     <div className="grid grid-cols-1 gap-6">
                         {agendaItems.map((item, index) => {
-                            const startDate = item.shiftStart ? new Date(item.shiftStart) : null;
-                            const endDate = item.shiftEnd ? new Date(item.shiftEnd) : null;
-                            
-                            const dateStr = startDate ? startDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).toUpperCase() : 'A DEFINIR';
-                            const weekdayStr = startDate ? startDate.toLocaleDateString('pt-BR', { weekday: 'long' }) : '';
-                            const dayNum = startDate ? startDate.getDate().toString().padStart(2, '0') : '--';
-                            
-                            const timeStr = startDate && endDate 
-                                ? `${startDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} - ${endDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
-                                : startDate 
-                                    ? startDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-                                    : 'A definir';
+                            const dateObj = item.dateObj;
+                            const dayNum = dateObj ? dateObj.getDate().toString().padStart(2, '0') : '--';
+                            const weekdayStr = dateObj ? dateObj.toLocaleDateString('pt-BR', { weekday: 'long' }) : '';
+                            const timeStr = item.startTime && item.endTime
+                                ? `${item.startTime} - ${item.endTime}`
+                                : (item.startTime || 'A definir');
 
                             return (
-                                <Card key={item.id} className="bg-white border border-gray-100 shadow-sm rounded-[2rem] overflow-hidden relative group hover:shadow-md transition-shadow">
+                                <Card key={`${item.id}-${item.shiftId || index}`} className="bg-white border border-gray-100 shadow-sm rounded-[2rem] overflow-hidden relative group hover:shadow-md transition-shadow">
                                     <div className="absolute -left-1 top-0 bottom-0 w-2 bg-primary rounded-l-full group-hover:w-3 transition-all"></div>
 
                                     <CardContent className="p-6 sm:p-8 space-y-8">
                                         <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
                                             <div className="space-y-2">
                                                 {index === 0 && (
-                                                    <Badge className="bg-primary/10 text-primary border-none text-[10px] font-black uppercase tracking-widest mb-2">Próximo Evento</Badge>
+                                                    <Badge className="bg-primary/10 text-primary border-none text-[10px] font-black uppercase tracking-widest mb-2">Próximo Turno</Badge>
                                                 )}
                                                 <h2 className="text-2xl sm:text-3xl font-black text-slate-900 uppercase tracking-tight">{item.eventName || 'Evento'}</h2>
                                                 <p className="text-xs text-slate-500 font-bold uppercase tracking-widest flex items-center gap-2">
@@ -112,6 +138,9 @@ const AgendaPage = () => {
                                                 <div className="text-center">
                                                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Horário</p>
                                                     <p className="text-base font-black text-slate-900">{timeStr}</p>
+                                                    {item.breakDurationMinutes > 0 && (
+                                                        <p className="text-[10px] text-slate-400 mt-0.5">Pausa: {item.breakDurationMinutes}m</p>
+                                                    )}
                                                 </div>
                                                 <div className="w-px bg-gray-200 h-10 self-center"></div>
                                                 <div className="text-center">
@@ -166,12 +195,12 @@ const AgendaPage = () => {
                                             </div>
                                         </div>
 
-                                        <div className="pt-6 border-t border-gray-100 flex justify-between items-center">
-                                            <Button className="flex-1 bg-slate-900 text-white hover:bg-slate-800 font-black uppercase tracking-widest text-xs h-12 rounded-xl shadow-md">
-                                                <Smartphone className="w-4 h-4 mr-2" /> Gerar QR Code de Acesso
-                                            </Button>
-                                            <Button variant="outline" className="flex-1 border-gray-200 text-slate-600 hover:bg-gray-50 font-black uppercase tracking-widest text-xs h-12 rounded-xl">
-                                                Ver Contrato Digital
+                                        <div className="pt-6 border-t border-gray-100 flex justify-between items-center gap-3">
+                                            <Button
+                                                onClick={() => window.location.href = '/dashboard/staff/credential'}
+                                                className="flex-1 bg-slate-900 text-white hover:bg-slate-800 font-black uppercase tracking-widest text-xs h-12 rounded-xl shadow-md"
+                                            >
+                                                <Smartphone className="w-4 h-4 mr-2" /> Minha Credencial
                                             </Button>
                                         </div>
                                     </CardContent>

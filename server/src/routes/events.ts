@@ -16,7 +16,9 @@ import {
     sales,
     purchasedTickets,
     eventStaffVacancies,
-    staffFunctions
+    staffFunctions,
+    eventStaffShifts,
+    eventStaffRoles
 } from '../db/schema';
 import { eq, and, sql, inArray, ne, desc } from 'drizzle-orm';
 import { authMiddleware } from '../middlewares/auth';
@@ -678,6 +680,13 @@ router.get('/:eventId/staff-vacancies', async (c) => {
             professionalFunctionId: eventStaffVacancies.professionalFunctionId,
             quantity: eventStaffVacancies.quantity,
             status: eventStaffVacancies.status,
+            workDate: eventStaffVacancies.workDate,
+            startTime: eventStaffVacancies.startTime,
+            expectedEndTime: eventStaffVacancies.expectedEndTime,
+            compensationAmount: eventStaffVacancies.compensationAmount,
+            compensationType: eventStaffVacancies.compensationType,
+            currency: eventStaffVacancies.currency,
+            publicNotes: eventStaffVacancies.publicNotes,
             createdAt: eventStaffVacancies.createdAt,
             updatedAt: eventStaffVacancies.updatedAt,
             functionName: staffProfessionalFunctions.name,
@@ -732,7 +741,18 @@ router.post('/:eventId/staff-vacancies', async (c) => {
         const organizerId = payload.id;
         const { eventId } = c.req.param();
         const body = await c.req.json();
-        const { professionalFunctionId, quantity, status = 'OPEN' } = body;
+        const {
+            professionalFunctionId,
+            quantity,
+            status = 'OPEN',
+            workDate,
+            startTime,
+            expectedEndTime,
+            compensationAmount,
+            compensationType = 'FIXED',
+            currency = 'BRL',
+            publicNotes
+        } = body;
 
         if (!professionalFunctionId) {
             return c.json({ error: 'Função profissional é obrigatória.' }, 400);
@@ -775,7 +795,14 @@ router.post('/:eventId/staff-vacancies', async (c) => {
             eventId,
             professionalFunctionId,
             quantity: numQty,
-            status
+            status,
+            workDate: workDate ? (typeof workDate === 'string' && workDate.includes('T') ? workDate.split('T')[0] : String(workDate)) : null,
+            startTime: startTime || null,
+            expectedEndTime: expectedEndTime || null,
+            compensationAmount: compensationAmount ? String(compensationAmount) : null,
+            compensationType: compensationType || 'FIXED',
+            currency: currency || 'BRL',
+            publicNotes: publicNotes || null
         }).returning();
 
         return c.json(newVacancy, 201);
@@ -787,7 +814,7 @@ router.post('/:eventId/staff-vacancies', async (c) => {
 
 /**
  * PATCH /api/organizer/events/:eventId/staff-vacancies/:vacancyId
- * Atualiza quantidade ou status de uma vaga
+ * Atualiza quantidade, status ou condições de uma vaga
  */
 router.patch('/:eventId/staff-vacancies/:vacancyId', async (c) => {
     try {
@@ -822,6 +849,15 @@ router.patch('/:eventId/staff-vacancies/:vacancyId', async (c) => {
             }
             updateData.status = status;
         }
+        if (body.workDate !== undefined) {
+            updateData.workDate = body.workDate ? (typeof body.workDate === 'string' && body.workDate.includes('T') ? body.workDate.split('T')[0] : String(body.workDate)) : null;
+        }
+        if (body.startTime !== undefined) updateData.startTime = body.startTime || null;
+        if (body.expectedEndTime !== undefined) updateData.expectedEndTime = body.expectedEndTime || null;
+        if (body.compensationAmount !== undefined) updateData.compensationAmount = body.compensationAmount ? String(body.compensationAmount) : null;
+        if (body.compensationType !== undefined) updateData.compensationType = body.compensationType || 'FIXED';
+        if (body.currency !== undefined) updateData.currency = body.currency || 'BRL';
+        if (body.publicNotes !== undefined) updateData.publicNotes = body.publicNotes || null;
 
         const [updated] = await db.update(eventStaffVacancies)
             .set(updateData)
@@ -887,14 +923,26 @@ router.get('/:eventId/staff-applications', async (c) => {
             eventStaffStatus: eventStaff.status,
             eventStaffId: eventStaff.id,
             staffFunctionId: eventStaff.staffFunctionId,
+            contractType: eventStaff.contractType,
+            compensationAmount: eventStaff.compensationAmount,
+            compensationType: eventStaff.compensationType,
+            currency: eventStaff.currency,
             shiftStart: eventStaff.shiftStart,
-            shiftEnd: eventStaff.shiftEnd
+            shiftEnd: eventStaff.shiftEnd,
+            vacancyWorkDate: eventStaffVacancies.workDate,
+            vacancyStartTime: eventStaffVacancies.startTime,
+            vacancyExpectedEndTime: eventStaffVacancies.expectedEndTime,
+            vacancyCompensationAmount: eventStaffVacancies.compensationAmount,
+            vacancyCompensationType: eventStaffVacancies.compensationType,
+            vacancyCurrency: eventStaffVacancies.currency,
+            vacancyPublicNotes: eventStaffVacancies.publicNotes
         })
         .from(staffApplications)
         .leftJoin(profiles, eq(staffApplications.userId, profiles.userId))
         .leftJoin(staffProfiles, eq(staffApplications.userId, staffProfiles.userId))
         .leftJoin(staffApplicationFunctions, eq(staffApplications.id, staffApplicationFunctions.staffApplicationId))
         .leftJoin(staffProfessionalFunctions, eq(staffApplicationFunctions.professionalFunctionId, staffProfessionalFunctions.id))
+        .leftJoin(eventStaffVacancies, eq(staffApplications.vacancyId, eventStaffVacancies.id))
         .leftJoin(eventStaff, and(eq(staffApplications.userId, eventStaff.userId), eq(staffApplications.eventId, eventStaff.eventId)))
         .where(eq(staffApplications.eventId, eventId))
         .orderBy(staffApplications.createdAt);
@@ -914,8 +962,22 @@ router.get('/:eventId/staff-applications', async (c) => {
                     eventStaff: row.eventStaffId ? {
                         id: row.eventStaffId,
                         staffFunctionId: row.staffFunctionId,
+                        contractType: row.contractType,
+                        compensationAmount: row.compensationAmount,
+                        compensationType: row.compensationType,
+                        currency: row.currency,
                         shiftStart: row.shiftStart ? row.shiftStart.toISOString().replace('Z', '') : null,
                         shiftEnd: row.shiftEnd ? row.shiftEnd.toISOString().replace('Z', '') : null,
+                    } : null,
+                    vacancy: row.vacancyId ? {
+                        id: row.vacancyId,
+                        workDate: row.vacancyWorkDate,
+                        startTime: row.vacancyStartTime,
+                        expectedEndTime: row.vacancyExpectedEndTime,
+                        compensationAmount: row.vacancyCompensationAmount,
+                        compensationType: row.vacancyCompensationType,
+                        currency: row.vacancyCurrency,
+                        publicNotes: row.vacancyPublicNotes,
                     } : null,
                     user: {
                         userId: row.userId,
@@ -1111,7 +1173,7 @@ router.post('/:eventId/staff-applications/:id/approve', async (c) => {
         const organizerId = payload.id;
         const { eventId, id } = c.req.param();
         const body = await c.req.json();
-        const { staffFunctionId, shiftDate, shiftStart, shiftEnd } = body;
+        const { staffFunctionId, shiftDate, shiftStart, shiftEnd, contractType, compensationAmount, compensationType, breakDuration, systemRoleIds } = body;
 
         if (!staffFunctionId) return c.json({ error: 'Função operacional é obrigatória.' }, 400);
 
@@ -1170,17 +1232,44 @@ router.post('/:eventId/staff-applications/:id/approve', async (c) => {
             }
 
             // Criar PENDING_ACCEPTANCE event_staff
-            await tx.insert(eventStaff).values({
+            const [newStaff] = await tx.insert(eventStaff).values({
                 eventId,
                 userId: app.userId,
                 organizerId,
                 staffFunctionId,
                 vacancyId: app.vacancyId,
                 status: 'PENDING_ACCEPTANCE',
+                contractType: contractType || 'DAILY_FREELANCER',
+                compensationAmount: compensationAmount ? String(compensationAmount) : null,
+                compensationType: compensationType || 'FIXED',
+                currency: body.currency || 'BRL',
                 shiftStart: finalStartDate ? new Date(finalStartDate + 'Z') : null,
                 shiftEnd: finalEndDate ? new Date(finalEndDate + 'Z') : null,
                 invitedBy: organizerId
-            });
+            }).returning();
+
+            if (shiftDate && shiftStart && shiftEnd) {
+                const formatTime = (timeStr: string) => {
+                    if (timeStr.includes('T')) return timeStr.split('T')[1].substring(0, 5);
+                    return timeStr;
+                };
+                await tx.insert(eventStaffShifts).values({
+                    eventStaffId: newStaff.id,
+                    shiftDate: shiftDate,
+                    startTime: formatTime(shiftStart),
+                    endTime: formatTime(shiftEnd),
+                    breakDurationMinutes: breakDuration || 0
+                });
+            }
+
+            // Inserir System Roles caso fornecidas
+            if (systemRoleIds && Array.isArray(systemRoleIds) && systemRoleIds.length > 0) {
+                const rolesToInsert = systemRoleIds.map((rId: string) => ({
+                    eventStaffId: newStaff.id,
+                    roleId: rId
+                }));
+                await tx.insert(eventStaffRoles).values(rolesToInsert);
+            }
 
             // Update application
             await tx.update(staffApplications).set({
@@ -1206,7 +1295,18 @@ router.patch('/:eventId/staff-applications/:id/proposal', async (c) => {
         const organizerId = payload.id;
         const { eventId, id } = c.req.param();
         const body = await c.req.json();
-        const { staffFunctionId, shiftDate, shiftStart, shiftEnd } = body;
+        const {
+            staffFunctionId,
+            shiftDate,
+            shiftStart,
+            shiftEnd,
+            contractType,
+            compensationAmount,
+            compensationType,
+            currency,
+            breakDuration,
+            systemRoleIds
+        } = body;
 
         console.log('[PROPOSAL PATCH] START', {
             eventId,
@@ -1216,7 +1316,7 @@ router.patch('/:eventId/staff-applications/:id/proposal', async (c) => {
 
         // 1. Validar ownership
         const evt = await db.select().from(events).where(eq(events.id, eventId));
-                if (evt.length === 0) {
+        if (evt.length === 0) {
             return c.json({ error: 'Not found' }, 404);
         }
 
@@ -1274,31 +1374,62 @@ router.patch('/:eventId/staff-applications/:id/proposal', async (c) => {
                 finalEndDate = endStr;
             }
 
-            console.log('[PROPOSAL PATCH] DATES', {
-                shiftDate,
-                shiftStart,
-                shiftEnd,
-                finalStartDate,
-                finalEndDate
-            });
-
-            const updatePayload = {
-                staffFunctionId,
-                shiftStart: finalStartDate ? new Date(finalStartDate + 'Z') : null,
-                shiftEnd: finalEndDate ? new Date(finalEndDate + 'Z') : null,
+            const updatePayload: any = {
                 updatedAt: new Date()
             };
+            if (staffFunctionId) updatePayload.staffFunctionId = staffFunctionId;
+            if (finalStartDate) updatePayload.shiftStart = new Date(finalStartDate + 'Z');
+            if (finalEndDate) updatePayload.shiftEnd = new Date(finalEndDate + 'Z');
+            if (contractType !== undefined) updatePayload.contractType = contractType;
+            if (compensationAmount !== undefined) updatePayload.compensationAmount = compensationAmount ? String(compensationAmount) : null;
+            if (compensationType !== undefined) updatePayload.compensationType = compensationType;
+            if (currency !== undefined) updatePayload.currency = currency;
 
-            console.log('[PROPOSAL PATCH] BEFORE UPDATE', {
-                payload: {
-                    ...updatePayload,
-                    shiftStartType: updatePayload.shiftStart ? updatePayload.shiftStart.constructor.name : null,
-                    shiftStartIsNaN: updatePayload.shiftStart ? isNaN(updatePayload.shiftStart.getTime()) : null
-                }
-            });
-
-            // 6. Atualizar SOMENTE a proposta
+            // 6. Atualizar proposta no event_staff
             await tx.update(eventStaff).set(updatePayload).where(and(eq(eventStaff.id, assignment.id), eq(eventStaff.status, 'PENDING_ACCEPTANCE')));
+
+            // 7. Atualizar ou criar o primeiro turno
+            if (shiftDate && shiftStart && shiftEnd) {
+                const formatTime = (timeStr: string) => {
+                    if (timeStr.includes('T')) return timeStr.split('T')[1].substring(0, 5);
+                    return timeStr;
+                };
+
+                const existingShifts = await tx.select().from(eventStaffShifts)
+                    .where(eq(eventStaffShifts.eventStaffId, assignment.id))
+                    .orderBy(eventStaffShifts.createdAt)
+                    .limit(1);
+
+                if (existingShifts.length > 0) {
+                    await tx.update(eventStaffShifts).set({
+                        shiftDate: shiftDate,
+                        startTime: formatTime(shiftStart),
+                        endTime: formatTime(shiftEnd),
+                        breakDurationMinutes: breakDuration !== undefined ? breakDuration : existingShifts[0].breakDurationMinutes,
+                        updatedAt: new Date()
+                    }).where(eq(eventStaffShifts.id, existingShifts[0].id));
+                } else {
+                    await tx.insert(eventStaffShifts).values({
+                        eventStaffId: assignment.id,
+                        shiftDate: shiftDate,
+                        startTime: formatTime(shiftStart),
+                        endTime: formatTime(shiftEnd),
+                        breakDurationMinutes: breakDuration || 0
+                    });
+                }
+            }
+
+            // 8. Sincronizar roles se passadas
+            if (systemRoleIds && Array.isArray(systemRoleIds)) {
+                await tx.delete(eventStaffRoles).where(eq(eventStaffRoles.eventStaffId, assignment.id));
+                if (systemRoleIds.length > 0) {
+                    const rolesToInsert = systemRoleIds.map((rId: string) => ({
+                        eventStaffId: assignment.id,
+                        roleId: rId
+                    }));
+                    await tx.insert(eventStaffRoles).values(rolesToInsert);
+                }
+            }
 
             console.log('[PROPOSAL PATCH] UPDATE OK');
         });

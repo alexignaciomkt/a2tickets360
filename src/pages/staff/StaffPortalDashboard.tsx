@@ -10,7 +10,9 @@ import {
     CheckCircle,
     Inbox,
     UserCircle,
-    ShieldCheck
+    ShieldCheck,
+    DollarSign,
+    FileText
 } from 'lucide-react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { staffService } from '@/services/staffService';
@@ -169,64 +171,157 @@ const StaffPortalDashboard = () => {
                                 </div>
                             ) : (
                                 <div className="space-y-4">
-                                    {pendingInvites.map((prop) => (
-                                        <Card key={prop.id} className="bg-white border-l-4 border-l-amber-500 border-y border-r border-slate-200 shadow-sm rounded-2xl overflow-hidden">
-                                            <CardContent className="p-5 md:p-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                                                <div className="flex-1 space-y-4">
-                                                    <div>
-                                                        <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">{prop.eventName || 'Evento'}</h3>
-                                                        <p className="text-sm text-slate-500 font-semibold">{prop.organizerName}</p>
-                                                    </div>
+                                    {pendingInvites.map((prop) => {
+                                        const formatContractType = (type?: string) => {
+                                            switch (type?.toLowerCase()) {
+                                                case 'daily': return 'Diária';
+                                                case 'freelance': return 'Freelance';
+                                                case 'clt': return 'CLT';
+                                                case 'pj': return 'PJ';
+                                                case 'temporary': return 'Temporário';
+                                                case 'volunteer': return 'Voluntário';
+                                                default: return type || 'Diária';
+                                            }
+                                        };
 
-                                                    <div className="flex flex-wrap gap-x-6 gap-y-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                                        <div className="flex flex-col">
-                                                            <span className="text-[10px] font-bold text-slate-400 uppercase">Função</span>
-                                                            <span className="text-sm font-semibold text-slate-700">{prop.role}</span>
+                                        const formatPaymentType = (type?: string) => {
+                                            switch (type?.toUpperCase()) {
+                                                case 'HOURLY': return 'Hora';
+                                                case 'EVENT': return 'Evento';
+                                                case 'FIXED': return 'Valor fixo';
+                                                case 'DAILY':
+                                                default: return 'Diária';
+                                            }
+                                        };
+
+                                        const formatShiftDate = (dateStr?: string) => {
+                                            if (!dateStr) return '';
+                                            const clean = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+                                            const parts = clean.split('-').map(Number);
+                                            if (parts.length !== 3) return dateStr;
+                                            const [y, m, d] = parts;
+                                            return new Date(y, m - 1, d).toLocaleDateString('pt-BR');
+                                        };
+
+                                        const hasShifts = Array.isArray(prop.shifts) && prop.shifts.length > 0;
+
+                                        return (
+                                            <Card key={prop.id} className="bg-white border-l-4 border-l-amber-500 border-y border-r border-slate-200 shadow-sm rounded-2xl overflow-hidden">
+                                                <CardContent className="p-5 md:p-6 flex flex-col md:flex-row md:items-start justify-between gap-6">
+                                                    <div className="flex-1 space-y-4">
+                                                        <div>
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <Badge className="bg-amber-100 text-amber-800 border-none font-bold uppercase text-[10px]">
+                                                                    Proposta de Trabalho
+                                                                </Badge>
+                                                                {prop.contractType && (
+                                                                    <Badge variant="outline" className="text-[10px] font-semibold text-slate-600 bg-slate-50">
+                                                                        {formatContractType(prop.contractType)}
+                                                                    </Badge>
+                                                                )}
+                                                            </div>
+                                                            <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">{prop.eventName || 'Evento'}</h3>
+                                                            <p className="text-sm text-slate-500 font-semibold">Produção: {prop.organizerName || 'Produtor'}</p>
                                                         </div>
-                                                        {prop.shiftStart && (
-                                                            <div className="flex flex-col">
-                                                                <span className="text-[10px] font-bold text-slate-400 uppercase">Data</span>
-                                                                <span className="text-sm font-semibold text-slate-700 flex items-center gap-1">
-                                                                    <Calendar className="w-3 h-3 text-slate-400" />
-                                                                    {new Date(prop.shiftStart).toLocaleDateString('pt-BR')}
-                                                                </span>
-                                                            </div>
-                                                        )}
-                                                        {prop.shiftStart && prop.shiftEnd && (
-                                                            <div className="flex flex-col">
-                                                                <span className="text-[10px] font-bold text-slate-400 uppercase">Horário</span>
-                                                                <span className="text-sm font-semibold text-slate-700 flex items-center gap-1">
-                                                                    <Clock className="w-3 h-3 text-slate-400" />
-                                                                    {new Date(prop.shiftStart).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} às {new Date(prop.shiftEnd).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                                                                </span>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
 
-                                                <div className="flex flex-col sm:flex-row md:flex-col items-center sm:justify-end gap-3 shrink-0 pt-4 md:pt-0 border-t md:border-t-0 border-slate-100">
-                                                    <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-none font-bold uppercase text-[10px] mb-2 self-start md:self-end">
-                                                        Aguardando sua resposta
-                                                    </Badge>
-                                                    <div className="flex gap-2 w-full sm:w-auto">
-                                                        <Button
-                                                            onClick={() => handleDecline(prop.id)}
-                                                            variant="outline"
-                                                            className="flex-1 md:flex-none border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 font-bold uppercase text-xs"
-                                                        >
-                                                            Recusar
-                                                        </Button>
-                                                        <Button
-                                                            onClick={() => handleAccept(prop.id)}
-                                                            className="flex-1 md:flex-none bg-primary hover:bg-primary/90 text-white font-bold uppercase text-xs"
-                                                        >
-                                                            Aceitar Convite
-                                                        </Button>
+                                                        {/* Condições da Proposta */}
+                                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 bg-slate-50/90 p-3.5 rounded-xl border border-slate-100">
+                                                            <div className="flex flex-col">
+                                                                <span className="text-[10px] font-bold text-slate-400 uppercase">Função Operacional</span>
+                                                                <span className="text-sm font-bold text-slate-800 flex items-center gap-1 mt-0.5">
+                                                                    <Briefcase className="w-3.5 h-3.5 text-slate-400" />
+                                                                    {prop.role || 'Staff Operacional'}
+                                                                </span>
+                                                            </div>
+
+                                                            <div className="flex flex-col">
+                                                                <span className="text-[10px] font-bold text-slate-400 uppercase">Remuneração</span>
+                                                                <span className="text-sm font-bold text-emerald-700 flex items-center gap-1 mt-0.5">
+                                                                    <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
+                                                                    {prop.compensationAmount ? (
+                                                                        <span>R$ {Number(prop.compensationAmount).toFixed(2).replace('.', ',')}</span>
+                                                                    ) : (
+                                                                        <span className="text-slate-500 font-normal">A combinar</span>
+                                                                    )}
+                                                                </span>
+                                                            </div>
+
+                                                            <div className="flex flex-col">
+                                                                <span className="text-[10px] font-bold text-slate-400 uppercase">Pagamento Por</span>
+                                                                <span className="text-sm font-semibold text-slate-700 mt-0.5">
+                                                                    {formatPaymentType(prop.compensationType)}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Turnos / Escala */}
+                                                        <div className="space-y-2">
+                                                            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+                                                                Escala e Turnos Agendados ({hasShifts ? prop.shifts.length : 1})
+                                                            </span>
+                                                            {hasShifts ? (
+                                                                <div className="space-y-1.5">
+                                                                    {prop.shifts.map((sh: any, idx: number) => (
+                                                                        <div key={sh.id || idx} className="flex flex-wrap items-center justify-between text-xs bg-white p-2.5 rounded-lg border border-slate-200">
+                                                                            <div className="flex items-center gap-2 text-slate-800 font-medium">
+                                                                                <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                                                                                <span>{formatShiftDate(sh.shiftDate)}</span>
+                                                                            </div>
+                                                                            <div className="flex items-center gap-2 text-slate-600">
+                                                                                <Clock className="w-3.5 h-3.5 text-slate-400" />
+                                                                                <span>{sh.startTime} às {sh.endTime}</span>
+                                                                                {sh.breakDurationMinutes > 0 && (
+                                                                                    <span className="text-[11px] text-slate-400">
+                                                                                        (Pausa: {sh.breakDurationMinutes} min)
+                                                                                    </span>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            ) : (
+                                                                <div className="flex flex-wrap items-center justify-between text-xs bg-white p-2.5 rounded-lg border border-slate-200">
+                                                                    <div className="flex items-center gap-2 text-slate-800 font-medium">
+                                                                        <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                                                                        <span>{prop.shiftStart ? new Date(prop.shiftStart).toLocaleDateString('pt-BR') : 'Data a definir'}</span>
+                                                                    </div>
+                                                                    {prop.shiftStart && prop.shiftEnd && (
+                                                                        <div className="flex items-center gap-2 text-slate-600">
+                                                                            <Clock className="w-3.5 h-3.5 text-slate-400" />
+                                                                            <span>
+                                                                                {new Date(prop.shiftStart).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} às {new Date(prop.shiftEnd).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                                                            </span>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            </CardContent>
-                                        </Card>
-                                    ))}
+
+                                                    <div className="flex flex-col sm:flex-row md:flex-col items-center sm:justify-end gap-3 shrink-0 pt-4 md:pt-0 border-t md:border-t-0 border-slate-100">
+                                                        <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-none font-bold uppercase text-[10px] mb-2 self-start md:self-end">
+                                                            Aguardando sua resposta
+                                                        </Badge>
+                                                        <div className="flex gap-2 w-full sm:w-auto">
+                                                            <Button
+                                                                onClick={() => handleDecline(prop.id)}
+                                                                variant="outline"
+                                                                className="flex-1 md:flex-none border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 font-bold uppercase text-xs"
+                                                            >
+                                                                Recusar
+                                                            </Button>
+                                                            <Button
+                                                                onClick={() => handleAccept(prop.id)}
+                                                                className="flex-1 md:flex-none bg-primary hover:bg-primary/90 text-white font-bold uppercase text-xs"
+                                                            >
+                                                                Aceitar Convite
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
+                                        );
+                                    })}
                                 </div>
                             )}
                         </section>

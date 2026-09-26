@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, serial, integer, boolean, decimal, jsonb, uuid, index, uniqueIndex, AnyPgColumn, unique, primaryKey, varchar, pgEnum, numeric, check, foreignKey, date } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, serial, integer, boolean, decimal, jsonb, uuid, index, uniqueIndex, AnyPgColumn, unique, primaryKey, varchar, pgEnum, numeric, check, foreignKey, date, time } from 'drizzle-orm/pg-core';
 import { relations, sql } from 'drizzle-orm';
 
 // Enums
@@ -195,6 +195,13 @@ export const eventStaffVacancies = pgTable('event_staff_vacancies', {
     professionalFunctionId: uuid('professional_function_id').references(() => staffProfessionalFunctions.id, { onDelete: 'restrict' }).notNull(),
     quantity: integer('quantity').notNull(),
     status: text('status', { enum: ['OPEN', 'PAUSED', 'CLOSED'] }).notNull().default('OPEN'),
+    workDate: date('work_date'),
+    startTime: time('start_time'),
+    expectedEndTime: time('expected_end_time'),
+    compensationAmount: decimal('compensation_amount', { precision: 10, scale: 2 }),
+    compensationType: text('compensation_type').default('FIXED'),
+    currency: text('currency').default('BRL'),
+    publicNotes: text('public_notes'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (t) => ({
@@ -247,6 +254,10 @@ export const eventStaff = pgTable('event_staff', {
     staffFunctionId: uuid('staff_function_id').references(() => staffFunctions.id, { onDelete: 'set null' }),
     vacancyId: uuid('vacancy_id').references(() => eventStaffVacancies.id, { onDelete: 'set null' }),
     status: text('status', { enum: ['PENDING_PROFILE', 'PENDING_ACCEPTANCE', 'ACTIVE', 'DECLINED', 'CANCELLED', 'COMPLETED'] }).notNull().default('PENDING_PROFILE'),
+    contractType: text('contract_type').default('daily'),
+    compensationAmount: decimal('compensation_amount', { precision: 10, scale: 2 }),
+    compensationType: text('compensation_type').default('fixed'),
+    currency: text('currency').default('BRL'),
     shiftStart: timestamp('shift_start'),
     shiftEnd: timestamp('shift_end'),
     invitedBy: uuid('invited_by'), // Quem convidou
@@ -258,6 +269,20 @@ export const eventStaff = pgTable('event_staff', {
     updatedAt: timestamp('updated_at').defaultNow(),
 }, (t) => ({
     unqEventStaff: unique('unq_event_staff').on(t.eventId, t.userId)
+}));
+
+// Turnos do Staff no Evento (Operational Staff V1)
+export const eventStaffShifts = pgTable('event_staff_shifts', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    eventStaffId: uuid('event_staff_id').references(() => eventStaff.id, { onDelete: 'cascade' }).notNull(),
+    shiftDate: date('shift_date').notNull(),
+    startTime: time('start_time').notNull(),
+    endTime: time('end_time').notNull(),
+    breakDurationMinutes: integer('break_duration_minutes').default(0).notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (t) => ({
+    idxEventStaffShiftsStaffId: index('idx_event_staff_shifts_staff_id').on(t.eventStaffId),
 }));
 
 // AtribuiÃ§Ã£o de Roles para Event Staff

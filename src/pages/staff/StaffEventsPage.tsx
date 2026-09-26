@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { staffService } from '@/services/staffService';
 import { useToast } from '@/hooks/use-toast';
-import { Calendar, MapPin, UserCircle, Briefcase, CheckCircle2 } from 'lucide-react';
+import { Calendar, MapPin, UserCircle, Briefcase, CheckCircle2, Clock, DollarSign, Info } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 
 const StaffEventsPage = () => {
@@ -173,15 +173,15 @@ const StaffEventsPage = () => {
 
             {/* MODAL: ESCOLHER VAGA DO EVENTO */}
             <Dialog open={!!selectedEvent} onOpenChange={(open) => !open && setSelectedEvent(null)}>
-                <DialogContent className="sm:max-w-md">
+                <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
                     <DialogHeader>
-                        <DialogTitle className="text-slate-900 font-bold">Vagas Disponíveis</DialogTitle>
+                        <DialogTitle className="text-slate-900 font-bold">Oportunidades no Evento</DialogTitle>
                         <DialogDescription>
-                            Escolha a vaga para a qual deseja se candidatar neste evento.
+                            {selectedEvent?.title ? `Selecione a vaga desejada para ${selectedEvent.title}.` : 'Escolha a vaga para a qual deseja se candidatar.'}
                         </DialogDescription>
                     </DialogHeader>
 
-                    <div className="space-y-4 py-3">
+                    <div className="space-y-4 py-2">
                         {vacanciesLoading ? (
                             <div className="text-center py-8 text-slate-500 text-sm font-medium">
                                 Carregando vagas abertas...
@@ -198,35 +198,97 @@ const StaffEventsPage = () => {
                                 Não há vagas abertas para este evento no momento.
                             </div>
                         ) : (
-                            <div className="space-y-2.5">
+                            <div className="space-y-3">
                                 {eventVacancies.map(vac => {
                                     const isSelected = selectedVacancyId === vac.id;
+                                    const formatDate = (dateStr?: string) => {
+                                        if (!dateStr) return null;
+                                        const clean = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+                                        const parts = clean.split('-').map(Number);
+                                        if (parts.length !== 3) return dateStr;
+                                        const [y, m, d] = parts;
+                                        return new Date(y, m - 1, d).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+                                    };
+
+                                    const modalityLabel = (() => {
+                                        switch (vac.compensationType) {
+                                            case 'HOURLY': return 'hora';
+                                            case 'EVENT': return 'evento';
+                                            case 'FIXED': return 'fixo';
+                                            case 'DAILY':
+                                            default: return 'diária';
+                                        }
+                                    })();
+
+                                    const availableCount = vac.remaining !== undefined ? vac.remaining : vac.quantity;
+
                                     return (
                                         <div
                                             key={vac.id}
                                             onClick={() => setSelectedVacancyId(vac.id)}
-                                            className={`flex items-center justify-between p-3.5 rounded-xl border cursor-pointer transition-all ${
+                                            className={`p-4 rounded-2xl border cursor-pointer transition-all space-y-3 ${
                                                 isSelected
-                                                    ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                                                    : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                                                    ? 'border-primary bg-primary/[0.03] ring-2 ring-primary/20 shadow-sm'
+                                                    : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50/50'
                                             }`}
                                         >
-                                            <div className="flex items-center gap-3">
-                                                <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${
-                                                    isSelected ? 'border-primary bg-primary text-white' : 'border-slate-300'
-                                                }`}>
-                                                    {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors shrink-0 ${
+                                                        isSelected ? 'border-primary bg-primary text-white' : 'border-slate-300'
+                                                    }`}>
+                                                        {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
+                                                    </div>
+                                                    <div>
+                                                        <h4 className="font-extrabold text-slate-900 text-base leading-tight">
+                                                            {vac.functionName}
+                                                        </h4>
+                                                        <p className="text-xs font-semibold text-emerald-600 mt-0.5">
+                                                            {availableCount} {availableCount === 1 ? 'vaga disponível' : 'vagas disponíveis'}
+                                                        </p>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <p className="font-bold text-slate-900 text-sm">{vac.functionName}</p>
-                                                    <p className="text-xs text-slate-500 font-medium">
-                                                        {vac.quantity} {vac.quantity === 1 ? 'vaga' : 'vagas'}
-                                                    </p>
+                                                <Badge variant="outline" className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border-emerald-200 shrink-0">
+                                                    ABERTA
+                                                </Badge>
+                                            </div>
+
+                                            {/* Informações Operacionais & Financeiras */}
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs bg-slate-50/80 p-2.5 rounded-xl border border-slate-100">
+                                                {vac.workDate && (
+                                                    <div className="flex items-center gap-1.5 text-slate-700">
+                                                        <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                                        <span>{formatDate(vac.workDate)}</span>
+                                                    </div>
+                                                )}
+                                                {vac.startTime && vac.expectedEndTime && (
+                                                    <div className="flex items-center gap-1.5 text-slate-700">
+                                                        <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                                        <span>{vac.startTime.substring(0, 5)} às {vac.expectedEndTime.substring(0, 5)}</span>
+                                                    </div>
+                                                )}
+                                                <div className="flex items-center gap-1.5 text-slate-900 font-semibold sm:col-span-2">
+                                                    <DollarSign className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                                    {vac.compensationAmount ? (
+                                                        <span>
+                                                            R$ {Number(vac.compensationAmount).toFixed(2).replace('.', ',')} / {modalityLabel}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-slate-500 font-normal">Remuneração a combinar</span>
+                                                    )}
                                                 </div>
                                             </div>
-                                            <Badge variant="outline" className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border-emerald-200">
-                                                ABERTA
-                                            </Badge>
+
+                                            {/* Informações adicionais / Notas públicas */}
+                                            {vac.publicNotes && (
+                                                <div className="text-xs text-slate-600 bg-amber-50/40 p-2.5 rounded-xl border border-amber-100/60 leading-relaxed whitespace-pre-wrap">
+                                                    <div className="flex items-center gap-1 font-bold text-amber-800 mb-0.5 text-[11px]">
+                                                        <Info className="w-3 h-3" />
+                                                        <span>Informações da Produção:</span>
+                                                    </div>
+                                                    {vac.publicNotes}
+                                                </div>
+                                            )}
                                         </div>
                                     );
                                 })}
@@ -234,7 +296,7 @@ const StaffEventsPage = () => {
                         )}
                     </div>
 
-                    <DialogFooter>
+                    <DialogFooter className="pt-2">
                         <Button variant="outline" onClick={() => setSelectedEvent(null)} disabled={submitting}>
                             Cancelar
                         </Button>
@@ -243,7 +305,7 @@ const StaffEventsPage = () => {
                             disabled={!selectedVacancyId || submitting || vacanciesLoading || eventVacancies.length === 0}
                             className="bg-primary hover:bg-primary/90 text-white font-bold"
                         >
-                            {submitting ? 'Enviando...' : 'Confirmar Candidatura'}
+                            {submitting ? 'Enviando...' : 'Candidatar-me'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

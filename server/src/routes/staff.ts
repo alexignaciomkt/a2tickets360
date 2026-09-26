@@ -14,7 +14,8 @@ import {
     staffProfessionalFunctions,
     staffProfileFunctions,
     organizers,
-    eventStaffVacancies
+    eventStaffVacancies,
+    eventStaffShifts
 } from '../db/schema';
 import { eq, and, or, sql, lt, gt, inArray, isNull } from 'drizzle-orm';
 import crypto from 'node:crypto';
@@ -75,6 +76,10 @@ router.get('/event-staff', async (c: Context) => {
             eventId: eventStaff.eventId,
             organizerId: eventStaff.organizerId,
             status: eventStaff.status,
+            contractType: eventStaff.contractType,
+            compensationAmount: eventStaff.compensationAmount,
+            compensationType: eventStaff.compensationType,
+            currency: eventStaff.currency,
             shiftStart: eventStaff.shiftStart,
             shiftEnd: eventStaff.shiftEnd,
             createdAt: eventStaff.createdAt,
@@ -94,17 +99,23 @@ router.get('/event-staff', async (c: Context) => {
         .leftJoin(staffProfiles, eq(eventStaff.userId, staffProfiles.userId))
         .where(condition);
 
-        // Obter os systemRoleIds
+        // Obter os systemRoleIds e Shifts
         const staffIds = data.map(s => s.eventStaffId);
         let rolesData: any[] = [];
+        let shiftsData: any[] = [];
         if (staffIds.length > 0) {
-            rolesData = await db.select().from(eventStaffRoles).where(inArray(eventStaffRoles.eventStaffId, staffIds));
+            [rolesData, shiftsData] = await Promise.all([
+                db.select().from(eventStaffRoles).where(inArray(eventStaffRoles.eventStaffId, staffIds)),
+                db.select().from(eventStaffShifts).where(inArray(eventStaffShifts.eventStaffId, staffIds)).orderBy(eventStaffShifts.shiftDate, eventStaffShifts.startTime)
+            ]);
         }
 
         const mappedData = data.map(s => {
             const systemRoleIds = rolesData.filter(r => r.eventStaffId === s.eventStaffId).map(r => r.roleId);
+            const memberShifts = shiftsData.filter(sh => sh.eventStaffId === s.eventStaffId);
             return {
                 ...s,
+                shifts: memberShifts,
                 shiftStart: s.shiftStart ? s.shiftStart.toISOString().replace('Z', '') : null,
                 shiftEnd: s.shiftEnd ? s.shiftEnd.toISOString().replace('Z', '') : null,
                 systemRoleIds
@@ -131,6 +142,10 @@ router.get('/my-invites', async (c: Context) => {
             id: eventStaff.id,
             eventId: eventStaff.eventId,
             status: eventStaff.status,
+            contractType: eventStaff.contractType,
+            compensationAmount: eventStaff.compensationAmount,
+            compensationType: eventStaff.compensationType,
+            currency: eventStaff.currency,
             shiftStart: eventStaff.shiftStart,
             shiftEnd: eventStaff.shiftEnd,
             createdAt: eventStaff.createdAt,
@@ -149,11 +164,23 @@ router.get('/my-invites', async (c: Context) => {
         .orderBy(eventStaff.createdAt);
 
         const data = await query;
-        const mappedData = data.map(s => ({
-            ...s,
-            shiftStart: s.shiftStart ? s.shiftStart.toISOString().replace('Z', '') : null,
-            shiftEnd: s.shiftEnd ? s.shiftEnd.toISOString().replace('Z', '') : null,
-        }));
+        const staffIds = data.map(s => s.id);
+        let shiftsData: any[] = [];
+        if (staffIds.length > 0) {
+            shiftsData = await db.select().from(eventStaffShifts)
+                .where(inArray(eventStaffShifts.eventStaffId, staffIds))
+                .orderBy(eventStaffShifts.shiftDate, eventStaffShifts.startTime);
+        }
+
+        const mappedData = data.map(s => {
+            const itemShifts = shiftsData.filter(sh => sh.eventStaffId === s.id);
+            return {
+                ...s,
+                shifts: itemShifts,
+                shiftStart: s.shiftStart ? s.shiftStart.toISOString().replace('Z', '') : null,
+                shiftEnd: s.shiftEnd ? s.shiftEnd.toISOString().replace('Z', '') : null,
+            };
+        });
         return c.json(mappedData);
     } catch (err: any) {
         console.error('[GET /my-invites]', err);
@@ -173,7 +200,7 @@ router.post('/invite', async (c: Context) => {
         const organizerId = payload.id; // Assumes the caller is the owner for simplicity
 
         const body = await c.req.json();
-        const { eventId, email, name, phone, staffFunctionId, shiftStart, shiftEnd, systemRoleIds } = body;
+        const { eventId, email, name, phone, staffFunctionId, shiftStart, shiftEnd, shiftDate, contractType, paymentValue, paymentType, breakDuration, systemRoleIds } = body;
 
         if (!eventId || !email || !staffFunctionId) {
             return c.json({ error: 'Missing required fields' }, 400);
@@ -302,16 +329,37 @@ router.post('/invite', async (c: Context) => {
             return isNaN(d.getTime()) ? null : d;
         };
 
-        await db.insert(eventStaff).values({
-            id: newStaffId,
-            eventId,
-            userId,
-            organizerId,
-            staffFunctionId,
-            status: newStatus,
-            shiftStart: safeDate(shiftStart),
-            shiftEnd: safeDate(shiftEnd),
-            invitedBy: payload.id,
+        await db.transaction(async (tx) => {
+            await tx.insert(eventStaff).values({
+                id: newStaffId,
+                eventId,
+                userId,
+                organizerId,
+                staffFunctionId,
+                status: newStatus,
+                contractType: contractType || 'daily',
+                compensationAmount: paymentValue ? String(paymentValue) : null,
+                compensationType: paymentType || 'fixed',
+                shiftStart: safeDate(shiftStart),
+                shiftEnd: safeDate(shiftEnd),
+                invitedBy: payload.id,
+            });
+
+            if (shiftDate && shiftStart && shiftEnd) {
+                // Extracts HH:mm from ISO strings if needed, or assumes it's already HH:mm
+                const formatTime = (timeStr: string) => {
+                    if (timeStr.includes('T')) return timeStr.split('T')[1].substring(0, 5);
+                    return timeStr;
+                };
+
+                await tx.insert(eventStaffShifts).values({
+                    eventStaffId: newStaffId,
+                    shiftDate: shiftDate,
+                    startTime: formatTime(shiftStart),
+                    endTime: formatTime(shiftEnd),
+                    breakDurationMinutes: breakDuration || 0
+                });
+            }
         });
         const tEventStaffEnd = performance.now();
 
@@ -704,6 +752,13 @@ router.get('/events/:eventId/vacancies', async (c: Context) => {
             professionalFunctionId: eventStaffVacancies.professionalFunctionId,
             quantity: eventStaffVacancies.quantity,
             status: eventStaffVacancies.status,
+            workDate: eventStaffVacancies.workDate,
+            startTime: eventStaffVacancies.startTime,
+            expectedEndTime: eventStaffVacancies.expectedEndTime,
+            compensationAmount: eventStaffVacancies.compensationAmount,
+            compensationType: eventStaffVacancies.compensationType,
+            currency: eventStaffVacancies.currency,
+            publicNotes: eventStaffVacancies.publicNotes,
             functionName: staffProfessionalFunctions.name,
             functionCategory: staffProfessionalFunctions.category,
             functionDescription: staffProfessionalFunctions.description
@@ -716,7 +771,33 @@ router.get('/events/:eventId/vacancies', async (c: Context) => {
         ))
         .orderBy(staffProfessionalFunctions.name);
 
-        return c.json(vacancies);
+        // 3. Contar confirmados (ACTIVE) vinculados a cada vaga
+        const activeStaff = await db.select({
+            vacancyId: eventStaff.vacancyId,
+            count: sql<number>`cast(count(*) as integer)`
+        })
+        .from(eventStaff)
+        .where(and(
+            eq(eventStaff.eventId, eventId),
+            eq(eventStaff.status, 'ACTIVE')
+        ))
+        .groupBy(eventStaff.vacancyId);
+
+        const confirmedMap = new Map<string, number>();
+        for (const row of activeStaff) {
+            if (row.vacancyId) confirmedMap.set(row.vacancyId, row.count);
+        }
+
+        const result = vacancies.map(v => {
+            const confirmed = confirmedMap.get(v.id) || 0;
+            return {
+                ...v,
+                confirmed,
+                remaining: Math.max(0, v.quantity - confirmed)
+            };
+        });
+
+        return c.json(result);
     } catch (err: any) {
         console.error('[GET /staff/events/:eventId/vacancies]', err);
         return c.json({ error: err.message }, 500);
@@ -883,6 +964,12 @@ router.patch('/event-staff/:id', async (c: Context) => {
             // 2. Atualizar eventStaff ONLY with valid schema fields
             const updateData: any = {};
             if (body.staffFunctionId !== undefined) updateData.staffFunctionId = body.staffFunctionId;
+            if (body.contractType !== undefined) updateData.contractType = body.contractType;
+            if (body.compensationAmount !== undefined) updateData.compensationAmount = body.compensationAmount ? String(body.compensationAmount) : null;
+            if (body.paymentValue !== undefined) updateData.compensationAmount = body.paymentValue ? String(body.paymentValue) : null;
+            if (body.compensationType !== undefined) updateData.compensationType = body.compensationType;
+            if (body.paymentType !== undefined) updateData.compensationType = body.paymentType;
+            if (body.currency !== undefined) updateData.currency = body.currency;
 
             // Se a data for passada, injetar o 'Z'
             if (body.shiftStart) updateData.shiftStart = new Date(body.shiftStart);
@@ -925,6 +1012,149 @@ router.patch('/event-staff/:id', async (c: Context) => {
     } catch (err: any) {
         const status = err.message === 'Vínculo não encontrado' ? 404 : (err.message === 'Proibido' ? 403 : (err.message === 'Uma ou mais permissões informadas são inválidas' ? 400 : 500));
         return c.json({ error: err.message }, status as any);
+    }
+});
+
+/**
+ * GET /api/staff/event-staff/:eventStaffId/shifts
+ * Retorna os turnos do membro da equipe
+ */
+router.get('/event-staff/:eventStaffId/shifts', async (c: Context) => {
+    try {
+        const payload = (c.get as any)('jwtPayload');
+        const userId = payload.id;
+        const eventStaffId = c.req.param('eventStaffId');
+
+        // Validar vínculo
+        const [assignment] = await db.select().from(eventStaff).where(eq(eventStaff.id, eventStaffId));
+        if (!assignment) return c.json({ error: 'Vínculo não encontrado' }, 404);
+
+        // Autorizado se for o organizador ou o próprio staff
+        if (assignment.organizerId !== userId && assignment.userId !== userId && payload.role !== 'master') {
+            return c.json({ error: 'Proibido' }, 403);
+        }
+
+        const shifts = await db.select().from(eventStaffShifts)
+            .where(eq(eventStaffShifts.eventStaffId, eventStaffId))
+            .orderBy(eventStaffShifts.shiftDate, eventStaffShifts.startTime);
+
+        return c.json(shifts);
+    } catch (err: any) {
+        console.error('[GET /shifts]', err);
+        return c.json({ error: err.message }, 500);
+    }
+});
+
+/**
+ * POST /api/staff/event-staff/:eventStaffId/shifts
+ * Adiciona um novo turno ao event_staff existente
+ */
+router.post('/event-staff/:eventStaffId/shifts', async (c: Context) => {
+    try {
+        const payload = (c.get as any)('jwtPayload');
+        const organizerId = payload.id;
+        const eventStaffId = c.req.param('eventStaffId');
+        const body = await c.req.json();
+        const { shiftDate, startTime, endTime, breakDurationMinutes = 0 } = body;
+
+        if (!shiftDate || !startTime || !endTime) {
+            return c.json({ error: 'Data, início e fim do turno são obrigatórios.' }, 400);
+        }
+
+        const [assignment] = await db.select().from(eventStaff).where(eq(eventStaff.id, eventStaffId));
+        if (!assignment) return c.json({ error: 'Vínculo não encontrado' }, 404);
+
+        if (assignment.organizerId !== organizerId && payload.role !== 'master') {
+            return c.json({ error: 'Proibido' }, 403);
+        }
+
+        const formatTime = (timeStr: string) => {
+            if (timeStr.includes('T')) return timeStr.split('T')[1].substring(0, 5);
+            return timeStr;
+        };
+
+        const [newShift] = await db.insert(eventStaffShifts).values({
+            eventStaffId,
+            shiftDate: shiftDate.includes('T') ? shiftDate.split('T')[0] : shiftDate,
+            startTime: formatTime(startTime),
+            endTime: formatTime(endTime),
+            breakDurationMinutes: Number(breakDurationMinutes) || 0
+        }).returning();
+
+        return c.json(newShift, 201);
+    } catch (err: any) {
+        console.error('[POST /shifts]', err);
+        return c.json({ error: err.message }, 500);
+    }
+});
+
+/**
+ * PATCH /api/staff/event-staff/:eventStaffId/shifts/:shiftId
+ * Edita um turno existente
+ */
+router.patch('/event-staff/:eventStaffId/shifts/:shiftId', async (c: Context) => {
+    try {
+        const payload = (c.get as any)('jwtPayload');
+        const organizerId = payload.id;
+        const { eventStaffId, shiftId } = c.req.param();
+        const body = await c.req.json();
+
+        const [assignment] = await db.select().from(eventStaff).where(eq(eventStaff.id, eventStaffId));
+        if (!assignment) return c.json({ error: 'Vínculo não encontrado' }, 404);
+
+        if (assignment.organizerId !== organizerId && payload.role !== 'master') {
+            return c.json({ error: 'Proibido' }, 403);
+        }
+
+        const formatTime = (timeStr: string) => {
+            if (timeStr.includes('T')) return timeStr.split('T')[1].substring(0, 5);
+            return timeStr;
+        };
+
+        const updateData: any = { updatedAt: new Date() };
+        if (body.shiftDate) updateData.shiftDate = body.shiftDate.includes('T') ? body.shiftDate.split('T')[0] : body.shiftDate;
+        if (body.startTime) updateData.startTime = formatTime(body.startTime);
+        if (body.endTime) updateData.endTime = formatTime(body.endTime);
+        if (body.breakDurationMinutes !== undefined) updateData.breakDurationMinutes = Number(body.breakDurationMinutes) || 0;
+
+        const [updatedShift] = await db.update(eventStaffShifts)
+            .set(updateData)
+            .where(and(eq(eventStaffShifts.id, shiftId), eq(eventStaffShifts.eventStaffId, eventStaffId)))
+            .returning();
+
+        if (!updatedShift) return c.json({ error: 'Turno não encontrado' }, 404);
+
+        return c.json(updatedShift);
+    } catch (err: any) {
+        console.error('[PATCH /shifts]', err);
+        return c.json({ error: err.message }, 500);
+    }
+});
+
+/**
+ * DELETE /api/staff/event-staff/:eventStaffId/shifts/:shiftId
+ * Exclui exclusivamente o turno, sem afetar event_staff, credencial ou roles
+ */
+router.delete('/event-staff/:eventStaffId/shifts/:shiftId', async (c: Context) => {
+    try {
+        const payload = (c.get as any)('jwtPayload');
+        const organizerId = payload.id;
+        const { eventStaffId, shiftId } = c.req.param();
+
+        const [assignment] = await db.select().from(eventStaff).where(eq(eventStaff.id, eventStaffId));
+        if (!assignment) return c.json({ error: 'Vínculo não encontrado' }, 404);
+
+        if (assignment.organizerId !== organizerId && payload.role !== 'master') {
+            return c.json({ error: 'Proibido' }, 403);
+        }
+
+        await db.delete(eventStaffShifts)
+            .where(and(eq(eventStaffShifts.id, shiftId), eq(eventStaffShifts.eventStaffId, eventStaffId)));
+
+        return c.json({ success: true, message: 'Turno removido com sucesso' });
+    } catch (err: any) {
+        console.error('[DELETE /shifts]', err);
+        return c.json({ error: err.message }, 500);
     }
 });
 
